@@ -4,7 +4,7 @@
 
 # download 3DMCGlauber
 rm -fr 3dMCGlauber_code
-git clone --depth=5 https://github.com/chunshen1987/3dMCGlauber 3dMCGlauber_code
+git clone --depth=5 https://github.com/mluzum/3dMCGlauber 3dMCGlauber_code
 (cd 3dMCGlauber_code; git checkout b6059e234c420d7169d59bc0578d03c4e6804c39)
 rm -fr 3dMCGlauber_code/.git
 
