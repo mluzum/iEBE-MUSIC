@@ -92,7 +92,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             file_name = "strings_event_{}.dat".format(event_id)
             specFilename = "spectators_event_{}.dat".format(event_id)
             binaryCollFilename = f"binaryCollisions_event_{event_id}.dat"
-            ran = np.random.default_rng().integers(1e8)
+            # Keep per-event randomness reproducible across re-submissions.
+            ran = np.random.default_rng(seed_add + event_id).integers(1e8)
             if not path.exists(file_name):
                 if database == "self":
                     cenMin = mapEventIdToCentrality(event_id)
@@ -146,7 +147,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
         file_name = "participants_event_{}.dat".format(event_id)
         specFilename = "spectators_event_{}.dat".format(event_id)
         binaryCollFilename = f"binaryCollisions_event_{event_id}.dat"
-        ran = np.random.default_rng().integers(1e8)
+        # Keep per-event randomness reproducible across re-submissions.
+        ran = np.random.default_rng(seed_add + event_id).integers(1e8)
         if not path.exists(file_name):
             if database == "self":
                 cenMin = mapEventIdToCentrality(event_id)

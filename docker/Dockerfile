@@ -31,10 +31,10 @@ RUN python3 -m pip install --upgrade pip && \
 
 ENV HOME /opt/
 
-# download and compile the iEBE-MUSIC framework
-RUN cd ${HOME} && \
-    git clone --depth=1 https://github.com/mluzum/iEBE-MUSIC -b dev && \
-    cd iEBE-MUSIC/codes && \
+# build the iEBE-MUSIC framework from the local workspace
+COPY . ${HOME}/iEBE-MUSIC
+
+RUN cd ${HOME}/iEBE-MUSIC/codes && \
     ./get_code_packages.sh && \
     ./compile_code_packages.sh && \
     cd ../EOS_database && \

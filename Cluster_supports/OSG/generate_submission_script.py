@@ -5,7 +5,6 @@
 import sys
 from os import path, makedirs
 import argparse
-import random
 
 FILENAME = "singularity.submit"
 
@@ -18,45 +17,60 @@ def print_usage():
 
 def write_submission_script(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
-    random_seed = random.SystemRandom().randint(0, 10000000)
-    imagePathHeader = "osdf://"
+    param_basename = path.basename(para_dict_["param_file"])
+    bayes_basename = path.basename(para_dict_["bayes_file"])
+    image_path = para_dict_["singularity_image_path"]
+    use_local_image = image_path.endswith('.sif') and path.exists(image_path)
+    if use_local_image:
+        image_spec = path.basename(image_path)
+        image_transfer = image_path
+    else:
+        image_spec = "osdf://" + image_path
+        image_transfer = None
+
     script = open(FILENAME, "w")
     if para_dict_["bayesFlag"]:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} $(Process) {1} {2} {3} {4}
-""".format(para_dict_["param_file"], para_dict_["n_events_per_job"],
-           para_dict_["n_threads"], random_seed, para_dict_["bayes_file"]))
+arguments = {0} $(Process) {1} {2} $(Process) {3}
+""".format(param_basename, para_dict_["n_events_per_job"],
+           para_dict_["n_threads"], bayes_basename))
     else:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} $(Process) {1} {2} {3}
-""".format(para_dict_["param_file"], para_dict_["n_events_per_job"],
-           para_dict_["n_threads"], random_seed))
+arguments = {0} $(Process) {1} {2} $(Process)
+""".format(param_basename, para_dict_["n_events_per_job"],
+           para_dict_["n_threads"]))
     script.write("""
 JobBatchName = {0}
 
 should_transfer_files = YES
 WhenToTransferOutput = ON_EXIT
 
-+SingularityImage = "{1}"
-Requirements = SINGULARITY_CAN_USE_SIF && StringListIMember("stash", HasFileTransferPluginMethods)
-""".format(jobName, imagePathHeader + para_dict_["singularity_image_path"]))
+container_image = {1}
+Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransferPluginMethods)
+""".format(jobName, image_spec))
 
+    transfer_entries = [para_dict_['param_file']]
     if para_dict_['bayesFlag']:
-        script.write("""
-transfer_input_files = {0}, {1}
-""".format(para_dict_['param_file'], para_dict_['bayes_file']))
-    else:
-        script.write("""
-transfer_input_files = {0}
-""".format(para_dict_['param_file']))
+        transfer_entries.append(para_dict_['bayes_file'])
+    if image_transfer is not None:
+        transfer_entries.append(image_transfer)
 
-    script.write(
-            "transfer_checkpoint_files = playground/event_0/EVENT_RESULTS_$(Process).tar.gz\n")
+    extra_files = para_dict_.get('extra_input_files', None)
+    if extra_files:
+        transfer_entries.extend(extra_files)
 
     script.write("""
-transfer_output_files = playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5
+transfer_input_files = {0}
+""".format(', '.join(transfer_entries)))
+
+    script.write(
+        "\ntransfer_checkpoint_files = playground/event_0/EVENT_RESULTS_$(Process).tar.gz\n")
+
+    script.write("""
+transfer_output_files = playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5, playground/event_0/3dMCGlauber/events_summary.dat
+transfer_output_remaps = "events_summary.dat = events_summary_$(Process).dat"
 
 error = log/job.$(Cluster).$(Process).error
 output = log/job.$(Cluster).$(Process).output
@@ -109,6 +123,8 @@ printf "system kernel: `uname -r`\\n"
 printf "Job running as user: `/usr/bin/id`\\n"
 
 """)
+    extra_files = para_dict_.get('extra_input_files', None)
+
     if para_dict_["bayesFlag"]:
         script.write("""bayesFile=$6
 
@@ -119,10 +135,50 @@ printf "Job running as user: `/usr/bin/id`\\n"
 /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} --nocopy --continueFlag
 """)
 
+    # Metropolis.e and Metropolis_for_dipole.e are needed for NLEFT-reweighted
+    # nuclear configurations (light_nucleus_option=6) but are not symlinked by
+    # the container's generate_jobs.py.  Add them here unconditionally.
+    script.write("""
+# Symlink Metropolis executables needed for NLEFT reweighting
+if [ -e /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis.e ] && [ -d playground/event_0/3dMCGlauber ]; then
+    ln -sf /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis.e playground/event_0/3dMCGlauber/Metropolis.e
+    ln -sf /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis_for_dipole.e playground/event_0/3dMCGlauber/Metropolis_for_dipole.e
+fi
+""")
+
+    if extra_files:
+        extra_basenames = [path.basename(item) for item in extra_files]
+        # generate_jobs.py creates playground/event_0/3dMCGlauber/tables as a
+        # symlink into the (read-only) container.  Replace that symlink with a
+        # real directory, copy default tables from the container, then overlay
+        # transferred custom files.
+        script.write("""
+# Replace the container's tables symlink with a real directory, seed it with
+# default tables from the container, then overlay transferred config files.
+rm -f playground/event_0/3dMCGlauber/tables
+mkdir -p playground/event_0/3dMCGlauber/tables
+if [ -d /opt/iEBE-MUSIC/codes/3dMCGlauber_code/tables ]; then
+    cp -a /opt/iEBE-MUSIC/codes/3dMCGlauber_code/tables/. playground/event_0/3dMCGlauber/tables/
+fi
+""")
+        for filename in extra_basenames:
+            script.write(
+                "if [ -f \"{0}\" ]; then mv \"{0}\" playground/event_0/3dMCGlauber/tables/; fi\n".format(filename)
+            )
+        script.write("""
+# Compatibility aliases: some 3dMCGlauber paths still look for VMC names.
+if [ -f playground/event_0/3dMCGlauber/tables/O16_NLEFT_reweighting.bin.in ]; then
+    cp -f playground/event_0/3dMCGlauber/tables/O16_NLEFT_reweighting.bin.in playground/event_0/3dMCGlauber/tables/O16_VMC.bin.in
+fi
+if [ -f playground/event_0/3dMCGlauber/tables/Ne20_NLEFT_reweighting.bin.in ]; then
+    cp -f playground/event_0/3dMCGlauber/tables/Ne20_NLEFT_reweighting.bin.in playground/event_0/3dMCGlauber/tables/Ne20_VMC.bin.in
+fi
+""")
+        script.write("\n")
+
     script.write("""
 cd playground/event_0
-mv EVENT_RESULTS_${processId}.tar.gz playground/event_0
-bash submit_job.script
+bash submit_job.script ${seed}
 status=$?
 if [ $status -ne 0 ]; then
     exit $status
@@ -192,6 +248,12 @@ if __name__ == "__main__":
                         type=int,
                         default="2",
                         help='memory per job (GB)')
+    parser.add_argument('-extra',
+                        '--extra_input_files',
+                        metavar='',
+                        nargs='*',
+                        default=None,
+                        help='extra input files transferred to 3dMCGlauber/tables')
 
     if len(sys.argv) < 2:
         parser.print_help()
