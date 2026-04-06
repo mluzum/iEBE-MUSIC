@@ -10,6 +10,7 @@ import argparse
 import pickle
 import random
 import time
+import yaml
 from math import ceil
 from glob import glob
 from utilities.Pick_EOS_From_File import fetch_an_EOS
@@ -24,12 +25,13 @@ centrality_list = [(0.00, 0.15, '0-5', 0.05), (0.15, 0.30, '5-10', 0.05),
 
 known_initial_types = [
     "IPGlasma", "IPGlasma+KoMPoST", "3DMCGlauber_dynamical",
-    "3DMCGlauber_participants", "3DMCGlauber_consttau"
+    "3DMCGlauber_participants", "3DMCGlauber_consttau", "TRENTo"
 ]
 
 known_afterburner_types = [
     "urqmd",
     "decay",
+    "smash"
 ]
 
 support_cluster_list = [
@@ -269,7 +271,54 @@ if [ $status -ne 0 ]; then
     exit $status
 fi""")
     script.close()
+    
+############## GENERATES SCRIPTS FOR TRENTo #######################
+def generate_script_trento(folder_name, nthreads, event_id):
+    """This function generates scripts for TRENTo simulation with Isobar-Sampler"""
+    
+    working_folder = folder_name
+    
+    script = open(path.join(working_folder, "run_trento.sh"), "w")
+    
+    results_folder = 'trento_results'
+    script.write("""#!/bin/bash
 
+results_folder={0:s}
+evid=$1
+
+ (
+cd TRENTo
+
+mkdir -p $results_folder
+rm -fr $results_folder/*
+""".format(results_folder))
+    
+    
+    if nthreads > 0:
+        script.write("""
+export OMP_NUM_THREADS={0:d}
+""".format(nthreads))
+    
+    script.write("""
+    # Run Isobar-Sampler ...
+
+(
+cd Isobar-Sampler_target
+./build_isobars.py isobars-conf_target.yaml > run.log
+mv nuclei_target ..
+)
+(
+cd Isobar-Sampler_projectile
+./build_isobars.py isobars-conf_projectile.yaml  > run.log
+mv nuclei_projectile ..
+)
+# Run TRENTo...
+./trento -c input > run.log
+mv test_path.dat $results_folder/
+ )
+""")
+    script.close()
+###################################################################
 
 def generate_script_ipglasma(folder_name, nthreads, event_id, logfile):
     """This function generates script for IPGlasma simulation"""
@@ -522,6 +571,15 @@ done
     cd ..
 done
         """)
+    elif afterburner_type == "smash":
+        script.write("""
+        cp OSCAR.DAT ../SMASH/list/OSCAR.DAT0
+        cd ../SMASH
+        ./smash -i list/config.yaml > run.log
+        cd ..
+        cp SMASH/data/0/particles_oscar2013_extended.bin UrQMD_results/particle_list.bin
+done
+        """)
     if HBT_flag:
         script.write("""
     cd hadronic_afterburner_toolkit
@@ -572,7 +630,7 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                            package_root_path, code_path, working_folder,
                            cluster_name, event_id, event_id_offset,
                            n_hydro_per_job, n_urqmd_per_hydro, n_threads,
-                           para_dict, afterburner_type, EOSType: int,
+                           para_dict, afterburner_type, isobar_seed_file, EOSType: int,
                            EOSId: int, EOSFileName: str, debugFlag: bool):
     """This function creates the event folder structure"""
     event_folder = path.join(working_folder, 'event_%d' % event_id)
@@ -580,6 +638,11 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
     mkdir(event_folder)
     shutil.copy(path.join(code_path, 'hydro_plus_UrQMD_driver.py'),
                 event_folder)
+    
+    #################################################################################
+    shutil.copy(path.join(code_path, 'analysis_cli_optimized.py'), event_folder)
+    #################################################################################
+    
     shutil.copy(
         path.join(package_root_path, 'utilities', 'IPGlasma_database',
                   'fetch_IPGlasma_event_from_hdf5_database.py'), event_folder)
@@ -605,6 +668,88 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                                   '3dMCGlauber_code/{}'.format(link_i))),
                     path.join(event_folder, "3dMCGlauber/{}".format(link_i))),
                                 shell=True)
+        ############################## GENERATE FOLDER OF ISOBAR AND TRENTo ##########################        
+        elif "TRENTo" in initial_condition_type:
+              generate_script_trento(event_folder, n_threads, event_id)
+              # Creation of Isobar and TRENTo event folders
+              mkdir(path.join(event_folder, 'TRENTo'))
+              mkdir(path.join(event_folder, 'TRENTo/Isobar-Sampler_target'))
+              mkdir(path.join(event_folder, 'TRENTo/Isobar-Sampler_projectile'))
+              
+              #################################start_configuration############################################
+              target_start = 2*event_id
+              projectile_start = 2*event_id + 1
+              
+              target_yaml_src = path.join(param_folder, 'Isobar-Sampler_target/isobars-conf_target.yaml')
+              projectile_yaml_src = path.join(param_folder, 'Isobar-Sampler_projectile/isobars-conf_projectile.yaml')
+              with open(target_yaml_src, "r") as f:
+                  target_conf = yaml.safe_load(f)
+                  
+              with open(projectile_yaml_src, "r") as f:
+                  projectile_conf = yaml.safe_load(f) 
+                  
+                  
+              target_conf["isobar_samples"]["number_configs"]["value"] = 1
+              projectile_conf["isobar_samples"]["number_configs"]["value"] = 1
+              
+              target_conf["isobar_samples"]["start_configuration"] = {
+                  "description": "Starting configuration index in the seeds file",
+                  "value": int(target_start),
+              }
+              
+              projectile_conf["isobar_samples"]["start_configuration"] = {
+                    "description": "Starting configuration index in the seeds file",
+                    "value": int(projectile_start),
+              }   
+              
+              with open(path.join(event_folder, 'TRENTo/Isobar-Sampler_target/isobars-conf_target.yaml'), "w") as f:
+                  yaml.dump(target_conf, f, sort_keys=False)
+                  
+              with open(path.join(event_folder, 'TRENTo/Isobar-Sampler_projectile/isobars-conf_projectile.yaml'), "w") as f:
+                  yaml.dump(projectile_conf, f, sort_keys=False)
+              # Copying the input files to the folders created above
+              shutil.copyfile(path.join(param_folder, 'TRENTo/input'),
+                              path.join(event_folder, 'TRENTo/input'))
+
+              # Define an absolute path for Isobar to choose the correct seed
+              
+              if not isobar_seed_file:
+                  raise ValueError("For TRENTo + Isobar, you must provide --isobar_seed_file")
+              
+              seed_file_abs = path.abspath(isobar_seed_file)
+
+              subprocess.call("ln -s {0:s} {1:s}".format(
+                    seed_file_abs,
+                    path.join(event_folder, "TRENTo/Isobar-Sampler_projectile/nucleon-seeds.hdf")),
+                                shell=True)
+        
+              subprocess.call("ln -s {0:s} {1:s}".format(
+                    seed_file_abs,
+                    path.join(event_folder, "TRENTo/Isobar-Sampler_target/nucleon-seeds.hdf")),
+                                shell=True)
+             # Sets an absolute path to the Isobar and Trento exec
+              subprocess.call("ln -s {0:s} {1:s}".format(
+                    path.abspath(
+                        path.join(code_path,
+                                  'isobar_sampler_code/exec/build_isobars.py')),
+                    path.join(event_folder, "TRENTo/Isobar-Sampler_projectile/build_isobars.py")),
+                                shell=True)
+        
+              subprocess.call("ln -s {0:s} {1:s}".format(
+                    path.abspath(
+                        path.join(code_path,
+                                  'isobar_sampler_code/exec/build_isobars.py')),
+                    path.join(event_folder, "TRENTo/Isobar-Sampler_target/build_isobars.py")),
+                                shell=True)
+        
+        
+              subprocess.call("ln -s {0:s} {1:s}".format(
+                    path.abspath(
+                        path.join(code_path,
+                                  'trento_code/build/src/trento')),
+                    path.join(event_folder, "TRENTo/trento")),
+                                shell=True)        
+        ##############################################################################################   
         elif initial_condition_type in ("IPGlasma", "IPGlasma+KoMPoST"):
             generate_script_ipglasma(event_folder, n_threads, event_id, logfile)
             mkdir(path.join(event_folder, 'ipglasma'))
@@ -766,6 +911,21 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                 path.abspath(path.join(code_path, 'urqmd_code/urqmd/urqmd.e')),
                 path.join(sub_event_folder, "urqmd/urqmd.e")),
                             shell=True)
+        ############################# SMASH ####################################   
+        if afterburner_type == "smash":
+            smash_dir = path.join(sub_event_folder, 'SMASH')
+            smash_list_dir = path.join(smash_dir, 'list')
+            mkdir(smash_dir)
+            mkdir(smash_list_dir)
+            
+            subprocess.call("ln -s {0:s} {1:s}".format(
+                path.abspath(path.join(code_path, 'smash_code/build/smash')),
+                path.join(smash_dir, "smash")),
+                            shell=True)
+            shutil.copyfile(
+                path.join(param_folder, 'SMASH/config.yaml'),
+                path.join(smash_list_dir, 'config.yaml'))
+        #######################################################################
         if HBT_flag:
             shutil.copytree(
                 path.join(code_path, 'hadronic_afterburner_toolkit'),
@@ -888,6 +1048,13 @@ def main():
                         type=int,
                         default='-1',
                         help='Random Seed (-1: according to system time)')
+    #########################################################################
+    parser.add_argument('--isobar_seed_file',
+                        metavar='',
+                        type=str,
+                        default='',
+                        help='the seed file for isobar sampling')
+    #########################################################################
     parser.add_argument('--nocopy', action='store_true')
     parser.add_argument("--continueFlag", action="store_true")
     args = parser.parse_args()
@@ -913,6 +1080,9 @@ def main():
         n_threads = args.n_threads
         job_id = args.job_process_id
         seed = args.random_seed
+        ###############################################
+        isobar_seed_file = args.isobar_seed_file
+        ###############################################
     except:
         parser.print_help()
         exit(0)
@@ -961,6 +1131,11 @@ def main():
         else:
             initial_condition_database = (
                 parameter_dict.ipglasma_dict['database_name_pattern'])
+     ####################################################################TRENTo###############################################
+    elif initial_condition_type == "TRENTo":
+          if parameter_dict.trento_dict['type'] == "self":
+               initial_condition_database = "self"
+    ################################################################################################################################
     elif initial_condition_type == "IPGlasma+KoMPoST":
         if parameter_dict.ipglasma_dict['type'] == "self":
             initial_condition_database = "self"
@@ -1106,7 +1281,7 @@ def main():
                                code_path, working_folder_name, cluster_name,
                                iev, event_id_offset, n_hydro_rescaled,
                                n_urqmd_per_hydro, n_threads, parameter_dict,
-                               afterburner_type, EOSType, EOSId, EOSFileName,
+                               afterburner_type, isobar_seed_file, EOSType, EOSId, EOSFileName,
                                debugFlag)
         event_id_offset += n_hydro_rescaled
     sys.stdout.write("\n")

@@ -24,19 +24,23 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
         time \
         vim \
         wget \
+        build-essential \
+        openmpi-bin \
+        libopenmpi-dev \
+        libboost-all-dev \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Install pre-reqs python packages
 RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install numpy h5py scipy
+    python3 -m pip install numpy h5py scipy PyYAML joblib mpmath freestream
 
 ENV HOME /opt/
 
 # download and compile the iEBE-MUSIC framework
 RUN cd ${HOME} \
-&& git clone --depth=1 https://github.com/chunshen1987/iEBE-MUSIC -b dev \
+&& git clone https://github.com/genilssom/iEBE-MUSIC -b TRENToFreestream \
 && cd iEBE-MUSIC/codes \
 && ./get_code_packages.sh \
 && ./compile_code_packages.sh \

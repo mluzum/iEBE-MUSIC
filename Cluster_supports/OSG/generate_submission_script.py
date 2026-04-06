@@ -8,6 +8,7 @@ import argparse
 
 FILENAME = "singularity.submit"
 
+
 def print_usage():
     """This function prints out help messages"""
     print("Usage: {} ".format(sys.argv[0].split("/")[-1])
@@ -19,6 +20,10 @@ def write_submission_script(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
     param_basename = path.basename(para_dict_["param_file"])
     bayes_basename = path.basename(para_dict_["bayes_file"])
+    seed_basename = "__NO_ISOBAR_SEED__"
+    if para_dict_["seed_file"]:
+        seed_basename = path.basename(para_dict_["seed_file"])
+
     image_path = para_dict_["singularity_image_path"]
     use_local_image = image_path.endswith('.sif') and path.exists(image_path)
     if use_local_image:
@@ -32,15 +37,15 @@ def write_submission_script(para_dict_):
     if para_dict_["bayesFlag"]:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} $(Process) {1} {2} $(Process) {3}
+arguments = {0} $(Process) {1} {2} $(Process) {3} {4}
 """.format(param_basename, para_dict_["n_events_per_job"],
-           para_dict_["n_threads"], bayes_basename))
+           para_dict_["n_threads"], seed_basename, bayes_basename))
     else:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} $(Process) {1} {2} $(Process)
+arguments = {0} $(Process) {1} {2} $(Process) {3}
 """.format(param_basename, para_dict_["n_events_per_job"],
-           para_dict_["n_threads"]))
+           para_dict_["n_threads"], seed_basename))
     script.write("""
 JobBatchName = {0}
 
@@ -54,6 +59,8 @@ Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransf
     transfer_entries = [para_dict_['param_file']]
     if para_dict_['bayesFlag']:
         transfer_entries.append(para_dict_['bayes_file'])
+    if para_dict_['seed_file']:
+        transfer_entries.append(para_dict_['seed_file'])
     if image_transfer is not None:
         transfer_entries.append(image_transfer)
 
@@ -111,6 +118,7 @@ processId=$2
 nHydroEvents=$3
 nthreads=$4
 seed=$5
+seedfile=$6
 
 # Run the singularity container
 export PYTHONIOENCODING=utf-8
@@ -122,17 +130,22 @@ printf "Job is running on node: `/bin/hostname`\\n"
 printf "system kernel: `uname -r`\\n"
 printf "Job running as user: `/usr/bin/id`\\n"
 
+extra_seed_arg=""
+if [ "${seedfile}" != "__NO_ISOBAR_SEED__" ]; then
+    extra_seed_arg="--isobar_seed_file ${seedfile}"
+fi
+
 """)
     extra_files = para_dict_.get('extra_input_files', None)
 
     if para_dict_["bayesFlag"]:
-        script.write("""bayesFile=$6
+        script.write("""bayesFile=$7
 
-/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} -b ${bayesFile} --nocopy --continueFlag
+/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} ${extra_seed_arg} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} -b ${bayesFile} --nocopy --continueFlag
 """)
     else:
         script.write("""
-/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} --nocopy --continueFlag
+/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} ${extra_seed_arg} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} --nocopy --continueFlag
 """)
 
     # Metropolis.e and Metropolis_for_dipole.e are needed for NLEFT-reweighted
@@ -230,6 +243,12 @@ if __name__ == "__main__":
                         type=str,
                         default="",
                         help='parameter file')
+    parser.add_argument('-seedfile',
+                        '--seed_file',
+                        metavar='',
+                        type=str,
+                        default="",
+                        help='optional isobar seed file for TRENTo runs')
     parser.add_argument('-jobid',
                         '--job_name',
                         metavar='',

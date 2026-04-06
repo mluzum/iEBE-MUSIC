@@ -23,51 +23,70 @@ case "${machine}" in
     Darwin*)    number_of_cores=`sysctl -n hw.ncpu`;;
     *)          number_of_cores=1;;
 esac
-number_of_cores_to_compile=$(( ${number_of_cores} > 10 ? 10 : ${number_of_cores} ))
+number_of_cores_to_compile=$(( ${number_of_cores} > 2 ? 2 : ${number_of_cores} ))
+
+
+# compile TRENTo
+echo -e "${Green}compile TRENTo ... ${NC}"
+(
+    cd trento_code
+    rm -fr build
+    mkdir -p build
+    cd build
+    cmake ..
+    make -j${number_of_cores_to_compile}
+    make install
+)
+status=$?
+if [ $status -ne 0 ]; then
+    exit $status
+fi
+
+
 
 # compile 3dMCGlauber
-echo -e "${Green}compile 3dMCGlauber ... ${NC}"
-(
-    cd 3dMCGlauber_code
-    ./get_LHAPDF.sh
-    rm -fr build
-    mkdir -p build
-    cd build
-    CC=${CCFlag} CXX=${CXXFlag} cmake .. -Dlink_with_lib=OFF
-    make -j${number_of_cores_to_compile}
-    make install
-)
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
-fi
+#echo -e "${Green}compile 3dMCGlauber ... ${NC}"
+#(
+#    cd 3dMCGlauber_code
+#    ./get_LHAPDF.sh
+#    rm -fr build
+#    mkdir -p build
+#    cd build
+#    CC=${CCFlag} CXX=${CXXFlag} cmake .. -Dlink_with_lib=OFF
+#    make -j${number_of_cores_to_compile}
+#    make install
+#)
+#status=$?
+#if [ $status -ne 0 ]; then
+#    exit $status
+#fi
 
 # compile IPGlasma
-echo -e "${Green}compile IPGlasma ... ${NC}"
-(
-    cd ipglasma_code
-    rm -fr build
-    mkdir -p build
-    cd build
-    CC=${CCFlag} CXX=${CXXFlag} cmake .. -DdisableMPI=ON
-    make -j${number_of_cores_to_compile}
-    make install
-)
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
-fi
+#echo -e "${Green}compile IPGlasma ... ${NC}"
+#(
+#    cd ipglasma_code
+#    rm -fr build
+#    mkdir -p build
+#    cd build
+#    CC=${CCFlag} CXX=${CXXFlag} cmake .. -DdisableMPI=ON
+#    make -j${number_of_cores_to_compile}
+#    make install
+#)
+#status=$?
+#if [ $status -ne 0 ]; then
+#    exit $status
+#fi
 
 # compile KoMPoST
-echo -e "${Green}compile KoMPoST ... ${NC}"
-(
-    cd kompost_code
-    CXX=${CXXFlag} make
-)
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
-fi
+#echo -e "${Green}compile KoMPoST ... ${NC}"
+#(
+#    cd kompost_code
+#    CXX=${CXXFlag} make
+#)
+#status=$?
+#if [ $status -ne 0 ]; then
+#    exit $status
+#fi
 
 # compile MUSIC
 echo -e "${Green}compile MUSIC ... ${NC}"
@@ -90,20 +109,20 @@ cp MUSIC_code/utilities/sweeper.sh MUSIC/
 (cd MUSIC; mkdir -p initial)
 
 # compile photonEmission_hydroInterface
-echo -e "${Green}compile photonEmission_hydroInterface ... ${NC}"
-(
-    cd photonEmission_hydroInterface_code
-    rm -fr build
-    mkdir -p build
-    cd build
-    CC=${CCFlag} CXX=${CXXFlag} cmake ..
-    make -j${number_of_cores_to_compile}
-    make install
-)
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
-fi
+#echo -e "${Green}compile photonEmission_hydroInterface ... ${NC}"
+#(
+#    cd photonEmission_hydroInterface_code
+#    rm -fr build
+#    mkdir -p build
+#    cd build
+#    CC=${CCFlag} CXX=${CXXFlag} cmake ..
+#    make -j${number_of_cores_to_compile}
+#    make install
+#)
+#status=$?
+#if [ $status -ne 0 ]; then
+#    exit $status
+#fi
 
 # download iSS particle sampler
 echo -e "${Green}compile iSS ... ${NC}"
@@ -136,6 +155,27 @@ cp urqmd_code/osc2u/osc2u.e osc2u/
 mkdir -p urqmd
 cp urqmd_code/urqmd/runqmd.sh urqmd/
 cp urqmd_code/urqmd/uqmd.burner urqmd/
+
+
+# compile SMASH
+echo -e "${Green}compile SMASH ... ${NC}"
+(
+cd smash_code
+rm -fr build
+mkdir -p build && cd build
+CC=${CCFlag} CXX=${CXXFlag} cmake \
+        -DPythia_CONFIG_EXECUTABLE="${HOME}/pythia8315/bin/pythia8-config" \
+        -DTRY_USE_HEPMC=OFF \
+        ..
+    make -j2 smash
+)
+status=$?
+if [ $status -ne 0 ]; then
+    exit $status
+fi
+mkdir -p smash
+cp smash_code/build/smash smash/
+
 
 
 # download hadronic afterner
