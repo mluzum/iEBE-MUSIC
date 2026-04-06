@@ -108,7 +108,16 @@ clone_repo_at_commit \
 #download deltaf_tables for iSS
 (
   cd iSS_code/iSS_tables/deltaf_tables/urqmd
-  bash download_NEoS4D_deltafCoeffs.sh
+  # Older iSS layouts required downloading these tables; the pinned commit
+  # already ships them. Keep backward compatibility by running the script
+  # only when it exists.
+  if [ -x download_NEoS4D_deltafCoeffs.sh ]; then
+    bash download_NEoS4D_deltafCoeffs.sh
+  elif [ -f download_NEoS4D_deltafCoeffs.sh ]; then
+    bash ./download_NEoS4D_deltafCoeffs.sh
+  else
+    echo "download_NEoS4D_deltafCoeffs.sh not found; using bundled deltaf tables"
+  fi
 )
 
 # download nucleus configurations for 3D-Glauber
