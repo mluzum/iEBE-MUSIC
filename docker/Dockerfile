@@ -1,6 +1,6 @@
 FROM opensciencegrid/software-base:23-el9-release
 
-MAINTAINER Chun Shen <chunshen@wayne.edu>
+LABEL maintainer="Chun Shen <chunshen@wayne.edu>"
 
 RUN yum -y install \
         cmake \
@@ -39,7 +39,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
         mpmath \
         freestream
 
-ENV HOME /opt/
+ENV HOME=/opt/
 
 # Build and install Pythia8 from source (required by SMASH)
 RUN cd /tmp && \
@@ -71,7 +71,7 @@ RUN cd ${HOME}/iEBE-MUSIC/codes && \
 # Cleaning caches to reduce size of image
 RUN yum clean all
 
-ENV PYTHONIOENCODING utf-8
+ENV PYTHONIOENCODING=utf-8
 WORKDIR ${HOME}
 
 RUN mkdir -p /opt/.local/share/trento
