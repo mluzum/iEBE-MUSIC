@@ -15,13 +15,13 @@ from pathlib import Path
 control_dict = {
     'walltime': "10:00:00",  # walltime to run
     'initial_state_type':
-        "TRENTo",  # options: TRENTo, IPGlasma, IPGlasma+KoMPoST,
+        "3DMCGlauber_dynamical",  # options: TRENTo, IPGlasma, IPGlasma+KoMPoST,
     #          3DMCGlauber_dynamical, 3DMCGlauber_consttau
-    'afterburner_type': "SMASH",  # options: UrQMD, decay, SMASH
+    'afterburner_type': "UrQMD",  # options: UrQMD, decay, SMASH
     'save_ipglasma_results': False,  # flag to save IPGlasma results
     'save_kompost_results': False,  # flag to save kompost results
     'save_hydro_surfaces': False,  # flag to save hydro surfaces
-    'save_UrQMD_files': True,  # flag to save UrQMD files
+    'save_UrQMD_files': False,  # flag to save UrQMD files
     'compute_photon_emission':
         False,  # flag to compute EM radiation from hydrodynamic medium
     'compute_polarization': False,  # flag to save spin polarization results
@@ -468,7 +468,7 @@ music_dict = {
     'freeze_out_method': 4,  # method for hyper-surface finder
     # 4: Cornelius
     'freeze_surface_in_binary':
-        0,  # switch to output surface file in binary format
+        1,  # switch to output surface file in binary format
     'average_surface_over_this_many_time_steps':
         10,  # the step skipped in the tau
     'freeze_Ncell_x_step': 1,
@@ -977,9 +977,10 @@ def update_parameters_dict(par_dict_path, ran_seed):
         photon_dict.update(parameters_dict.photon_dict)
 
     try:
-        afterburner_type = parameters_dict.control_dict['afterburner_type']
+        afterburner_type = parameters_dict.control_dict[
+            'afterburner_type'].lower()
     except KeyError:
-        afterburner_type = "UrQMD"
+        afterburner_type = "urqmd"
     iss_dict.update(parameters_dict.iss_dict)
     iss_dict['randomSeed'] = ran_seed
     iss_dict['number_of_particles_needed'] = (int(
@@ -994,7 +995,7 @@ def update_parameters_dict(par_dict_path, ran_seed):
         hadronic_afterburner_toolkit_dict['read_in_mode'] = 9
     ##################################################################################
     smash_config_dict.update(parameters_dict.smash_config_dict)
-    if afterburner_type == "SMASH":
+    if afterburner_type == "smash":
         music_dict['EOS_to_use'] = 91
         iss_dict['afterburner_type'] = 2
         iss_dict['use_OSCAR_format'] = 1

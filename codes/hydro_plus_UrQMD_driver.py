@@ -12,7 +12,6 @@ import shutil
 import re
 import h5py
 import numpy as np
-import freestream
 from fetch_IPGlasma_event_from_hdf5_database import fecth_an_IPGlasma_event, fecth_an_IPGlasma_event_Tmunu
 from fetch_3DMCGlauber_event_from_hdf5_database import fecth_an_3DMCGlauber_event
 
@@ -32,7 +31,10 @@ def fecth_an_3DMCGlauber_smooth_event(database_path, iev):
        database_path folder
     """
     filelist = glob(path.join(database_path, 'nuclear_thickness_TA_*.dat'))
-    return (filelist[iev])
+    filelist = sorted(filelist)
+    if iev < len(filelist):
+        return True, filelist[iev]
+    return False, ""
 
 
 def mapEventIdToCentrality(event_id):
@@ -208,7 +210,12 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                       "spectators_{}.dat".format(event_id)))
         return status, file_name
     elif initial_type == "3DMCGlauber_consttau":
-        file_name = fecth_an_3DMCGlauber_smooth_event(database, event_id)
+        status, file_name = fecth_an_3DMCGlauber_smooth_event(
+            database, event_id)
+        if status:
+            print(f"Using initial file: {file_name}")
+        else:
+            print(f"initial file not found: {file_name}")
         return status, file_name
     else:
         print("\U0001F6AB  "
@@ -238,6 +245,12 @@ def collect_trento_event(final_results_folder):
     
 def connect_trento_event(res_path, initial_type, filename):
     if initial_type == "TRENTo":
+        try:
+            import freestream
+        except ImportError as exc:
+            raise ImportError(
+                "TRENTo initial condition requires the Python package 'freestream'."
+            ) from exc
         file_path = path.join(res_path, filename)
         initial = np.loadtxt(file_path)
         fs = freestream.FreeStreamer(initial, 10.0, 1.0)
@@ -913,13 +926,14 @@ def main(para_dict_):
                 urqmd_file_path),
                   flush=True)
             continue
-        
+
         #########################################################################################
-        if para_dict_['afterburner_type'] == "SMASH":
+        if para_dict_['afterburner_type'] == "smash":
             curr_time = time.asctime()
-            print(f"\U0001F4BE [{curr_time}] SMASH is finished. " 
+            print(f"\U0001F4BE [{curr_time}] SMASH is finished. "
                   f"Binary file saved in: {urqmd_file_path}", flush=True)
-            status = run_smash_analysis(urqmd_file_path, final_results_folder, event_id, analysis_mode="2D")
+            status = run_smash_analysis(urqmd_file_path, final_results_folder,
+                                        event_id, analysis_mode="2D")
         ##########################################################################################
         
         else:
@@ -959,7 +973,7 @@ if __name__ == "__main__":
         COMP_POLARIZATION = (sys.argv[12].lower() == "true")
         COMP_PHOTONS = (sys.argv[13].lower() == "true")
         CHECK_POINT = (sys.argv[14].lower() == "true")
-        AFTERBURNER_TYPE = str(sys.argv[15])
+        AFTERBURNER_TYPE = str(sys.argv[15]).lower()
     except IndexError:
         print_usage()
         sys.exit(0)
