@@ -159,22 +159,31 @@ cp urqmd_code/urqmd/uqmd.burner urqmd/
 
 # compile SMASH
 echo -e "${Green}compile SMASH ... ${NC}"
-(
-cd smash_code
-rm -fr build
-mkdir -p build && cd build
-CC=${CCFlag} CXX=${CXXFlag} cmake \
-        -DPythia_CONFIG_EXECUTABLE="${HOME}/pythia8315/bin/pythia8-config" \
-        -DTRY_USE_HEPMC=OFF \
-        ..
-    make -j2 smash
-)
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
+PYTHIA_CONFIG_EXECUTABLE="${HOME}/pythia8315/bin/pythia8-config"
+if [ ! -x "${PYTHIA_CONFIG_EXECUTABLE}" ]; then
+    PYTHIA_CONFIG_EXECUTABLE="$(command -v pythia8-config || true)"
 fi
-mkdir -p smash
-cp smash_code/build/smash smash/
+
+if [ -n "${PYTHIA_CONFIG_EXECUTABLE}" ] && [ -x "${PYTHIA_CONFIG_EXECUTABLE}" ]; then
+    (
+    cd smash_code
+    rm -fr build
+    mkdir -p build && cd build
+    CC=${CCFlag} CXX=${CXXFlag} cmake \
+            -DPythia_CONFIG_EXECUTABLE="${PYTHIA_CONFIG_EXECUTABLE}" \
+            -DTRY_USE_HEPMC=OFF \
+            ..
+        make -j2 smash
+    )
+    status=$?
+    if [ $status -ne 0 ]; then
+        exit $status
+    fi
+    mkdir -p smash
+    cp smash_code/build/smash smash/
+else
+    echo -e "${Green}Skipping SMASH build: pythia8-config not found${NC}"
+fi
 
 
 
