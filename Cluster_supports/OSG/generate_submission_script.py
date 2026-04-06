@@ -4,58 +4,80 @@
 
 import sys
 from os import path, makedirs
-import random
+import argparse
 
 FILENAME = "singularity.submit"
+
 
 def print_usage():
     """This function prints out help messages"""
     print("Usage: {} ".format(sys.argv[0].split("/")[-1])
           + "Njobs Nevents_per_job N_threads SingularityImage ParameterFile "
-          + "SeedFile jobId [bayesFile]")
+          + "jobId [bayes_file]")
 
 
 def write_submission_script(para_dict_):
-    jobName = "iEBEMUSIC_{}".format(para_dict_["job_id"])
-    random_seed = random.SystemRandom().randint(0, 10000000)
-    imagePathHeader = "osdf://"
+    jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
+    param_basename = path.basename(para_dict_["param_file"])
+    bayes_basename = path.basename(para_dict_["bayes_file"])
+    seed_basename = "__NO_ISOBAR_SEED__"
+    if para_dict_["seed_file"]:
+        seed_basename = path.basename(para_dict_["seed_file"])
+
+    image_path = para_dict_["singularity_image_path"]
+    use_local_image = image_path.endswith('.sif') and path.exists(image_path)
+    if use_local_image:
+        image_spec = path.basename(image_path)
+        image_transfer = image_path
+    else:
+        image_spec = "osdf://" + image_path
+        image_transfer = None
+
     script = open(FILENAME, "w")
     if para_dict_["bayesFlag"]:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} {1} $(Process) {2} {3} {4} {5}
-""".format(para_dict_["paraFile"], para_dict_["seedFile"], para_dict_["n_events_per_job"],
-           para_dict_["n_threads"], random_seed, para_dict_["bayesFile"]))
+arguments = {0} $(Process) {1} {2} $(Process) {3} {4}
+""".format(param_basename, para_dict_["n_events_per_job"],
+           para_dict_["n_threads"], seed_basename, bayes_basename))
     else:
         script.write("""universe = vanilla
 executable = run_singularity.sh
-arguments = {0} {1} $(Process) {2} {3} {4}
-""".format(para_dict_["paraFile"], para_dict_["seedFile"], para_dict_["n_events_per_job"],
-           para_dict_["n_threads"], random_seed))
+arguments = {0} $(Process) {1} {2} $(Process) {3}
+""".format(param_basename, para_dict_["n_events_per_job"],
+           para_dict_["n_threads"], seed_basename))
     script.write("""
 JobBatchName = {0}
 
 should_transfer_files = YES
 WhenToTransferOutput = ON_EXIT
 
-+SingularityImage = "{1}"
-Requirements = SINGULARITY_CAN_USE_SIF && StringListIMember("stash", HasFileTransferPluginMethods)
-""".format(jobName, imagePathHeader + para_dict_["image_with_path"]))
+container_image = {1}
+Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransferPluginMethods)
+""".format(jobName, image_spec))
 
+    transfer_entries = [para_dict_['param_file']]
     if para_dict_['bayesFlag']:
-        script.write("""
-transfer_input_files = {0}, {1}, {2}
-""".format(para_dict_['paraFile'], para_dict_['seedFile'], para_dict_['bayesFile']))
-    else:
-        script.write("""
-transfer_input_files = {0}, {1}
-""".format(para_dict_['paraFile'], para_dict_['seedFile']))
+        transfer_entries.append(para_dict_['bayes_file'])
+    if para_dict_['seed_file']:
+        transfer_entries.append(para_dict_['seed_file'])
+    if image_transfer is not None:
+        transfer_entries.append(image_transfer)
 
-    script.write(
-            "transfer_checkpoint_files = playground/event_0/EVENT_RESULTS_$(Process).tar.gz\n")
+    extra_files = para_dict_.get('extra_input_files', None)
+    if extra_files:
+        transfer_entries.extend(extra_files)
 
     script.write("""
-transfer_output_files = playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5
+transfer_input_files = {0}
+""".format(', '.join(transfer_entries)))
+
+    script.write(
+        "\ntransfer_checkpoint_files = playground/event_0/EVENT_RESULTS_$(Process).tar.gz\n")
+
+    script.write("""
+transfer_output_files = playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5, playground/event_0/3dMCGlauber/events_summary.dat
+transfer_output_remaps = "events_summary.dat = events_summary_$(Process).dat"
 
 error = log/job.$(Cluster).$(Process).error
 output = log/job.$(Cluster).$(Process).output
@@ -82,7 +104,8 @@ request_memory = {1:d} GB
 request_disk = 2 GB
 
 # Queue one job with the above specifications.
-queue {1:d}""".format(para_dict_["n_threads"], para_dict_["n_jobs"]))
+queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
+                      para_dict_["n_jobs"]))
     script.close()
 
 
@@ -91,72 +114,84 @@ def write_job_running_script(para_dict_):
     script.write("""#!/usr/bin/env bash
 
 parafile=$1
-seedfile=$2
-processId=$3
-nHydroEvents=$4
-nthreads=$5
-seed=$6
+processId=$2
+nHydroEvents=$3
+nthreads=$4
+seed=$5
+seedfile=$6
 
-
+# Run the singularity container
 export PYTHONIOENCODING=utf-8
 export PATH="${PATH}:/usr/lib64/openmpi/bin:/usr/local/gsl/2.5/x86_64/bin"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib:/usr/local/gsl/2.5/x86_64/lib64"
-
-jobdir=$(pwd)
-export JOBDIR="${jobdir}"
-export TMPDIR="${jobdir}/tmp"
-export HOME="${jobdir}"
-export XDG_DATA_HOME="${jobdir}/.local/share"
-export XDG_CACHE_HOME="${jobdir}/.cache"
-export TRENTO_CACHE="${jobdir}/.trento"
-
-export SINGULARITYENV_HOME="${HOME}"
-export SINGULARITYENV_TMPDIR="${TMPDIR}"
-export SINGULARITYENV_XDG_DATA_HOME="${XDG_DATA_HOME}"
-export SINGULARITYENV_XDG_CACHE_HOME="${XDG_CACHE_HOME}"
-export SINGULARITYENV_TRENTO_CACHE="${TRENTO_CACHE}"
-
-mkdir -p "${TMPDIR}"
-mkdir -p "${XDG_DATA_HOME}"
-mkdir -p "${XDG_CACHE_HOME}"
-mkdir -p "${TRENTO_CACHE}"
-mkdir -p "${XDG_DATA_HOME}/trento"
-
-touch "${TRENTO_CACHE}/write_test.txt" || { echo "Cannot write to TRENTO_CACHE"; exit 101; }
-touch "${XDG_DATA_HOME}/write_test.txt" || { echo "Cannot write to XDG_DATA_HOME"; exit 102; }
-touch "${TMPDIR}/write_test.txt" || { echo "Cannot write to TMPDIR"; exit 103; }
 
 printf "Start time: `/bin/date`\\n"
 printf "Job is running on node: `/bin/hostname`\\n"
 printf "system kernel: `uname -r`\\n"
 printf "Job running as user: `/usr/bin/id`\\n"
 
-echo "==== Environment debug ===="
-echo "PWD=${PWD}"
-echo "HOME=${HOME}"
-echo "TMPDIR=${TMPDIR}"
-echo "XDG_DATA_HOME=${XDG_DATA_HOME}"
-echo "XDG_CACHE_HOME=${XDG_CACHE_HOME}"
-echo "TRENTO_CACHE=${TRENTO_CACHE}"
-echo "SINGULARITYENV_HOME=${SINGULARITYENV_HOME}"
-echo "SINGULARITYENV_XDG_DATA_HOME=${SINGULARITYENV_XDG_DATA_HOME}"
-echo "SINGULARITYENV_TRENTO_CACHE=${SINGULARITYENV_TRENTO_CACHE}"
-echo "==========================="
-""")
-    if para_dict_["bayesFlag"]:
-        script.write("""bayesFile=$6
+extra_seed_arg=""
+if [ "${seedfile}" != "__NO_ISOBAR_SEED__" ]; then
+    extra_seed_arg="--isobar_seed_file ${seedfile}"
+fi
 
-/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} --isobar_seed_file ${seedfile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} -b ${bayesFile} --nocopy --continueFlag
+""")
+    extra_files = para_dict_.get('extra_input_files', None)
+
+    if para_dict_["bayesFlag"]:
+        script.write("""bayesFile=$7
+
+/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} ${extra_seed_arg} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} -b ${bayesFile} --nocopy --continueFlag
 """)
     else:
         script.write("""
-/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} --isobar_seed_file ${seedfile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} --nocopy --continueFlag
+/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} ${extra_seed_arg} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} --nocopy --continueFlag
 """)
+
+    # Metropolis.e and Metropolis_for_dipole.e are needed for NLEFT-reweighted
+    # nuclear configurations (light_nucleus_option=6) but are not symlinked by
+    # the container's generate_jobs.py.  Add them here unconditionally.
+    script.write("""
+# Symlink Metropolis executables needed for NLEFT reweighting
+if [ -e /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis.e ] && [ -d playground/event_0/3dMCGlauber ]; then
+    ln -sf /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis.e playground/event_0/3dMCGlauber/Metropolis.e
+    ln -sf /opt/iEBE-MUSIC/codes/3dMCGlauber_code/Metropolis_for_dipole.e playground/event_0/3dMCGlauber/Metropolis_for_dipole.e
+fi
+""")
+
+    if extra_files:
+        extra_basenames = [path.basename(item) for item in extra_files]
+        # generate_jobs.py creates playground/event_0/3dMCGlauber/tables as a
+        # symlink into the (read-only) container.  Replace that symlink with a
+        # real directory, copy default tables from the container, then overlay
+        # transferred custom files.
+        script.write("""
+# Replace the container's tables symlink with a real directory, seed it with
+# default tables from the container, then overlay transferred config files.
+rm -f playground/event_0/3dMCGlauber/tables
+mkdir -p playground/event_0/3dMCGlauber/tables
+if [ -d /opt/iEBE-MUSIC/codes/3dMCGlauber_code/tables ]; then
+    cp -a /opt/iEBE-MUSIC/codes/3dMCGlauber_code/tables/. playground/event_0/3dMCGlauber/tables/
+fi
+""")
+        for filename in extra_basenames:
+            script.write(
+                "if [ -f \"{0}\" ]; then mv \"{0}\" playground/event_0/3dMCGlauber/tables/; fi\n".format(filename)
+            )
+        script.write("""
+# Compatibility aliases: some 3dMCGlauber paths still look for VMC names.
+if [ -f playground/event_0/3dMCGlauber/tables/O16_NLEFT_reweighting.bin.in ]; then
+    cp -f playground/event_0/3dMCGlauber/tables/O16_NLEFT_reweighting.bin.in playground/event_0/3dMCGlauber/tables/O16_VMC.bin.in
+fi
+if [ -f playground/event_0/3dMCGlauber/tables/Ne20_NLEFT_reweighting.bin.in ]; then
+    cp -f playground/event_0/3dMCGlauber/tables/Ne20_NLEFT_reweighting.bin.in playground/event_0/3dMCGlauber/tables/Ne20_VMC.bin.in
+fi
+""")
+        script.write("\n")
 
     script.write("""
 cd playground/event_0
-mv EVENT_RESULTS_${processId}.tar.gz playground/event_0
-bash submit_job.script
+bash submit_job.script ${seed}
 status=$?
 if [ $status -ne 0 ]; then
     exit $status
@@ -174,36 +209,79 @@ def main(para_dict_):
 
 
 if __name__ == "__main__":
-    bayesFlag = False
-    bayesFile = ""
-    try:
-        N_JOBS = int(sys.argv[1])
-        N_EVENTS_PER_JOBS = int(sys.argv[2])
-        N_THREADS = int(sys.argv[3])
-        SINGULARITY_IMAGE_PATH = sys.argv[4]
-        SINGULARITY_IMAGE = SINGULARITY_IMAGE_PATH.split("/")[-1]
-        PARAMFILE = sys.argv[5]
-        SEEDFILE = sys.argv[6]
-        JOBID = sys.argv[7]
-        if len(sys.argv) == 9:
-            bayesFile = sys.argv[8]
-            bayesFlag = True
-    except (IndexError, ValueError) as e:
-        print_usage()
+    parser = argparse.ArgumentParser(
+        description='Welcome to OSG script for the iEBE-MUSIC framework',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-n',
+                        '--n_jobs',
+                        metavar='',
+                        type=int,
+                        default=1,
+                        help='number of jobs')
+    parser.add_argument('-nev',
+                        '--n_events_per_job',
+                        metavar='',
+                        type=int,
+                        default=1,
+                        help='number of events per job')
+    parser.add_argument('-nth',
+                        '--n_threads',
+                        metavar='',
+                        type=int,
+                        default=1,
+                        help='number of threads used for each job')
+    parser.add_argument('-singularity',
+                        '--singularity_image_path',
+                        metavar='',
+                        type=str,
+                        default="",
+                        help='singularity image path')
+    parser.add_argument('-param',
+                        '--param_file',
+                        metavar='',
+                        type=str,
+                        default="",
+                        help='parameter file')
+    parser.add_argument('-seedfile',
+                        '--seed_file',
+                        metavar='',
+                        type=str,
+                        default="",
+                        help='optional isobar seed file for TRENTo runs')
+    parser.add_argument('-jobid',
+                        '--job_name',
+                        metavar='',
+                        type=str,
+                        default="test",
+                        help='job name')
+    parser.add_argument('-bayes',
+                        '--bayes_file',
+                        metavar='',
+                        type=str,
+                        default="",
+                        help='bayes file')
+    parser.add_argument('-mem',
+                        '--memory_per_job',
+                        metavar='',
+                        type=int,
+                        default="2",
+                        help='memory per job (GB)')
+    parser.add_argument('-extra',
+                        '--extra_input_files',
+                        metavar='',
+                        nargs='*',
+                        default=None,
+                        help='extra input files transferred to 3dMCGlauber/tables')
+
+    if len(sys.argv) < 2:
+        parser.print_help()
         exit(0)
 
-    para_dict = {
-        'n_jobs': N_JOBS,
-        'n_events_per_job': N_EVENTS_PER_JOBS,
-        'n_threads': N_THREADS,
-        'image_name': SINGULARITY_IMAGE,
-        'image_with_path': SINGULARITY_IMAGE_PATH,
-        'paraFile': PARAMFILE,
-        'seedFile': SEEDFILE,
-        'job_id': JOBID,
-        'bayesFlag': bayesFlag,
-        'bayesFile': bayesFile,
-    }
+    para_dict = vars(parser.parse_args())
+
+    para_dict["bayesFlag"] = False
+    if para_dict["bayes_file"] != "":
+        para_dict["bayesFlag"] = True
 
     main(para_dict)
-

@@ -12,20 +12,30 @@ control_dict = {
     'save_hydro_surfaces': False,   # flag to save hydro surfaces
     'save_UrQMD_files': False,      # flag to save UrQMD files
     'compute_photon_emission': False,   # flag to compute EM radiation from hydrodynamic medium
-    'usePosteriorParameters': False,
-    'PosteriorChainFilePath': "config/BESPost",
+    'usePosteriorParameters': True,
+    'PosteriorChainFilePath': "config/arXiv_2507.11394/Posterior2",
     'PosteriorParamSet': 0,
     'PosteriorParamSetFlag': 0,     # 0: choose from sorted chain
                                     # 1: choose from parameter clusters
+
 }
 
 
 # 3DMCGlauber model
 mcglauber_dict = {
     'database_name': "self",     # self: generate initial condition on the fly
-    'Projectile':  "Au",         # projectile nucleus name
-    'Target'    :  "Au",         # target nucleus name
-    'roots'     :  200,          # collision energy (GeV)
+    'Projectile':  "Pb",         # projectile nucleus name
+    'Target'    :  "d",          # target nucleus name
+    'nucleon_configuration_from_file': 0,
+    'light_nucleus_option': 0,
+    'ProjPolarizationFlag': 0,
+    'TargPolarizationFlag': 2,      # 0: unpolarized; 1: longitudinal polarized; 2: transverse polarized
+    'Proj_polJz': 0,                # polarized Jz for projectile
+    'Targ_polJz': 1,                # polarized Jz for target
+    'b_min': 0.,                    # minimum impact parameter (fm)
+    'b_max': 20.,                   # maximum impact parameter (fm)
+    'randomRPflag': 1,
+    'roots'     : 71,               # collision energy (GeV)
     'seed'      :   -1,          # random seed (-1: system)
     'baryon_junctions': 1,       # 0: baryon number assumed to be at string end
                                  # 1: baryon number transported assuming baryon
@@ -126,7 +136,7 @@ hadronic_afterburner_toolkit_dict = {
     'analyze_flow': 3,                   # 0/1: flag to perform flow analysis
     'analyze_HBT': 0,                    # 0/1: flag to perform HBT analysis
     'event_buffer_size': 500000,         # the number of events read in at once
-    'rapidity_shift':  0.0,              # 0.5*log(Z_P*A_T/(A_P*Z_T))
+    'rapidity_shift':  4.259,            # 0.5*log(Z_P*A_T/(A_P*Z_T))
     'compute_correlation': 0,            # flag to compute correlation function
     'flag_charge_dependence': 0,         # flag to compute charge dependence correlation
     'compute_corr_rap_dep': 0,           # flag to compute the rapidity dependent multi-particle correlation
@@ -135,6 +145,6 @@ hadronic_afterburner_toolkit_dict = {
     'pT_min': 0.00,               # the minimum value of transverse momentum (GeV)
     'pT_max': 3.80,               # the maximum value of transverse momentum (GeV)
     'n_rap': 71,                  # numpber of points in rapidity distr.
-    'rapidity_dis_min': -7.0,     # minimum value of particle rapidity distribution
-    'rapidity_dis_max': 7.0,      # maximum value of particle rapidity distribution
+    'rapidity_dis_min': -4.0,     # minimum value of particle rapidity distribution
+    'rapidity_dis_max': 10.0,     # maximum value of particle rapidity distribution
 }

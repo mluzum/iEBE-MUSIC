@@ -31,9 +31,9 @@ control_dict = {
     'debugFlag': False,
     'usePosteriorParameters': False,
     'PosteriorChainFilePath': "config/arXiv_2408.00537",
-    'PosteriorParamSet': 0,         # -1: choose randoomly
-    'PosteriorParamSetFlag': 0,     # 0: choose from sorted chain
-                                    # 1: choose from parameter clusters
+    'PosteriorParamSet': 0,  # -1: choose randoomly
+    'PosteriorParamSetFlag': 0,  # 0: choose from sorted chain
+    # 1: choose from parameter clusters
 }
 
 # isobar-sample
@@ -160,9 +160,9 @@ ipglasma_dict = {
     'mode': 1,  # run mode
     'readMultFromFile': 0,
     'size': 800,  # number of grid points of IP-Glasma computation
-    'L': 30.,     # grid size in the transverse plane
-    'Nc': 3,      # number of color
-    'm': 0.2,     # infrared cut-off mass (GeV)
+    'L': 30.,  # grid size in the transverse plane
+    'Nc': 3,  # number of color
+    'm': 0.2,  # infrared cut-off mass (GeV)
     'rmax': 100.,
     'UVdamp': 0.,
     'Jacobianm': 0.35,
@@ -206,7 +206,8 @@ ipglasma_dict = {
     'protonAnisotropy': 0,
     'roots': 200.,
     'usePseudoRapidity': 0,
-    'Rapidity': 0.,
+    'RapidityA': 0.,
+    'RapidityB': 0.,
     'useFluctuatingx': 1,
     'xFromThisFactorTimesQs': 1,
     'useNucleus': 1,
@@ -229,6 +230,12 @@ ipglasma_dict = {
     'bmax': 20.,
     'rotateReactionPlane': 0,
     'lightNucleusOption': 1,
+    'polariztionProjectile':
+        0,  # 0: unpolarized; 1: longitudinal polarized; 2: transverse polarized
+    'polariztionTarget':
+        0,  # 0: unpolarized; 1: longitudinal polarized; 2: transverse polarized
+    'polarizationProjectileJz': 0,
+    'polarizationTargetJz': 0,
     'useFixedNpart': 0,
     'averageOverThisManyNuclei': 1,
     'SigmaNN': 42.,
@@ -257,7 +264,7 @@ ipglasma_dict = {
     'Lambda_QCD_jimwlk': 0.040,
     'm_jimwlk': 0.4,
     'saveSnapshots': 0,
-    'xSnapshotList': [5e-3,2e-3,0.0001,0.00005,0.00001]
+    'xSnapshotList': [5e-3, 2e-3, 0.0001, 0.00005, 0.00001]
 }
 
 # 3DMCGlauber model
@@ -268,11 +275,22 @@ mcglauber_dict = {
     'nucleon_configuration_from_file': 0,
     'light_nucleus_option':
         0,  # light nucleus configurations from different nuclear structure theory
+    'ProjPolarizationFlag':
+        0,  # 0: unpolarized; 1: longitudinal polarized; 2: transverse polarized
+    'TargPolarizationFlag':
+        0,  # 0: unpolarized; 1: longitudinal polarized; 2: transverse polarized
+    'Proj_polJz': 0,  # polarized Jz for projectile
+    'Targ_polJz': 0,  # polarized Jz for target
+    'resetProjWS': 0,  # 1: reset W_S for projectile
+    'resetTargWS': 0,  # 1: reset W_S for projectile
     'roots': 17.3,  # collision energy (GeV)
     'useQuarks': 1,  # switch to use valence quarks
     'Q2': 1.,  # the scale when evaluating the pdf
     'b_min': 0.,  # minimum impact parameter (fm)
     'b_max': 20.,  # maximum impact parameter (fm)
+    'NpartMin': 1,  # minimum number of participants
+    'NpartMax': 1000,  # maximum number of participants
+    'randomRPflag': 0,  # 1: randomize reaction plane rangle
     'cenMin': 0,  # centrality cut lower bound (%)
     'cenMax': 100,  # centrality cut upper bound (%)
     'seed': -1,  # random seed (-1: system)
@@ -282,16 +300,26 @@ mcglauber_dict = {
     'outputInitialEst': 1,  # flag to output initial state var vs. eta_s
     'cache_tables': 1,  # 1: use pre-generated tables for valence quark x
     # 0: re-generate tables for valence quark x
-    'baryon_junctions': 0,  # 0: baryon number assumed to be at string end
-    # 1: baryon number transported assuming baryon
-    # junctions (at smaller x)
-    # see arXiv:nucl-th/9602027
-    'lambdaB': 0.2,  # parameter the controls the strength of
-    # the baryon junction stopping
+    'ISBaryonInStringJunction':
+        0,  # 1: initial state baryon in the string junction
+    # 0: initial state baryon in valence quark hotspots
+    'FSBaryonFluctStringBreaking': 0,  # 0: baryon charge follow initial state
+    # 1: baryon charge fluctuates in the string breaking
+    'lambdaB':
+        1.0,  # parameter the controls the strength of the baryon string breaking
     'lambdaBs': 1.0,  # Fraction of single-to-double string stopping
-    'baryonInStringProb':
-        1.0,  # the relative probility to put a baryon charge in the string
+    # the relative probility to put a baryon charge in the string
     # rather than at the wounded nucleon remnant
+    'FSbaryonInStringProb': 0.2,
+    'FSElectricQFluctStringBreaking':
+        0,  # 0: electric charge follow initial state
+    # 1: electric charge fluctuates in the string breaking
+    'lambdaQ':
+        1.0,  # parameter the controls the strength of the electric Q fluctuation at string breaking
+    'lambdaQs': 1.0,  # Fraction of single-to-double string stopping
+    # the relative probility to put an electric charge in the string
+    # rather than at the wounded nucleon remnant
+    'FSelectricChargeInStringProb': 0.2,
     'BG': 4.,  # Gaussian width for sampling the valence quark positions
     'shadowing_factor':
         1.0,  # a shadowning factor for producing strings from multiple scatterings
@@ -315,14 +343,15 @@ mcglauber_dict = {
     'yloss_param_fluct_var_RHIC':
         0.60,  # the variance of the logit-normal parameterized y_loss fluctuation
     'yloss_param_fluct_var_LHC':
-        0.80,  # the variance of the logit-normal parameterized y_loss fluctuation
+        0.6,  # the variance of the logit-normal parameterized y_loss fluctuation
     'ylossParam4At2': 1.60,  # rapidity_loss_method == 4: yloss at y_init = 2
     'ylossParam4At4': 2.15,  # rapidity_loss_method == 4: yloss at y_init = 4
     'ylossParam4At6': 2.45,  # rapidity_loss_method == 4: yloss at y_init = 6
+    'ylossParam4At8': 2.70,  # rapidity_loss_method == 4: yloss at y_init = 6
     'ylossParam4At10': 2.95,  # rapidity_loss_method == 4: yloss at y_init = 10
     'ylossParam4var':
         0.6,  # rapidity_loss_method == 4: variance of yloss fluct.
-    'evolve_QCD_string_mode': 2,  # string evolution mode
+    'evolve_QCD_string_mode': 4,  # string evolution mode
     # 1: deceleration with fixed rapidity loss (m/sigma = 1 fm, dtau = 0.5 fm)
     # 2: deceleration with LEXUS sampled rapidit loss (both dtau and sigma fluctuate)
     # 3: deceleration with LEXUS sampled rapidit loss (m/sigma = 1 fm, dtau fluctuates)
@@ -372,7 +401,9 @@ music_dict = {
     #   -- 93: e, u^\mu, and pi^\munu
     # 11: 3dMCGlauber initial condition at a constant tau surface
     #     based on the nuclear thickness funciton TA and TB
-    #   -- 111: second parameterization of eta profile
+    #   -- 111: 3dMCGlauber smooth initial condition (arXiv:2003.05852)
+    #   -- 112: generalization of arXiv:2003.05852 with yLfrac (arXiv:2106.08125)
+    #   -- 113: event-by-event TA TB version of 112 (arXiv:2203.15718)
     # 13: dynamical initialization (3dMCGlauber_dynamical)
     #   -- 131: 3dMCGlauber with zero nucleus thickness
 
@@ -383,9 +414,14 @@ music_dict = {
     'Eta_plateau_size':
         5.4,  # [-Eta_plateau_size/2, Eta_plateau_size/2] for entropy density
     'Eta_fall_off': 0.3,  # Gaussian width fall off for entropy density
+    'eta_m': 5.0,  # parameter for tilded longitudinal profile
+    'yL_frac': 0.0,  # shifted source model only yL = yL_frac*y_CM
+    'tilted_fraction':
+        0.,  # fraction of tilted vs. shifted longitudinal profiles
     'eta_rhob_0': 1.5,  # peak position of the net baryon density
     'eta_rhob_width_1': 0.2,  # Gaussian width for |eta| > |eta_0|
     'eta_rhob_width_2': 1.0,  # Gaussian width for |eta| < |eta_0|
+    'omega_rhob': 0.,  # participant fraction in the net baryon density
 
     # parameters for Initial_profile == 13 or 131
     'string_source_sigma_x': 0.5,  # the transverse size of the hotspot [fm]
@@ -426,9 +462,12 @@ music_dict = {
     # 17: BEST lattice EoS at finite mu_B
     # transport coefficients
     'quest_revert_strength': 10.0,  # the strength of the viscous regulation
-    'FlagResumTransportCoeff': 0,   # switch to use resummed transport coeff.
+    'FlagResumTransportCoeff': 0,  # switch to use resummed transport coeff.
     'FlagResetCausality': 0,
-    'resumTransCoeffAlpha': 1.5,    # resummed transport coeff. control parameter
+    'resumTransCoeffAlpha': 1.5,  # resummed transport coeff. control parameter
+    'turn_on_bulk_chem':
+        0,  # flag to include chemical equilibration as an effective bulk viscosity
+    'chem_rate_C': 1,  # coefficient for chemical equilibration rate R = CT
     'Viscosity_Flag_Yes_1_No_0': 1,  # turn on viscosity in the evolution
     'Include_Shear_Visc_Yes_1_No_0': 1,  # include shear viscous effect
     'Shear_to_S_ratio': 0.12,  # value of \eta/s
@@ -453,6 +492,8 @@ music_dict = {
     'output_evolution_data': 0,  # flag to output evolution history to file
     'output_movie_flag': 0,
     'output_evolution_T_cut': 0.145,
+    'output_evolution_e_cut': 0.15,
+    'output_evolution_ideal_only': 0,  # only ideal part of the evolution
     'outputBinaryEvolution': 1,  # output evolution file in binary format
     'output_evolution_every_N_eta': 1,  # output evolution file every Neta steps
     'output_evolution_every_N_x': 1,  # output evolution file every Nx steps
@@ -512,13 +553,13 @@ photon_dict = {
     'photon_phi_q_f': 6.2831853,  # the largest angle of photon momentum
     'photon_y_i': 0.0,  # the smallest photon rapidity
     'photon_y_f': 0.0,  # the largest photon rapidity
-    'nMInv': 11,        # number of points for dilepton invariant mass
-    'dilepton_mass_i': 1.0,         # the smallest dilepton mass (GeV)
-    'dilepton_mass_f': 3.0,         # the largest dilepton mass (GeV)
-    'dilepton_y_i': -0.5,           # the dilepton rapidity integration limit
-    'dilepton_y_f': 0.5,            # the dilepton rapidity integration limit
-    'dileptonType': 0,              # 0: electrons, 1: muons
-    'alpha_s': 0.2,         # value of alpha_s used in the NLO QGP dilepton rate
+    'nMInv': 11,  # number of points for dilepton invariant mass
+    'dilepton_mass_i': 1.0,  # the smallest dilepton mass (GeV)
+    'dilepton_mass_f': 3.0,  # the largest dilepton mass (GeV)
+    'dilepton_y_i': -0.5,  # the dilepton rapidity integration limit
+    'dilepton_y_f': 0.5,  # the dilepton rapidity integration limit
+    'dileptonType': 0,  # 0: electrons, 1: muons
+    'alpha_s': 0.2,  # value of alpha_s used in the NLO QGP dilepton rate
     'norder': 10,  # calculate photon vn to norder
     'turn_on_muB': 1,  # flag to include muB dependence in photon rates
     'T_dec': 0.105,  # freeze out temperature (GeV)
@@ -911,6 +952,11 @@ def update_parameters_dict(par_dict_path, ran_seed):
             ipglasma_dict['seed'] = ran_seed
             ipglasma_dict['useTimeForSeed'] = 0
 
+        if 'Rapidity' in ipglasma_dict:
+            # for backward compatibility
+            ipglasma_dict['RapidityA'] = ipglasma_dict['Rapidity']
+            ipglasma_dict['RapidityB'] = ipglasma_dict['Rapidity']
+
         if 'Initial_profile' not in parameters_dict.music_dict:
             parameters_dict.music_dict['Initial_profile'] = 9
         if 'Initial_Distribution_input_filename' not in parameters_dict.music_dict:
@@ -1007,24 +1053,34 @@ def update_parameters_dict(par_dict_path, ran_seed):
 def update_parameters_bayesian(bayes_file):
     parfile = open(bayes_file, "r")
     for line in parfile:
+        paramApplied = False
         key, val = line.split()
         if key in control_dict.keys():
             control_dict[key] = int(val)
+            paramApplied = True
 
         if key in ipglasma_dict.keys():
             ipglasma_dict[key] = float(val)
+            paramApplied = True
 
         if key in mcglauber_dict.keys():
             mcglauber_dict[key] = float(val)
+            paramApplied = True
 
         if key in music_dict.keys():
             music_dict[key] = float(val)
+            paramApplied = True
 
         if key in iss_dict.keys():
             iss_dict[key] = float(val)
+            paramApplied = True
 
         if key in hadronic_afterburner_toolkit_dict.keys():
             hadronic_afterburner_toolkit_dict[key] = float(val)
+            paramApplied = True
+
+        if not paramApplied:
+            print(f"Parameter {key} is not set! Please check your input file")
 
 
 def output_parameters_to_files(workfolder="."):
@@ -1051,7 +1107,7 @@ def output_parameters_to_files(workfolder="."):
                     continue
                 if isinstance(parameters_dict[key_name], list):
                     varStr = ",".join(
-                            [str(var) for var in parameters_dict[key_name]])
+                        [str(var) for var in parameters_dict[key_name]])
                     f.write(f"{key_name}  {varStr}\n")
                 else:
                     f.write("{parameter_name}  {parameter_value}\n".format(

@@ -15,18 +15,18 @@ control_dict = {
 # 3DMCGlauber model
 mcglauber_dict = {
     'database_name': "self",  # self: generate initial condition on the fly
-    'Projectile': "Pb",  # projectile nucleus name
-    'Target': "Pb",  # target nucleus name
-    'roots': 17.3,  # collision energy (GeV)
-    'seed': -1,  # random seed (-1: system)
+    'Projectile': "O",  # projectile nucleus name (Oxygen)
+    'Target': "O",  # target nucleus name (Oxygen)
+    'roots': 5360,  # collision energy (GeV)
+    'seed': -1,  # random seed; OSG submit script overrides with event/job ID
     'baryon_junctions': 1,  # 0: baryon number assumed to be at string end
     # 1: baryon number transported assuming baryon
     # junctions (at smaller x)
     # see arXiv:nucl-th/9602027
-    'lambdaB': 0.4,  # parameter the controls the strength of
+    'lambdaB': 0.2,  # parameter the controls the strength of
     # the baryon junction stopping
     'shadowing_factor':
-        1.0,  # a shadowning factor for producing strings from multiple scatterings
+        0.001,  # a shadowning factor for producing strings from multiple scatterings
     'yloss_param_slope':
         0.65,  # the slope parameter for yloss parameterization [0., 1.]
     'yloss_param_alpha1':
@@ -38,11 +38,13 @@ mcglauber_dict = {
     # 2: deceleration with LEXUS sampled rapidit loss (both dtau and sigma fluctuate)
     # 3: deceleration with LEXUS sampled rapidit loss (m/sigma = 1 fm, dtau fluctuates)
     # 4: deceleration with LEXUS sampled rapidit loss (dtau = 0.5 fm, m/sigma fluctuates)
+    'nucleon_configuration_from_file': 1,  # use preconfigured nuclear configurations
+    'light_nucleus_option': 6,  # selects the correct O-16 configuration file
 }
 
 # MUSIC
 music_dict = {
-    'Initial_profile': 13,  # type of initial condition 
+    'Initial_profile': 13,  # 131: 3dMCGlauber with zero nucleus thickness (O+O)
     # 13: dynamical initialization (3dMCGlauber_dynamical)
     #   -- 131: 3dMCGlauber with zero nucleus thickness
     's_factor': 1.000,  # normalization factor read in initial data file
@@ -68,7 +70,7 @@ music_dict = {
     'Include_Shear_Visc_Yes_1_No_0': 1,  # include shear viscous effect
     'Shear_to_S_ratio': 0.08,  # value of \eta/s
     'T_dependent_Shear_to_S_ratio': 0,  # flag to use temperature dep. \eta/s(T)
-    'Include_Bulk_Visc_Yes_1_No_0': 0,  # include bulk viscous effect
+    'Include_Bulk_Visc_Yes_1_No_0': 1,  # include bulk viscous effect
     'Include_second_order_terms':
         1,  # include second order non-linear coupling terms
     'Include_vorticity_terms': 0,  # include vorticity coupling terms
@@ -86,7 +88,7 @@ music_dict = {
 iss_dict = {
     'hydro_mode': 2,  # mode for reading in freeze out information 
     'include_deltaf_shear': 1,  # include delta f contribution from shear
-    'include_deltaf_bulk': 0,  # include delta f contribution from bulk
+    'include_deltaf_bulk': 1,  # include delta f contribution from bulk
     'include_deltaf_diffusion':
         0,  # include delta f contribution from diffusion
     'sample_upto_desired_particle_number':

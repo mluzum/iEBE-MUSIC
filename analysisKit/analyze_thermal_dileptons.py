@@ -27,8 +27,7 @@ def computeJKMeanandErr(dataArr):
     return dataMean, dataErr
 
 
-def calculate_dilepton_dNdM(MInvArr, data_dN,
-                            outputFileName: str) -> None:
+def calculate_dilepton_dNdM(MInvArr, data_dN, outputFileName: str) -> None:
     """
         this function calculate dilepton dN/dM, v2(M)
     """
@@ -43,9 +42,8 @@ def calculate_dilepton_dNdM(MInvArr, data_dN,
                header="M  dN/dM  dN/dM_err")
 
 
-def calculate_dilepton_dv2dM(MInvArr, photon_dN, etaArr, photon_v2,
-                             dataRef, etaRef, nOrder,
-                             outputFileName: str) -> None:
+def calculate_dilepton_dv2dM(MInvArr, photon_dN, etaArr, photon_v2, dataRef,
+                             etaRef, nOrder, outputFileName: str) -> None:
     """
         this function compute the v_n(M) according to the scalar product
         method
@@ -116,10 +114,12 @@ except IndexError:
 with open(database_file, "rb") as pf:
     data = pickle.load(pf)
 
-dNdyList = []
+dNdyDict = {}
 for event_name in data.keys():
-    dNdyList.append(data[event_name]['Nch'])
-dNdyList = -np.sort(-np.array(dNdyList))
+    if event_name != 'global':
+        Nch = data[event_name]['Nch']
+        dNdyDict[event_name] = Nch
+dNdyList = -np.sort(-np.array(list(dNdyDict.values())))
 print(f"Number of good events: {len(dNdyList)}")
 
 for icen in range(len(centralityCutList) - 1):
@@ -135,9 +135,9 @@ for icen in range(len(centralityCutList) - 1):
         dN_dy_cut_high = dNcutList[icen]
         dN_dy_cut_low = dNcutList[icen + 1]
 
-    for event_name in data.keys():
-        if (data[event_name]['Nch'] > dN_dy_cut_low
-                and data[event_name]['Nch'] <= dN_dy_cut_high):
+    for event_name in dNdyDict.keys():
+        if (dNdyDict[event_name] > dN_dy_cut_low
+                and dNdyDict[event_name] <= dN_dy_cut_high):
             selected_events_list.append(event_name)
 
     nev = len(selected_events_list)
@@ -160,12 +160,13 @@ for icen in range(len(centralityCutList) - 1):
     Ncoll = []
     MInvArr = data[selected_events_list[0]]['dilepton_MInv'][:, 0]
     etaArr = data[selected_events_list[0]]['etaArr']
-    nM = len(MInvArr); neta = len(etaArr)
+    nM = len(MInvArr)
+    neta = len(etaArr)
     for event_name in selected_events_list:
         Ncoll.append(data[event_name]['Ncoll'])
         dilepton_dNdM.append(data[event_name]['dilepton_MInv'][:, 1])
         dilepton_dv2dM.append(data[event_name]['dilepton_MInv'][:, 4]
-                                 + 1j*data[event_name]['dilepton_MInv'][:, 5])
+                              + 1j*data[event_name]['dilepton_MInv'][:, 5])
         QnArrEta.append(data[event_name]['chVneta_pT_0p15_2'])
     Ncoll = np.array(Ncoll)
     dilepton_dNdM = np.array(dilepton_dNdM).reshape(-1, nM)
@@ -177,7 +178,8 @@ for icen in range(len(centralityCutList) - 1):
         f.write("# centrality  Ncoll  Ncoll_err\n")
     else:
         f = open("Ncoll.dat", 'a')
-    f.write(f"{cenBinMid} {np.mean(Ncoll):.3e} {np.std(Ncoll)/np.sqrt(nev):.3e}\n")
+    f.write(
+        f"{cenBinMid} {np.mean(Ncoll):.3e} {np.std(Ncoll)/np.sqrt(nev):.3e}\n")
 
     calculate_dilepton_dNdM(MInvArr, dilepton_dNdM,
                             f"dilepton_dNdM_C{cenLabel}.dat")

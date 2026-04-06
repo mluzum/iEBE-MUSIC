@@ -17,12 +17,12 @@ RUN yum -y install \
         zlib-devel \
         make \
         openmpi-devel \
+        openmpi \
         python3 \
         python3-pip \
         time \
         vim \
         wget \
-        openmpi \
         boost-devel \
         rsync \
         && \
@@ -30,22 +30,20 @@ RUN yum -y install \
 
 # Install pre-reqs python packages
 RUN python3 -m pip install --no-cache-dir --upgrade pip && \
-    python3 -m pip install \ 
-    numpy==1.24.4 \
-    scipy==1.10.1 \
-     h5py \
-     PyYAML \ 
-     joblib \ 
-     mpmath \ 
-     freestream
+    python3 -m pip install --no-cache-dir \
+        numpy==1.24.4 \
+        scipy==1.10.1 \
+        h5py \
+        PyYAML \
+        joblib \
+        mpmath \
+        freestream
 
 ENV HOME /opt/
 
 # Build and install Pythia8 from source (required by SMASH)
-# Using the same version as the local environment: pythia8315
 RUN cd /tmp && \
-    wget --no-check-certificate \
-        https://pythia.org/download/pythia83/pythia8315.tgz && \
+    wget --no-check-certificate https://pythia.org/download/pythia83/pythia8315.tgz && \
     tar xzf pythia8315.tgz && \
     cd pythia8315 && \
     ./configure --prefix=${HOME}/pythia8315 && \
@@ -54,17 +52,19 @@ RUN cd /tmp && \
     cd /tmp && \
     rm -rf pythia8315 pythia8315.tgz
 
-# download and compile the iEBE-MUSIC framework
-RUN cd ${HOME} && \
-    git clone https://github.com/genilssom/iEBE-MUSIC -b NewChain && \
-    cd iEBE-MUSIC/codes && \
+# Build the iEBE-MUSIC framework from the local workspace
+COPY . ${HOME}/iEBE-MUSIC
+
+RUN cd ${HOME}/iEBE-MUSIC/codes && \
     ./get_code_packages.sh && \
     ./compile_code_packages.sh && \
     cd ../EOS_database && \
     bash download_EOSdatabase1D.sh && \
     bash download_QGPViscositydatabase1D.sh && \
-    cd ../config/BESPost && \
-    bash download_posteriorChain.sh && \
+    cd ../initialcondition_database && \
+    bash download_smoothTATB.sh && \
+    cd ../config/arXiv_2507.11394 && \
+    bash download_posteriorChains.sh && \
     cd ../arXiv_2408.00537 && \
     bash download_posteriorChain.sh
 

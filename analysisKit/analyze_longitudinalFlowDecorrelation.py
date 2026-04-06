@@ -15,7 +15,8 @@ centralityRange = 1.
 Reg_centrality_cut_list = [
     0., 5., 10., 20., 30., 40., 50., 60., 70., 80., 90., 100.
 ]
-centralityCutList = [0., 10., 40., 80]
+centralityCutList = Reg_centrality_cut_list
+centralityCutList = [0, 20, 40, 60]
 #centralityCutList = [0, 1, 2, 3, 4, 6, 8, 10, 15, 20, 30, 40, 50, 60,
 #                     70, 80, 90, 100]
 dNcutList = []  # pre-defined Nch cut if simulation is not minimum bias
@@ -28,7 +29,8 @@ def computeJKMeanandErr(dataArr):
     return dataMean, dataErr
 
 
-def calculate_rneta(dataArr, etaRef, nOrder, outputFileName: str) -> None:
+def calculate_rneta(etaArr, dataArr, etaRef, nOrder: int,
+                    outputFileName: str) -> None:
     """
         this function calculates the longitudinal decorrelation
         r_n =  (<Q_n(-eta) Q_n(etaRef)> + < Q_n(eta) Q_n(-etaRef)>)
@@ -37,7 +39,6 @@ def calculate_rneta(dataArr, etaRef, nOrder, outputFileName: str) -> None:
         dataArr = [Nch, <pT>, Vn, totalN]
     """
     nev, nQn, nEta = dataArr.shape
-    etaArr = np.linspace(-7, 7, nEta)
     nQn = nQn - 3
     dN = np.real(dataArr[:, -1])
 
@@ -97,10 +98,13 @@ except IndexError:
 with open(database_file, "rb") as pf:
     data = pickle.load(pf)
 
-dNdyList = []
+dNdyDict = {}
 for event_name in data.keys():
-    dNdyList.append(data[event_name]['Nch'])
-dNdyList = -np.sort(-np.array(dNdyList))
+    if 'global' not in event_name:
+        Nch = np.real(data[event_name]['ALICE_V0A_eta_2p8_5p1_pT_0_4'][0]
+                      + data[event_name]['ALICE_V0C_eta_-3p7_-1p7_pT_0_4'][0])
+        dNdyDict[event_name] = Nch
+dNdyList = -np.sort(-np.array(list(dNdyDict.values())))
 print(f"Number of good events: {len(dNdyList)}")
 
 for icen in range(len(centralityCutList) - 1):
@@ -116,9 +120,9 @@ for icen in range(len(centralityCutList) - 1):
         dN_dy_cut_high = dNcutList[icen]
         dN_dy_cut_low = dNcutList[icen + 1]
 
-    for event_name in data.keys():
-        if (data[event_name]['Nch'] > dN_dy_cut_low
-                and data[event_name]['Nch'] <= dN_dy_cut_high):
+    for event_name in dNdyDict.keys():
+        if (dNdyDict[event_name] > dN_dy_cut_low
+                and dNdyDict[event_name] <= dN_dy_cut_high):
             selected_events_list.append(event_name)
 
     nev = len(selected_events_list)
@@ -132,11 +136,18 @@ for icen in range(len(centralityCutList) - 1):
         centralityCutList[icen + 1]*centralityRange, nev))
     print("dNdy: {0:.2f} - {1:.2f}".format(dN_dy_cut_low, dN_dy_cut_high))
 
+    etaArr = data['global']['etaArr']
     QnArr = []
     for event_name in selected_events_list:
-        QnArr.append(data[event_name]['chVneta_pT_0p4_4'])
+        QnArr.append(data[event_name]['chVneta_pT_0_4'])
 
     QnArr = np.array(QnArr)
 
-    calculate_rneta(QnArr, [3.1, 5.1], 2, f"STAR_r2eta_C{cenLabel}.txt")
-    calculate_rneta(QnArr, [2.1, 5.1], 3, f"STAR_r3eta_C{cenLabel}.txt")
+    calculate_rneta(etaArr, QnArr, [3.5, 4.9], 2,
+                    f"ALICE_r2eta_Ref_3p5_4p9_C{cenLabel}.txt")
+    calculate_rneta(etaArr, QnArr, [3.5, 4.9], 3,
+                    f"ALICE_r3eta_Ref_3p5_4p9_C{cenLabel}.txt")
+    calculate_rneta(etaArr, QnArr, [2.1, 3.3], 2,
+                    f"ALICE_r2eta_Ref_2p1_3p3_C{cenLabel}.txt")
+    calculate_rneta(etaArr, QnArr, [2.1, 3.3], 3,
+                    f"ALICE_r3eta_Ref_2p1_3p3_C{cenLabel}.txt")

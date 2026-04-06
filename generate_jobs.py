@@ -3,7 +3,7 @@
 
 import sys
 import re
-from os import path, mkdir, remove
+from os import path, mkdir, remove, listdir, makedirs, symlink
 import shutil
 import subprocess
 import argparse
@@ -399,7 +399,7 @@ mv *.txt $results_folder
     script.close()
 
 
-def generate_script_hydro(folder_name, nthreads):
+def generate_script_hydro(folder_name, nthreads, debugFlag):
     """This function generates script for hydro simulation"""
     working_folder = folder_name
 
@@ -423,9 +423,17 @@ rm -fr $results_folder
 export OMP_NUM_THREADS={0:d}
 """.format(nthreads))
 
-    script.write("""
+    if debugFlag:
+        script.write("""
 # hydro evolution
-./MUSIChydro music_input_mode_2 > run.log
+./MUSIChydro music_input_mode_2 2>&1 | tee run.log
+./sweeper.sh $results_folder
+)
+""")
+    else:
+        script.write("""
+# hydro evolution
+./MUSIChydro music_input_mode_2 > run.log  2>run.err
 ./sweeper.sh $results_folder
 )
 """)
@@ -545,6 +553,8 @@ do
     rm -fr ../iSS/OSCAR.DAT
     cd ../urqmd
     ./runqmd.sh > run.log
+""")
+        script.write("""
     mv particle_list.dat ../UrQMD_results/particle_list_${iev}.dat
     rm -fr OSCAR.input
     cd ..
@@ -642,7 +652,7 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
         event_folder)
 
     logfile = ""
-    if cluster_name != "osg" or not debugFlag:
+    if not debugFlag:
         logfile = " >> run.log"
 
     if (initial_condition_database == "self"
@@ -779,7 +789,7 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                             shell=True)
 
     # MUSIC
-    generate_script_hydro(event_folder, n_threads)
+    generate_script_hydro(event_folder, n_threads, debugFlag)
 
     shutil.copytree(path.join(code_path, 'MUSIC'),
                     path.join(event_folder, 'MUSIC'))
@@ -788,14 +798,24 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
     targetFile = path.join(code_path, 'MUSIC_code/MUSIChydro')
     desLoc = path.join(event_folder, "MUSIC/MUSIChydro")
     subprocess.call(f"ln -s {targetFile} {desLoc}", shell=True)
-    if EOSType != 42:
-        targetFile = path.join(code_path, 'MUSIC_code/EOS')
-        desLoc = path.join(event_folder, "MUSIC/EOS")
-        subprocess.call(f"ln -s {targetFile} {desLoc}", shell=True)
-    else:
+    targetFile = path.join(code_path, 'MUSIC_code/EOS')
+    desLoc = path.join(event_folder, "MUSIC/EOS")
+    makedirs(desLoc, exist_ok=True)
+    for item in listdir(targetFile):
+        src = path.join(targetFile, item)
+        dst = path.join(desLoc, item)
+        if path.exists(dst):
+            continue
+        try:
+            symlink(src, dst)
+        except OSError:
+            if path.isdir(src):
+                shutil.copytree(src, dst, dirs_exist_ok=True)
+            else:
+                shutil.copy2(src, dst)
+    if EOSType == 42:
         eosDatabase = path.join(package_root_path, 'EOS_database', EOSFileName)
         eosFileName = fetch_an_EOS(eosDatabase, EOSId)
-        mkdir(path.join(event_folder, "MUSIC/EOS"))
         shutil.move(eosFileName,
                     path.join(event_folder, "MUSIC/EOS/EoS_1DGen.bin"))
         shearFileName = fetchShearViscosity1D(
@@ -1130,10 +1150,6 @@ def main():
         nev = max(1, len(filelist))
         print("there are {} events found under the folder {}".format(
             nev, initial_condition_database))
-        n_jobs = min(nev, n_jobs)
-        n_hydro_per_job = int(ceil(nev/n_jobs))
-        print("n_jobs = {}, n_hydro_per_job = {}".format(
-            n_jobs, n_hydro_per_job))
     else:
         initial_condition_database = (
             parameter_dict.mcglauber_dict['database_name'])

@@ -137,7 +137,9 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
         if database == "self" or database == "fixCentrality":
             file_name = "strings_event_{}.dat".format(event_id)
             specFilename = "spectators_event_{}.dat".format(event_id)
-            ran = np.random.default_rng().integers(1e8)
+            binaryCollFilename = f"binaryCollisions_event_{event_id}.dat"
+            # Keep per-event randomness reproducible across re-submissions.
+            ran = np.random.default_rng(seed_add + event_id).integers(1e8)
             if not path.exists(file_name):
                 if database == "self":
                     cenMin = mapEventIdToCentrality(event_id)
@@ -154,6 +156,9 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                 call("mv 3dMCGlauber/spectators_event_0.dat {}".format(
                     specFilename),
                      shell=True)
+                call("mv 3dMCGlauber/binaryCollisions_event_0.dat {}".format(
+                    binaryCollFilename),
+                     shell=True)
             else:
                 print("3D MC-Glauber event exists ...")
                 print("No need to rerun ...")
@@ -166,9 +171,14 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                 specFilename,
                 path.join(final_results_folder,
                           "spectators_{}.dat".format(event_id)))
+            shutil.copy(
+                binaryCollFilename,
+                path.join(final_results_folder,
+                          f"binaryCollisions_event_{event_id}.dat"))
             filePatterns = ["ed_etas", "nB_etas", "ecc_ed"]
-            call("mv 3dMCGlauber/rapidity_shift.dat hadronic_afterburner_toolkit/",
-                 shell=True)
+            call(
+                "mv 3dMCGlauber/rapidity_shift.dat hadronic_afterburner_toolkit/",
+                shell=True)
             call("mv 3dMCGlauber/ed_etas_*.dat {}".format(final_results_folder),
                  shell=True)
             call("mv 3dMCGlauber/nB_etas_*.dat {}".format(final_results_folder),
@@ -182,7 +192,9 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
     elif initial_type == "3DMCGlauber_participants":
         file_name = "participants_event_{}.dat".format(event_id)
         specFilename = "spectators_event_{}.dat".format(event_id)
-        ran = np.random.default_rng().integers(1e8)
+        binaryCollFilename = f"binaryCollisions_event_{event_id}.dat"
+        # Keep per-event randomness reproducible across re-submissions.
+        ran = np.random.default_rng(seed_add + event_id).integers(1e8)
         if not path.exists(file_name):
             if database == "self":
                 cenMin = mapEventIdToCentrality(event_id)
@@ -199,6 +211,9 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             call(
                 "mv 3dMCGlauber/spectators_event_0.dat {}".format(specFilename),
                 shell=True)
+            call("mv 3dMCGlauber/binaryCollisions_event_0.dat {}".format(
+                binaryCollFilename),
+                 shell=True)
         else:
             print("3D MC-Glauber event exists ...")
             print("No need to rerun ...")
@@ -208,6 +223,10 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             specFilename,
             path.join(final_results_folder,
                       "spectators_{}.dat".format(event_id)))
+        shutil.copy(
+            binaryCollFilename,
+            path.join(final_results_folder,
+                      f"binaryCollisions_event_{event_id}.dat"))
         return status, file_name
     elif initial_type == "3DMCGlauber_consttau":
         status, file_name = fecth_an_3DMCGlauber_smooth_event(
@@ -602,6 +621,7 @@ def zip_results_into_hdf5(final_results_folder, event_id, para_dict):
         f"strings_{event_id}.dat",
         f"spectators_{event_id}.dat",
         f"participants_event_{event_id}.dat",
+        f"binaryCollisions_event_{event_id}.dat",
         "ed_etas_distribution_*.dat",
         "nB_etas_distribution_*.dat",
         "ecc_ed_*.dat",
@@ -795,12 +815,6 @@ def main(para_dict_):
         curr_time = time.asctime()
 
         event_id = str(iev + idx0)
-        if (para_dict_['initial_condition'] != "self"
-                and para_dict_['initial_condition'] != "fixCentrality"):
-            initial_database_name = (
-                initial_condition.split("/")[-1].split(".h5")[0])
-            event_id = initial_database_name + "_" + event_id
-
         final_results_folder = "EVENT_RESULTS_{}".format(event_id)
 
         # setup OSG checkpoint file

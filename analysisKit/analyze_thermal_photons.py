@@ -54,7 +54,8 @@ def calculate_photon_pTSpectra(yArr, pTArr, data_ypTdiff,
     idx = np.abs(yArr) < 0.1
     dy = yArr[1] - yArr[0]
     Yinterval = len(yArr[idx])*dy
-    dNd2pT = np.sum(data_ypTdiff[:, idx, :], axis=1)*dy/Yinterval/pTArr/(2*np.pi)
+    dNd2pT = np.sum(data_ypTdiff[:, idx, :],
+                    axis=1)*dy/Yinterval/pTArr/(2*np.pi)
     dNd2pT_mean = np.mean(dNd2pT, axis=0)
     dNd2pT_err = np.std(dNd2pT, axis=0)/np.sqrt(nev)
     results = np.array([pTArr, dNd2pT_mean, dNd2pT_err])
@@ -66,8 +67,7 @@ def calculate_photon_pTSpectra(yArr, pTArr, data_ypTdiff,
 
 
 def calculate_photon_vnpT(yArr, pTArr, photon_dN, photon_v2, rapInterval,
-                          dataRef, etaRef, nOrder,
-                          outputFileName: str) -> None:
+                          dataRef, etaRef, nOrder, outputFileName: str) -> None:
     """
         this function compute the v_n(p_T) according to the scalar product
         method
@@ -127,11 +127,14 @@ def calculate_photon_vnpT(yArr, pTArr, photon_dN, photon_v2, rapInterval,
     dNpT_err = np.std(dNd2pT, axis=0)/np.sqrt(nev)
 
     results = np.array([pTArr, dNpT_mean, dNpT_err, vnpT_mean, vnpT_err])
-    np.savetxt(outputFileName,
-               results.transpose(),
-               fmt="%.4e",
-               delimiter="  ",
-               header="pT (GeV)  dN/(2pi dy pT dpT)  dN/(2pi dy pT dpT)_err  vn(pT)  vn(pT)_err")
+    np.savetxt(
+        outputFileName,
+        results.transpose(),
+        fmt="%.4e",
+        delimiter="  ",
+        header=
+        "pT (GeV)  dN/(2pi dy pT dpT)  dN/(2pi dy pT dpT)_err  vn(pT)  vn(pT)_err"
+    )
 
 
 try:
@@ -142,10 +145,12 @@ except IndexError:
 with open(database_file, "rb") as pf:
     data = pickle.load(pf)
 
-dNdyList = []
+dNdyDict = {}
 for event_name in data.keys():
-    dNdyList.append(data[event_name]['Nch'])
-dNdyList = -np.sort(-np.array(dNdyList))
+    if event_name != 'global':
+        Nch = data[event_name]['Nch']
+        dNdyDict[event_name] = Nch
+dNdyList = -np.sort(-np.array(list(dNdyDict.values())))
 print(f"Number of good events: {len(dNdyList)}")
 
 for icen in range(len(centralityCutList) - 1):
@@ -161,9 +166,9 @@ for icen in range(len(centralityCutList) - 1):
         dN_dy_cut_high = dNcutList[icen]
         dN_dy_cut_low = dNcutList[icen + 1]
 
-    for event_name in data.keys():
-        if (data[event_name]['Nch'] > dN_dy_cut_low
-                and data[event_name]['Nch'] <= dN_dy_cut_high):
+    for event_name in dNdyDict.keys():
+        if (dNdyDict[event_name] > dN_dy_cut_low
+                and dNdyDict[event_name] <= dN_dy_cut_high):
             selected_events_list.append(event_name)
 
     nev = len(selected_events_list)
@@ -186,7 +191,8 @@ for icen in range(len(centralityCutList) - 1):
     Ncoll = []
     pTArr = data[selected_events_list[0]]['photon_pTArr']
     yArr = data[selected_events_list[0]]['photon_yArr']
-    npT = len(pTArr); ny = len(yArr)
+    npT = len(pTArr)
+    ny = len(yArr)
     for event_name in selected_events_list:
         Ncoll.append(data[event_name]['Ncoll'])
         photon_dN_ypTDiff.append(data[event_name]['photon_ypTdiff'][:, 0])
