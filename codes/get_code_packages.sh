@@ -1,73 +1,109 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
 # download the code package
 
-#download Isobar-Sampler
-rm -fr isobar_sampler_code
-git clone https://github.com/mluzum/Isobar-Sampler.git isobar_sampler_code
-#(cd isobar_sampler_code; git checkout ...)
-#rm -fr isobar_sampler_code/.git
+clone_repo_at_commit() {
+  local repo_url=$1
+  local repo_dir=$2
+  local target_commit=$3
+  local target_branch=${4:-}
 
-# download TRENTo
-rm -fr trento_code
-git clone https://github.com/jppicchetti/trento_sync.git trento_code
-#(cd trento_code; git checkout ...)
-#rm -fr trento_code/.gits
+  rm -fr "${repo_dir}"
+  if [ -n "${target_branch}" ]; then
+    git clone --depth=1 -b "${target_branch}" "${repo_url}" "${repo_dir}"
+  else
+    git clone --depth=1 "${repo_url}" "${repo_dir}"
+  fi
+  (
+    cd "${repo_dir}"
+    git fetch --depth=1 origin "${target_commit}"
+    git checkout "${target_commit}"
+    test "$(git rev-parse HEAD)" = "${target_commit}"
+  )
+  rm -fr "${repo_dir}/.git"
+}
+
+clone_repo_at_tag() {
+  local repo_url=$1
+  local repo_dir=$2
+  local target_tag=$3
+
+  rm -fr "${repo_dir}"
+  git clone --depth=1 -b "${target_tag}" "${repo_url}" "${repo_dir}"
+  rm -fr "${repo_dir}/.git"
+}
+
+# download Isobar-Sampler (used by TRENTo initial conditions)
+clone_repo_at_commit \
+  https://github.com/mluzum/Isobar-Sampler.git \
+  isobar_sampler_code \
+  bc586de03c26a3f3e4d6749e385ea015dcb204f2
+
+# download TRENTo (used by TRENTo initial conditions)
+clone_repo_at_commit \
+  https://github.com/jppicchetti/trento_sync.git \
+  trento_code \
+  48370133999300b10d0a1b061c8b9c365e3ee4f2
 
 # download 3DMCGlauber
-#rm -fr 3dMCGlauber_code
-#git clone --depth=5 https://github.com/chunshen1987/3dMCGlauber 3dMCGlauber_code
-#(cd 3dMCGlauber_code; git checkout 22955a36969429e99a85957eb6b3c231870a2015)
-#rm -fr 3dMCGlauber_code/.git
+clone_repo_at_commit \
+  https://github.com/mluzum/3dMCGlauber \
+  3dMCGlauber_code \
+  1d9856c6ce2bbad28059ed8815ebdf246aa37cdf
 
 # download IPGlasma
-#rm -fr ipglasma_code
-#git clone --depth=1 https://github.com/chunshen1987/ipglasma -b ipglasma_jimwlk ipglasma_code
-#(cd ipglasma_code; git checkout 4d4392724d05502c94bb8c512e382b6d9be9dec8)
-#rm -fr ipglasma_code/.git
+clone_repo_at_commit \
+  https://github.com/chunshen1987/ipglasma \
+  ipglasma_code \
+  bf92fe1758a61acc5cf84dff2428b83570ea81fa \
+  ipglasma_jimwlk
 
 # download KoMPoST
-#rm -fr kompost_code
-#git clone --depth=1 https://github.com/chunshen1987/KoMPoST kompost_code
-#(cd kompost_code; git checkout ad5fe9d3b26434bb1d5c29820499ef26808b5a47)
-#rm -fr kompost_code/.git
+clone_repo_at_commit \
+  https://github.com/chunshen1987/KoMPoST \
+  kompost_code \
+  ad5fe9d3b26434bb1d5c29820499ef26808b5a47
 
 # download MUSIC
-rm -fr MUSIC_code
-git clone https://github.com/MUSIC-fluid/MUSIC -b public_stable MUSIC_code
-#(cd MUSIC_code; git checkout e898cc826efc0303f2dd688602e6c604c9ef0f91)
-rm -fr MUSIC_code/.git
+clone_repo_at_commit \
+  https://github.com/MUSIC-fluid/MUSIC \
+  MUSIC_code \
+  84734adf838fdf2ed9b0c9951916614e7c925950 \
+  main
 
 # download iSS particle sampler
-rm -fr iSS_code
-git clone https://github.com/chunshen1987/iSS -b XSCAPE iSS_code
-#(cd iSS_code; git checkout b612a8e425d3e1dfc2d2b71cd208df6810c783be)
-rm -fr iSS_code/.git
+clone_repo_at_commit \
+  https://github.com/chunshen1987/iSS \
+  iSS_code \
+  b612a8e425d3e1dfc2d2b71cd208df6810c783be \
+  dev
 
 # download photonEmission wrapper
-#rm -fr photonEmission_hydroInterface_code
-#git clone --depth=1 https://github.com/chunshen1987/photonEmission_hydroInterface photonEmission_hydroInterface_code
-#(cd photonEmission_hydroInterface_code; git checkout b80fb78c154cc9131162c8205615faffc86d6a49)
-#rm -fr photonEmission_hydroInterface_code/.git
+clone_repo_at_commit \
+  https://github.com/chunshen1987/photonEmission_hydroInterface \
+  photonEmission_hydroInterface_code \
+  b80fb78c154cc9131162c8205615faffc86d6a49
 
 # download UrQMD afterburner
-rm -fr urqmd_code
-git clone https://Chunshen1987@bitbucket.org/Chunshen1987/urqmd_afterburner.git urqmd_code
-#(cd urqmd_code; git checkout 704c886)
-rm -fr urqmd_code/.git
+clone_repo_at_commit \
+  https://Chunshen1987@bitbucket.org/Chunshen1987/urqmd_afterburner.git \
+  urqmd_code \
+  09eeac28b5861d68d166c1f89b2e97e0a0ebfe8f
 
 # download SMASH afterburner
-rm -rf smash_code
-git clone --depth=1 https://github.com/smash-transport/smash.git -b SMASH-3.2.2  smash_code 
-rm -rf smash_code/.git
+clone_repo_at_tag \
+  https://github.com/smash-transport/smash.git \
+  smash_code \
+  SMASH-3.2.2
 
-
-
-# download hadronic afterner
-rm -fr hadronic_afterburner_toolkit_code
-git clone https://github.com/chunshen1987/hadronic_afterburner_toolkit -b main hadronic_afterburner_toolkit_code
-#(cd hadronic_afterburner_toolkit_code; git checkout 1045565e1213bff1c28017c74d69a77ff8b5299e)
-rm -fr hadronic_afterburner_toolkit_code/.git
+# download hadronic afterburner toolkit
+clone_repo_at_commit \
+  https://github.com/chunshen1987/hadronic_afterburner_toolkit \
+  hadronic_afterburner_toolkit_code \
+  2326ba21a76d7bb533aa1d39a50f3dca298ef9c3 \
+  main
 
 #download deltaf_tables for iSS
 (
@@ -76,8 +112,8 @@ rm -fr hadronic_afterburner_toolkit_code/.git
 )
 
 # download nucleus configurations for 3D-Glauber
-#(cd 3dMCGlauber_code/tables; bash download_nucleusTables.sh;)
+(cd 3dMCGlauber_code/tables; bash download_nucleusTables.sh;)
 # download nucleus configurations for IP-Glasma
-#(cd ipglasma_code/nucleusConfigurations; bash download_nucleusTables.sh;)
+(cd ipglasma_code/nucleusConfigurations; bash download_nucleusTables.sh;)
 # download essential EOS files for hydro simulations
-#(cd MUSIC_code/EOS; bash download_hotQCD.sh; bash download_Neos2D.sh bqs;)
+(cd MUSIC_code/EOS; bash download_hotQCD.sh; bash download_Neos2D.sh bqs;)
