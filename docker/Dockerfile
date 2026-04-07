@@ -39,7 +39,9 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
         mpmath \
         freestream
 
-ENV HOME=/opt/
+ENV HOME=/opt
+ARG IEBE_REPO_URL=https://github.com/genilssom/iEBE-MUSIC.git
+ARG IEBE_REPO_BRANCH=main
 
 # Build and install Pythia8 from source (required by SMASH)
 RUN cd /tmp && \
@@ -52,10 +54,16 @@ RUN cd /tmp && \
     cd /tmp && \
     rm -rf pythia8315 pythia8315.tgz
 
-# Build the iEBE-MUSIC framework from the local workspace
+# Build the iEBE-MUSIC framework.
+# Prefer local workspace content when build context is repo root; if the build
+# context is docker/ (no codes directory), fall back to cloning Chun's repo.
 COPY . ${HOME}/iEBE-MUSIC
 
-RUN cd ${HOME}/iEBE-MUSIC/codes && \
+RUN if [ ! -d "${HOME}/iEBE-MUSIC/codes" ]; then \
+            rm -rf "${HOME}/iEBE-MUSIC" && \
+            git clone --depth=1 -b "${IEBE_REPO_BRANCH}" "${IEBE_REPO_URL}" "${HOME}/iEBE-MUSIC"; \
+        fi && \
+        cd ${HOME}/iEBE-MUSIC/codes && \
     ./get_code_packages.sh && \
     ./compile_code_packages.sh && \
     cd ../EOS_database && \
