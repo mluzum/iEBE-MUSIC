@@ -66,19 +66,19 @@ clone_repo_at_commit \
   kompost_code \
   ad5fe9d3b26434bb1d5c29820499ef26808b5a47
 
-# download MUSIC
+# download MUSIC (XSCAPE branch for SMASH/UrQMD compatibility)
 clone_repo_at_commit \
   https://github.com/MUSIC-fluid/MUSIC \
   MUSIC_code \
-  84734adf838fdf2ed9b0c9951916614e7c925950 \
-  main
+  cfcc26455450588961e81139045dc0eef387437c \
+  XSCAPE
 
-# download iSS particle sampler
+# download iSS particle sampler (XSCAPE branch for OSCAR2013 output compatible with SMASH)
 clone_repo_at_commit \
   https://github.com/chunshen1987/iSS \
   iSS_code \
-  b612a8e425d3e1dfc2d2b71cd208df6810c783be \
-  dev
+  d242555306930f813881caca500f0e6f82036b2e \
+  XSCAPE
 
 # download photonEmission wrapper
 clone_repo_at_commit \
@@ -125,4 +125,5 @@ clone_repo_at_commit \
 # download nucleus configurations for IP-Glasma
 (cd ipglasma_code/nucleusConfigurations; bash download_nucleusTables.sh;)
 # download essential EOS files for hydro simulations
-(cd MUSIC_code/EOS; bash download_hotQCD.sh; bash download_Neos2D.sh bqs;)
+# SMASH_binary argument provides binary EOS tables required when SMASH is the afterburner
+(cd MUSIC_code/EOS; bash download_hotQCD.sh SMASH_binary; bash download_Neos2D.sh bqs;)
