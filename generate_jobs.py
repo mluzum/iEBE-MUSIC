@@ -720,11 +720,12 @@ done
         """)
     elif afterburner_type == "smash":
         script.write("""
-        cp OSCAR.DAT ../SMASH/list/OSCAR.DAT0
-        cd ../SMASH
-        ./smash -i list/config.yaml > run.log
-        cd ..
-        cp SMASH/data/0/particles_oscar2013_extended.bin UrQMD_results/particle_list.bin
+    cp OSCAR.DAT ../SMASH/list/OSCAR.DAT0
+    cd ../SMASH
+    unset PYTHIA8DATA
+    ./smash -i list/config.yaml > run.log
+    cd ..
+    cp SMASH/data/0/particles_oscar2013_extended.bin UrQMD_results/particle_list.bin
 done
         """)
     if HBT_flag:
