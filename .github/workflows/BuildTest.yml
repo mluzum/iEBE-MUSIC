@@ -36,3 +36,16 @@ jobs:
           cd codes/
           ./get_code_packages.sh
           ./compile_code_packages.sh
+
+  docker_full_stack_build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Build full-stack Docker image
+        run: |
+          docker build \
+            -f docker/Dockerfile \
+            --build-arg IEBE_FULL_STACK_BUILD=1 \
+            -t iebe-music:ci-fullstack \
+            .
