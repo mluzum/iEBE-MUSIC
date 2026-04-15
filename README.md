@@ -27,6 +27,54 @@ Particlization & hadronic transport:
 
 type `./generate_jobs.py -h` for help information
 
+## Smoke Tests
+
+This repository provides a staged smoke-test runner:
+
+```bash
+./run_full_stack_tests.sh quick
+./run_full_stack_tests.sh build
+./run_full_stack_tests.sh full
+```
+
+- `quick`: Python syntax/unit tests and lightweight CLI checks.
+- `build`: includes external package fetch/compile and job-generation smoke.
+- `full`: includes Docker build plus a single-event full simulation smoke.
+
+Useful toggles:
+
+```bash
+RUN_TRENTO_SMOKE=1 ISOBAR_SEED_FILE=/abs/path/nucleon-seeds.hdf ./run_full_stack_tests.sh build
+SIM_TIMEOUT_SECONDS=3600 ./run_full_stack_tests.sh full
+```
+
+There is also a consolidated pre-push validator:
+
+```bash
+python3 test_pre_push_validation.py
+```
+
+### 3DMCGlauber Light-Ion Tables
+
+Standard 3DMCGlauber tables are downloaded by `codes/get_code_packages.sh`.
+
+If you also have local reweighting tables (for example:
+`O16_NLEFT_reweighting.bin.in` and `Ne20_NLEFT_reweighting.bin.in`),
+`codes/get_code_packages.sh` will link them into
+`codes/3dMCGlauber_code/tables` when present.
+
+Default lookup path:
+
+```bash
+/data/mluzum/light_ion_simulations
+```
+
+To use a different location:
+
+```bash
+LIGHT_ION_TABLES_DIR=/custom/path/to/tables ./codes/get_code_packages.sh
+```
+
 ## Parameters:
 Users can pass model parameters through a python script `parameters_dict_user.py`. It contains multiple dictionaries, which are related to each code module inside the iEBE-MUSIC framework. This script will update the master parameters dictionaries in `config/parameters_dict_master.py`. One can read `config/parameters_dict_master.py` for all the available parameters options for each module. If a user want to modify any parameters, he can add it in the `parameters_dict_user.py`.
 

@@ -1040,7 +1040,9 @@ def update_parameters_dict(par_dict_path, ran_seed):
         iss_dict['perform_decays'] = 1
         hadronic_afterburner_toolkit_dict['read_in_mode'] = 9
     ##################################################################################
-    smash_config_dict.update(parameters_dict.smash_config_dict)
+    # Keep backward compatibility with legacy parameter files that predate SMASH support.
+    user_smash_config = getattr(parameters_dict, 'smash_config_dict', {})
+    smash_config_dict.update(user_smash_config)
     if afterburner_type == "smash":
         music_dict['EOS_to_use'] = 91
         iss_dict['afterburner_type'] = 2

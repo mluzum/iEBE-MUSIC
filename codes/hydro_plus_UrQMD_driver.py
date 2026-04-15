@@ -10,6 +10,7 @@ import sys
 import time
 import shutil
 import re
+import subprocess
 import h5py
 import numpy as np
 from fetch_IPGlasma_event_from_hdf5_database import fecth_an_IPGlasma_event, fecth_an_IPGlasma_event_Tmunu
@@ -343,16 +344,70 @@ def run_hydro_event(final_results_folder, event_id):
     if not hydro_success:
         curr_time = time.asctime()
         print("{}  [{}] Playing MUSIC ... ".format(logo, curr_time), flush=True)
-        call("bash ./run_hydro.sh", shell=True)
+        hydro_process = subprocess.Popen(["bash", "./run_hydro.sh"])
+        run_log_path = path.join("MUSIC", "run.log")
+        run_err_path = path.join("MUSIC", "run.err")
+        heartbeat_interval_s = 30
+        last_progress_line = ""
+        last_seen_log_size = -1
+
+        while hydro_process.poll() is None:
+            time.sleep(heartbeat_interval_s)
+            if path.exists(run_log_path):
+                current_log_size = stat(run_log_path).st_size
+                if current_log_size != last_seen_log_size:
+                    last_seen_log_size = current_log_size
+                    try:
+                        with open(run_log_path, 'r', encoding="utf-8") as ftmp:
+                            log_lines = [line.strip() for line in ftmp.readlines()
+                                         if line.strip()]
+                        if log_lines:
+                            progress_line = log_lines[-1]
+                            if progress_line != last_progress_line:
+                                print("{}  MUSIC progress: {}".format(
+                                    logo, progress_line), flush=True)
+                                last_progress_line = progress_line
+                        else:
+                            print("{}  MUSIC running (run.log is empty yet) ...".format(
+                                logo), flush=True)
+                    except OSError:
+                        print("{}  MUSIC running (unable to read run.log yet) ...".format(
+                            logo), flush=True)
+                else:
+                    print("{}  MUSIC running (no new run.log output in last {} s) ...".format(
+                        logo, heartbeat_interval_s), flush=True)
+            else:
+                print("{}  MUSIC running (waiting for run.log) ...".format(logo),
+                      flush=True)
+
+        if hydro_process.returncode != 0:
+            print("{}  Hydrodynamic run exited with code {}".format(
+                logo, hydro_process.returncode), flush=True)
+            if path.exists(run_err_path):
+                try:
+                    with open(run_err_path, 'r', encoding="utf-8") as ftmp:
+                        err_lines = ftmp.readlines()
+                    tail_lines = ''.join(err_lines[-20:]).strip()
+                    if tail_lines:
+                        print("{}  MUSIC run.err tail:\n{}".format(
+                            logo, tail_lines), flush=True)
+                except OSError:
+                    pass
+            return (False, hydro_folder_name)
 
         # check hydro finishes properly
-        ftmp = open("MUSIC/hydro_results/run.log", 'r', encoding="utf-8")
-        hydro_status = ftmp.readlines()[-1].split()[3]
-        if hydro_status == "Finished.":
-            hydro_success = True
+        try:
+            with open("MUSIC/hydro_results/run.log", 'r', encoding="utf-8") as ftmp:
+                last_line = ftmp.readlines()[-1]
+            hydro_status = last_line.split()[3]
+            if hydro_status == "Finished.":
+                hydro_success = True
+        except (FileNotFoundError, IndexError):
+            hydro_success = False
 
         # collect hydro results
-        shutil.move("MUSIC/hydro_results", results_folder)
+        if hydro_success and path.exists("MUSIC/hydro_results"):
+            shutil.move("MUSIC/hydro_results", results_folder)
 
     return (hydro_success, hydro_folder_name)
 

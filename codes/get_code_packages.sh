@@ -35,6 +35,47 @@ clone_repo_at_tag() {
   rm -fr "${repo_dir}/.git"
 }
 
+download_pythia_source() {
+  local pythia_url=$1
+  local target_dir=$2
+  local tarball_name
+  tarball_name=$(basename "${pythia_url}")
+
+  rm -fr "${target_dir}"
+  mkdir -p "${target_dir}"
+  (
+    cd "${target_dir}"
+    if command -v wget >/dev/null 2>&1; then
+      wget --no-check-certificate "${pythia_url}" -O "${tarball_name}"
+    elif command -v curl >/dev/null 2>&1; then
+      curl -L "${pythia_url}" -o "${tarball_name}"
+    else
+      echo "Neither wget nor curl is available to download ${pythia_url}" >&2
+      exit 1
+    fi
+
+    tar xzf "${tarball_name}"
+    rm -f "${tarball_name}"
+  )
+}
+
+link_optional_3dmcglauber_tables() {
+  local tables_dir=$1
+  local source_dir=${2:-}
+
+  if [ -z "${source_dir}" ] || [ ! -d "${source_dir}" ]; then
+    return 0
+  fi
+
+  local table_name
+  for table_name in O16_NLEFT_reweighting.bin.in Ne20_NLEFT_reweighting.bin.in; do
+    if [ -f "${source_dir}/${table_name}" ]; then
+      ln -sfn "${source_dir}/${table_name}" "${tables_dir}/${table_name}"
+      echo "Linked optional 3dMCGlauber table: ${table_name}"
+    fi
+  done
+}
+
 # download Isobar-Sampler (used by TRENTo initial conditions)
 clone_repo_at_commit \
   https://github.com/mluzum/Isobar-Sampler.git \
@@ -98,6 +139,11 @@ clone_repo_at_tag \
   smash_code \
   SMASH-3.2.2
 
+# download Pythia source needed by SMASH
+download_pythia_source \
+  https://pythia.org/download/pythia83/pythia8315.tgz \
+  pythia8_code
+
 # download hadronic afterburner toolkit
 clone_repo_at_commit \
   https://github.com/chunshen1987/hadronic_afterburner_toolkit \
@@ -122,6 +168,13 @@ clone_repo_at_commit \
 
 # download nucleus configurations for 3D-Glauber
 (cd 3dMCGlauber_code/tables; bash download_nucleusTables.sh;)
+
+# Optionally link local light-ion reweighting tables when available.
+# Override with LIGHT_ION_TABLES_DIR, e.g.
+#   LIGHT_ION_TABLES_DIR=/path/to/tables ./get_code_packages.sh
+LIGHT_ION_TABLES_DIR=${LIGHT_ION_TABLES_DIR:-/data/mluzum/light_ion_simulations}
+link_optional_3dmcglauber_tables "3dMCGlauber_code/tables" "${LIGHT_ION_TABLES_DIR}"
+
 # download nucleus configurations for IP-Glasma
 (cd ipglasma_code/nucleusConfigurations; bash download_nucleusTables.sh;)
 # download essential EOS files for hydro simulations

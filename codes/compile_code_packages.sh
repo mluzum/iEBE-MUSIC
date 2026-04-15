@@ -3,6 +3,8 @@
 Green='\033[0;32m'
 NC='\033[0m'
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 CCFlag=$1
 CXXFlag=$2
 FCFlag=$3
@@ -45,21 +47,21 @@ fi
 
 
 # compile 3dMCGlauber
-#echo -e "${Green}compile 3dMCGlauber ... ${NC}"
-#(
-#    cd 3dMCGlauber_code
-#    ./get_LHAPDF.sh
-#    rm -fr build
-#    mkdir -p build
-#    cd build
-#    CC=${CCFlag} CXX=${CXXFlag} cmake .. -Dlink_with_lib=OFF
-#    make -j${number_of_cores_to_compile}
-#    make install
-#)
-#status=$?
-#if [ $status -ne 0 ]; then
-#    exit $status
-#fi
+echo -e "${Green}compile 3dMCGlauber ... ${NC}"
+(
+    cd 3dMCGlauber_code
+    ./get_LHAPDF.sh
+    rm -fr build
+    mkdir -p build
+    cd build
+    CC=${CCFlag} CXX=${CXXFlag} cmake .. -Dlink_with_lib=OFF
+    make -j${number_of_cores_to_compile}
+    make install
+)
+status=$?
+if [ $status -ne 0 ]; then
+    exit $status
+fi
 
 # compile IPGlasma
 #echo -e "${Green}compile IPGlasma ... ${NC}"
@@ -159,7 +161,24 @@ cp urqmd_code/urqmd/uqmd.burner urqmd/
 
 # compile SMASH
 echo -e "${Green}compile SMASH ... ${NC}"
-PYTHIA_CONFIG_EXECUTABLE="${HOME}/pythia8315/bin/pythia8-config"
+PYTHIA_SRC_DIR="${SCRIPT_DIR}/pythia8_code/pythia8315"
+PYTHIA_INSTALL_DIR="${SCRIPT_DIR}/pythia8"
+
+if [ -d "${PYTHIA_SRC_DIR}" ]; then
+    echo -e "${Green}compile Pythia8 ... ${NC}"
+    (
+    cd "${PYTHIA_SRC_DIR}"
+    ./configure --prefix="${PYTHIA_INSTALL_DIR}"
+    make -j${number_of_cores_to_compile}
+    make install
+    )
+    status=$?
+    if [ $status -ne 0 ]; then
+        exit $status
+    fi
+fi
+
+PYTHIA_CONFIG_EXECUTABLE="${PYTHIA_INSTALL_DIR}/bin/pythia8-config"
 if [ ! -x "${PYTHIA_CONFIG_EXECUTABLE}" ]; then
     PYTHIA_CONFIG_EXECUTABLE="$(command -v pythia8-config || true)"
 fi
@@ -173,14 +192,32 @@ if [ -n "${PYTHIA_CONFIG_EXECUTABLE}" ] && [ -x "${PYTHIA_CONFIG_EXECUTABLE}" ];
             -DPythia_CONFIG_EXECUTABLE="${PYTHIA_CONFIG_EXECUTABLE}" \
             -DTRY_USE_HEPMC=OFF \
             ..
-        make -j2 smash
+        cmake --build . -j${number_of_cores_to_compile}
     )
     status=$?
     if [ $status -ne 0 ]; then
         exit $status
     fi
+
+    SMASH_BIN=""
+    for candidate in \
+        smash_code/build/smash \
+        smash_code/build/src/smash \
+        smash_code/build/bin/smash
+    do
+        if [ -x "${candidate}" ]; then
+            SMASH_BIN="${candidate}"
+            break
+        fi
+    done
+
+    if [ -z "${SMASH_BIN}" ]; then
+        echo "SMASH build completed but executable was not found" >&2
+        exit 1
+    fi
+
     mkdir -p smash
-    cp smash_code/build/smash smash/
+    cp "${SMASH_BIN}" smash/smash
 else
     echo -e "${Green}Skipping SMASH build: pythia8-config not found${NC}"
 fi

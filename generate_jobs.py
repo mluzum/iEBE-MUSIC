@@ -13,6 +13,7 @@ import time
 import yaml
 from math import ceil
 from glob import glob
+from pathlib import Path
 from utilities.Pick_EOS_From_File import fetch_an_EOS
 from utilities.Pick_QGPviscosity_From_File import fetchShearViscosity1D, fetchBulkViscosity1D
 
@@ -38,6 +39,152 @@ support_cluster_list = [
     'nersc', 'wsugrid', "osg", "local", "guillimin", "mcgill", 'stampede2',
     "anvil"
 ]
+
+
+def resolve_isobar_seed_path(parameter_dict, par_directory):
+    """Resolve the Isobar seed file path from parameter dictionaries."""
+    seed_candidates = []
+    for dict_name in ["isobars_conf_dict_target", "isobars_conf_dict_projectile"]:
+        conf = getattr(parameter_dict, dict_name, None)
+        if conf is None:
+            continue
+        try:
+            seed_name = conf["isobar_samples"]["seeds_file"]["filename"]
+        except KeyError:
+            continue
+        if seed_name:
+            seed_candidates.append(str(seed_name))
+
+    if not seed_candidates:
+        raise ValueError(
+            "TRENTo + Isobar requires isobars_conf_dict_[target/projectile]"
+            "['isobar_samples']['seeds_file']['filename'] in the parameter file"
+        )
+
+    if len(set(seed_candidates)) != 1:
+        raise ValueError(
+            "Target/projectile Isobar seed filenames must match. "
+            f"Found: {seed_candidates}"
+        )
+
+    seed_path = Path(seed_candidates[0])
+    if not seed_path.is_absolute():
+        seed_path = Path(par_directory) / seed_path
+    if not seed_path.exists():
+        raise FileNotFoundError(f"Isobar seed file not found: {seed_path}")
+    return str(seed_path.resolve())
+
+
+def normalize_model_choices(control_dict):
+    """Normalize and validate initial state and afterburner choices."""
+    initial_condition_type = control_dict.get('initial_state_type', '')
+    if initial_condition_type not in known_initial_types:
+        raise ValueError(
+            "Do not recognize the initial condition type: "
+            f"{initial_condition_type}"
+        )
+
+    afterburner_type = str(control_dict.get('afterburner_type', 'urqmd')).lower()
+    if afterburner_type not in known_afterburner_types:
+        raise ValueError(
+            f"Do not recognize the afterburner type: {afterburner_type}"
+        )
+    return initial_condition_type, afterburner_type
+
+
+def resolve_smash_binary_path(code_path):
+    """Resolve the SMASH executable path from known build/output locations."""
+    candidates = [
+        path.join(code_path, "smash", "smash"),
+        path.join(code_path, "smash_code", "build", "smash"),
+        path.join(code_path, "smash_code", "build", "src", "smash"),
+        path.join(code_path, "smash_code", "build", "bin", "smash"),
+    ]
+    for candidate in candidates:
+        if path.exists(candidate) and path.isfile(candidate):
+            return candidate
+    return ""
+
+
+def resolve_3dmcglauber_binary_path(code_path):
+    """Resolve the 3dMCGlauber executable path from known build/output locations."""
+    candidates = [
+        path.join(code_path, "3dMCGlauber_code", "3dMCGlb.e"),
+        path.join(code_path, "3dMCGlauber_code", "build", "3dMCGlb.e"),
+        path.join(code_path, "3dMCGlauber_code", "build", "src", "3dMCGlb.e"),
+    ]
+    for candidate in candidates:
+        if path.exists(candidate) and path.isfile(candidate):
+            return candidate
+    return ""
+
+
+def validate_runtime_requirements(initial_condition_type, afterburner_type,
+                                  code_path, isobar_seed_file_path,
+                                  initial_condition_database=""):
+    """Validate model-specific runtime assets before creating event folders."""
+    if ("3DMCGlauber" in initial_condition_type
+            and initial_condition_database in ("self", "fixCentrality")):
+        glauber_binary = resolve_3dmcglauber_binary_path(code_path)
+        if not glauber_binary:
+            raise FileNotFoundError(
+                "3DMCGlauber initial conditions selected but 3dMCGlb.e was not found. "
+                "Run compile_code_packages.sh and ensure 3dMCGlauber builds successfully."
+            )
+
+    if initial_condition_type == "TRENTo":
+        if not isobar_seed_file_path or not path.exists(isobar_seed_file_path):
+            raise FileNotFoundError(
+                "TRENTo requires a valid Isobar seeds file path from parameter dictionaries"
+            )
+
+        required_trento_files = [
+            path.join(code_path, "isobar_sampler_code", "exec", "build_isobars.py"),
+            path.join(code_path, "trento_code", "build", "src", "trento"),
+        ]
+        for required_file in required_trento_files:
+            if not path.exists(required_file):
+                raise FileNotFoundError(
+                    f"Missing required TRENTo/Isobar runtime file: {required_file}"
+                )
+
+    if afterburner_type == "urqmd":
+        required_urqmd_files = [
+            path.join(code_path, "osc2u", "osc2u.e"),
+            path.join(code_path, "urqmd", "runqmd.sh"),
+            path.join(code_path, "urqmd", "uqmd.burner"),
+            path.join(code_path, "urqmd_code", "urqmd", "urqmd.e"),
+        ]
+        for required_file in required_urqmd_files:
+            if not path.exists(required_file):
+                raise FileNotFoundError(
+                    f"Missing required UrQMD runtime file: {required_file}"
+                )
+
+    if afterburner_type == "smash":
+        smash_binary = resolve_smash_binary_path(code_path)
+        if not smash_binary:
+            raise FileNotFoundError(
+                "SMASH afterburner selected but SMASH executable was not found. "
+                "Run compile_code_packages.sh and ensure SMASH builds successfully."
+            )
+
+
+def ensure_3dmcglauber_table_aliases(table_dir):
+    """Provide compatibility aliases for legacy NLEFT table filenames."""
+    alias_map = {
+        "O16_NLEFT_reweighting.bin.in": "O16_NLEFT_dmin0.5fm_positiveweights.bin.in",
+        "Ne20_NLEFT_reweighting.bin.in": "Ne20_NLEFT_dmin0.5fm_positiveweights.bin.in",
+    }
+    for alias_name, source_name in alias_map.items():
+        alias_path = path.join(table_dir, alias_name)
+        source_path = path.join(table_dir, source_name)
+        if path.exists(alias_path) or not path.exists(source_path):
+            continue
+        try:
+            symlink(path.abspath(source_path), alias_path)
+        except OSError:
+            shutil.copy2(source_path, alias_path)
 
 
 def write_script_header(cluster, script, n_threads, event_id, walltime,
@@ -626,11 +773,44 @@ def generate_script_analyze_spvn(folder_name, HBT_flag, logfile):
     script.close()
 
 
+def setup_sub_event_afterburner_assets(sub_event_folder, code_path,
+                                       param_folder, afterburner_type):
+    """Prepare afterburner-specific runtime files inside one UrQMDev folder."""
+    if afterburner_type == "urqmd":
+        shutil.copytree(path.join(code_path, 'osc2u'),
+                        path.join(sub_event_folder, 'osc2u'))
+        shutil.copytree(path.join(code_path, 'urqmd'),
+                        path.join(sub_event_folder, 'urqmd'))
+        subprocess.call("ln -s {0:s} {1:s}".format(
+            path.abspath(path.join(code_path, 'urqmd_code/urqmd/urqmd.e')),
+            path.join(sub_event_folder, "urqmd/urqmd.e")),
+                        shell=True)
+    elif afterburner_type == "smash":
+        smash_binary_path = resolve_smash_binary_path(code_path)
+        if not smash_binary_path:
+            raise FileNotFoundError(
+                "SMASH afterburner selected but SMASH executable is missing"
+            )
+
+        smash_dir = path.join(sub_event_folder, 'SMASH')
+        smash_list_dir = path.join(smash_dir, 'list')
+        mkdir(smash_dir)
+        mkdir(smash_list_dir)
+
+        subprocess.call("ln -s {0:s} {1:s}".format(
+            path.abspath(smash_binary_path),
+            path.join(smash_dir, "smash")),
+                        shell=True)
+        shutil.copyfile(
+            path.join(param_folder, 'SMASH/config.yaml'),
+            path.join(smash_list_dir, 'config.yaml'))
+
+
 def generate_event_folders(initial_condition_database, initial_condition_type,
                            package_root_path, code_path, working_folder,
                            cluster_name, event_id, event_id_offset,
                            n_hydro_per_job, n_urqmd_per_hydro, n_threads,
-                           para_dict, afterburner_type, isobar_seed_file, EOSType: int,
+                           para_dict, afterburner_type, isobar_seed_file_path, EOSType: int,
                            EOSId: int, EOSFileName: str, debugFlag: bool):
     """This function creates the event folder structure"""
     event_folder = path.join(working_folder, 'event_%d' % event_id)
@@ -661,13 +841,20 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
             mkdir(path.join(event_folder, '3dMCGlauber'))
             shutil.copyfile(path.join(param_folder, '3dMCGlauber/input'),
                             path.join(event_folder, '3dMCGlauber/input'))
-            for link_i in ['3dMCGlb.e', 'eps09', 'tables']:
+            glauber_binary_path = resolve_3dmcglauber_binary_path(code_path)
+            subprocess.call("ln -s {0:s} {1:s}".format(
+                path.abspath(glauber_binary_path),
+                path.join(event_folder, "3dMCGlauber/3dMCGlb.e")),
+                            shell=True)
+            for link_i in ['eps09', 'tables']:
                 subprocess.call("ln -s {0:s} {1:s}".format(
                     path.abspath(
                         path.join(code_path,
                                   '3dMCGlauber_code/{}'.format(link_i))),
                     path.join(event_folder, "3dMCGlauber/{}".format(link_i))),
                                 shell=True)
+            ensure_3dmcglauber_table_aliases(
+                path.join(event_folder, '3dMCGlauber', 'tables'))
         ############################## GENERATE FOLDER OF ISOBAR AND TRENTo ##########################        
         elif "TRENTo" in initial_condition_type:
               generate_script_trento(event_folder, n_threads, event_id)
@@ -713,10 +900,10 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
 
               # Define an absolute path for Isobar to choose the correct seed
               
-              if not isobar_seed_file:
-                  raise ValueError("For TRENTo + Isobar, you must provide --isobar_seed_file")
-              
-              seed_file_abs = path.abspath(isobar_seed_file)
+              if not isobar_seed_file_path:
+                  raise ValueError("For TRENTo + Isobar, a seeds file path must be defined in parameter dictionaries")
+
+              seed_file_abs = path.abspath(isobar_seed_file_path)
 
               subprocess.call("ln -s {0:s} {1:s}".format(
                     seed_file_abs,
@@ -902,30 +1089,8 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                                        'iSS_code/{}'.format(link_i))),
                 path.join(sub_event_folder, "iSS/{}".format(link_i))),
                             shell=True)
-        if afterburner_type == "urqmd":
-            shutil.copytree(path.join(code_path, 'osc2u'),
-                            path.join(sub_event_folder, 'osc2u'))
-            shutil.copytree(path.join(code_path, 'urqmd'),
-                            path.join(sub_event_folder, 'urqmd'))
-            subprocess.call("ln -s {0:s} {1:s}".format(
-                path.abspath(path.join(code_path, 'urqmd_code/urqmd/urqmd.e')),
-                path.join(sub_event_folder, "urqmd/urqmd.e")),
-                            shell=True)
-        ############################# SMASH ####################################   
-        if afterburner_type == "smash":
-            smash_dir = path.join(sub_event_folder, 'SMASH')
-            smash_list_dir = path.join(smash_dir, 'list')
-            mkdir(smash_dir)
-            mkdir(smash_list_dir)
-            
-            subprocess.call("ln -s {0:s} {1:s}".format(
-                path.abspath(path.join(code_path, 'smash_code/build/smash')),
-                path.join(smash_dir, "smash")),
-                            shell=True)
-            shutil.copyfile(
-                path.join(param_folder, 'SMASH/config.yaml'),
-                path.join(smash_list_dir, 'config.yaml'))
-        #######################################################################
+        setup_sub_event_afterburner_assets(sub_event_folder, code_path,
+                                           param_folder, afterburner_type)
         if HBT_flag:
             shutil.copytree(
                 path.join(code_path, 'hadronic_afterburner_toolkit'),
@@ -1048,13 +1213,6 @@ def main():
                         type=int,
                         default='-1',
                         help='Random Seed (-1: according to system time)')
-    #########################################################################
-    parser.add_argument('--isobar_seed_file',
-                        metavar='',
-                        type=str,
-                        default='',
-                        help='the seed file for isobar sampling')
-    #########################################################################
     parser.add_argument('--nocopy', action='store_true')
     parser.add_argument("--continueFlag", action="store_true")
     args = parser.parse_args()
@@ -1080,9 +1238,6 @@ def main():
         n_threads = args.n_threads
         job_id = args.job_process_id
         seed = args.random_seed
-        ###############################################
-        isobar_seed_file = args.isobar_seed_file
-        ###############################################
     except:
         parser.print_help()
         exit(0)
@@ -1107,22 +1262,18 @@ def main():
         print("seed = ", seed)
         args.nocopy = True
 
-    initial_condition_type = parameter_dict.control_dict['initial_state_type']
-    if initial_condition_type not in known_initial_types:
-        print("\U0001F6AB  "
-              + "Do not recognize the initial condition type: {}".format(
-                  initial_condition_type))
+    try:
+        initial_condition_type, afterburner_type = normalize_model_choices(
+            parameter_dict.control_dict
+        )
+    except ValueError as exc:
+        print("\U0001F6AB  {}".format(exc))
         exit(1)
 
-    try:
-        afterburner_type = parameter_dict.control_dict[
-            'afterburner_type'].lower()
-    except KeyError:
-        afterburner_type = "urqmd"
-    if afterburner_type not in known_afterburner_types:
-        print("\U0001F6AB  "
-              + f"Do not recognize the afterburner type: {afterburner_type}")
-        exit(1)
+    isobar_seed_file_path = ""
+    if initial_condition_type == "TRENTo":
+        isobar_seed_file_path = resolve_isobar_seed_path(parameter_dict,
+                                                         par_diretory)
 
     initial_condition_database = ""
     if initial_condition_type == "IPGlasma":
@@ -1239,6 +1390,16 @@ def main():
     if 'debugFlag' in parameter_dict.control_dict.keys():
         debugFlag = parameter_dict.control_dict['debugFlag']
 
+    try:
+        validate_runtime_requirements(initial_condition_type,
+                                      afterburner_type,
+                                      code_path,
+                                      isobar_seed_file_path,
+                                      initial_condition_database)
+    except FileNotFoundError as exc:
+        print("\U0001F6AB  {}".format(exc))
+        exit(1)
+
     cent_label = "XXX"
     cent_label_pre = cent_label
     if (initial_condition_database == "self"
@@ -1281,7 +1442,7 @@ def main():
                                code_path, working_folder_name, cluster_name,
                                iev, event_id_offset, n_hydro_rescaled,
                                n_urqmd_per_hydro, n_threads, parameter_dict,
-                               afterburner_type, isobar_seed_file, EOSType, EOSId, EOSFileName,
+                               afterburner_type, isobar_seed_file_path, EOSType, EOSId, EOSFileName,
                                debugFlag)
         event_id_offset += n_hydro_rescaled
     sys.stdout.write("\n")
