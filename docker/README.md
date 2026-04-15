@@ -7,6 +7,11 @@ We can build a docker image for the iEBE-MUSIC package using the following comma
 
     docker build -t iebe-music .
 
+To build a full-stack image with optional model components compiled
+(IPGlasma, KoMPoST, photonEmission), enable the build arg:
+
+	docker build -f docker/Dockerfile -t iebe-music --build-arg IEBE_FULL_STACK_BUILD=1 .
+
 ### 2. Run iEBE-MUSIC
 The docker container has ready compiled all the software packages for iEBE-MUSIC.
 

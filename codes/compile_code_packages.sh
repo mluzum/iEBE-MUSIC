@@ -27,6 +27,10 @@ case "${machine}" in
 esac
 number_of_cores_to_compile=$(( ${number_of_cores} > 2 ? 2 : ${number_of_cores} ))
 
+# Optional full-stack mode compiles slower components needed to support every
+# model combination inside one container image.
+COMPILE_OPTIONAL_MODELS=${COMPILE_OPTIONAL_MODELS:-0}
+
 
 # compile TRENTo
 echo -e "${Green}compile TRENTo ... ${NC}"
@@ -63,32 +67,36 @@ if [ $status -ne 0 ]; then
     exit $status
 fi
 
-# compile IPGlasma
-#echo -e "${Green}compile IPGlasma ... ${NC}"
-#(
-#    cd ipglasma_code
-#    rm -fr build
-#    mkdir -p build
-#    cd build
-#    CC=${CCFlag} CXX=${CXXFlag} cmake .. -DdisableMPI=ON
-#    make -j${number_of_cores_to_compile}
-#    make install
-#)
-#status=$?
-#if [ $status -ne 0 ]; then
-#    exit $status
-#fi
+if [ "${COMPILE_OPTIONAL_MODELS}" = "1" ]; then
+    # compile IPGlasma
+    echo -e "${Green}compile IPGlasma ... ${NC}"
+    (
+        cd ipglasma_code
+        rm -fr build
+        mkdir -p build
+        cd build
+        CC=${CCFlag} CXX=${CXXFlag} cmake .. -DdisableMPI=ON
+        make -j${number_of_cores_to_compile}
+        make install
+    )
+    status=$?
+    if [ $status -ne 0 ]; then
+        exit $status
+    fi
 
-# compile KoMPoST
-#echo -e "${Green}compile KoMPoST ... ${NC}"
-#(
-#    cd kompost_code
-#    CXX=${CXXFlag} make
-#)
-#status=$?
-#if [ $status -ne 0 ]; then
-#    exit $status
-#fi
+    # compile KoMPoST
+    echo -e "${Green}compile KoMPoST ... ${NC}"
+    (
+        cd kompost_code
+        CXX=${CXXFlag} make
+    )
+    status=$?
+    if [ $status -ne 0 ]; then
+        exit $status
+    fi
+else
+    echo -e "${Green}Skipping optional model compile stage (set COMPILE_OPTIONAL_MODELS=1 to enable IPGlasma/KoMPoST/photon)${NC}"
+fi
 
 # compile MUSIC
 echo -e "${Green}compile MUSIC ... ${NC}"
@@ -110,21 +118,23 @@ cp MUSIC_code/example_inputfiles/IPGlasma_2D/music_input_mode_2 MUSIC/
 cp MUSIC_code/utilities/sweeper.sh MUSIC/
 (cd MUSIC; mkdir -p initial)
 
-# compile photonEmission_hydroInterface
-#echo -e "${Green}compile photonEmission_hydroInterface ... ${NC}"
-#(
-#    cd photonEmission_hydroInterface_code
-#    rm -fr build
-#    mkdir -p build
-#    cd build
-#    CC=${CCFlag} CXX=${CXXFlag} cmake ..
-#    make -j${number_of_cores_to_compile}
-#    make install
-#)
-#status=$?
-#if [ $status -ne 0 ]; then
-#    exit $status
-#fi
+if [ "${COMPILE_OPTIONAL_MODELS}" = "1" ]; then
+    # compile photonEmission_hydroInterface
+    echo -e "${Green}compile photonEmission_hydroInterface ... ${NC}"
+    (
+        cd photonEmission_hydroInterface_code
+        rm -fr build
+        mkdir -p build
+        cd build
+        CC=${CCFlag} CXX=${CXXFlag} cmake ..
+        make -j${number_of_cores_to_compile}
+        make install
+    )
+    status=$?
+    if [ $status -ne 0 ]; then
+        exit $status
+    fi
+fi
 
 # download iSS particle sampler
 echo -e "${Green}compile iSS ... ${NC}"

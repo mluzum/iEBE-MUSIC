@@ -117,6 +117,18 @@ export LC_CTYPE=en_US.UTF8
 
 The iEBE-MUSIC has its official docker image on docker hub [iebe-music](https://hub.docker.com/r/chunshen1987/iebe-music).
 
+For local Docker builds, you can opt into a full-stack image that compiles
+optional model components (IPGlasma, KoMPoST, photonEmission) in addition to
+the default stack:
+
+```bash
+docker build -f docker/Dockerfile -t iebe-music:test-local \
+    --build-arg IEBE_FULL_STACK_BUILD=1 .
+```
+
+Default behavior (`IEBE_FULL_STACK_BUILD=0`) keeps build time lower by
+skipping those optional components.
+
 ## Coding Style
 
 We use YAPF to impose coding format for the python scripts. Before every commit, please use

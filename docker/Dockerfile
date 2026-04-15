@@ -42,6 +42,7 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip && \
 ENV HOME=/opt
 ARG IEBE_REPO_URL=https://github.com/genilssom/iEBE-MUSIC.git
 ARG IEBE_REPO_BRANCH=main
+ARG IEBE_FULL_STACK_BUILD=0
 
 # Build and install Pythia8 from source (required by SMASH)
 RUN cd /tmp && \
@@ -65,7 +66,7 @@ RUN if [ ! -d "${HOME}/iEBE-MUSIC/codes" ]; then \
         fi && \
         cd ${HOME}/iEBE-MUSIC/codes && \
     ./get_code_packages.sh && \
-    ./compile_code_packages.sh && \
+    COMPILE_OPTIONAL_MODELS=${IEBE_FULL_STACK_BUILD} ./compile_code_packages.sh && \
     cd ../EOS_database && \
     bash download_EOSdatabase1D.sh && \
     bash download_QGPViscositydatabase1D.sh && \
