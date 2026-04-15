@@ -179,4 +179,4 @@ link_optional_3dmcglauber_tables "3dMCGlauber_code/tables" "${LIGHT_ION_TABLES_D
 (cd ipglasma_code/nucleusConfigurations; bash download_nucleusTables.sh;)
 # download essential EOS files for hydro simulations
 # SMASH_binary argument provides binary EOS tables required when SMASH is the afterburner
-(cd MUSIC_code/EOS; bash download_hotQCD.sh SMASH_binary; bash download_Neos2D.sh bqs;)
+(cd MUSIC_code/EOS; bash download_hotQCD.sh; bash download_hotQCD.sh SMASH_binary; bash download_Neos2D.sh bqs;)

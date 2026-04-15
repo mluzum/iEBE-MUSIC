@@ -128,7 +128,7 @@ printf "Job running as user: `/usr/bin/id`\\n"
     extra_files = para_dict_.get('extra_input_files', None)
 
     if para_dict_["bayesFlag"]:
-        script.write("""bayesFile=$7
+        script.write("""bayesFile=$6
 
 /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nthreads} -n_hydro ${nHydroEvents} -seed ${seed} -b ${bayesFile} --nocopy --continueFlag
 """)
