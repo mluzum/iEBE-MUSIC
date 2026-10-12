@@ -53,18 +53,27 @@ ENV HOME /opt/
 
 # download and compile the iEBE-MUSIC framework
 #
+# The framework is fetched by exact commit SHA rather than by branch, so a given
+# SHA keeps building the same image after the branch moves on.
+#
 # The fork URL is hardcoded on purpose (not a build ARG): an ARG value lives in CI
 # job config or shell history rather than in git, which would allow two different
 # images to be built from the same commit and break "commit SHA => image".
 #
-# SHA PINNING (do this once NME has history): a file cannot contain the SHA of the
-# commit that contains it, so pin the last known-good commit here and bump it in a
-# follow-up commit. Replace the `-b NME` line with:
-#   git init . && git remote add origin <fork> && git fetch --depth=1 origin <SHA> \
-#     && git checkout FETCH_HEAD
+# BUMPING: this SHA cannot be the commit that contains it, so it always names the
+# last known-good commit. To advance: commit and push your work, then update the
+# SHA below in the following commit and rebuild.
+#
+#   868d681 = "Pin container provenance and keep in-tree sampler fork"
+#             (dependency pins + sampler-fork fix + pinned Isobar-Sampler)
 RUN cd ${HOME} && \
-    git clone https://github.com/mluzum/iEBE-MUSIC.git -b NME && \
-    cd iEBE-MUSIC/codes && \
+    mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
+    git init -q . && \
+    git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
+    git fetch -q --depth=1 origin 868d6812a25712e3964dcac673f70c6cb0e2d7ad && \
+    git checkout -q FETCH_HEAD && \
+    test "$(git rev-parse HEAD)" = "868d6812a25712e3964dcac673f70c6cb0e2d7ad" && \
+    cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
     cd ../EOS_database && \
