@@ -104,7 +104,122 @@ def detect_seed_files(param_file):
     return None
 
 
+def declared_seed_file(param_file):
+    """Return the raw isobar_seed_file value, or None if not declared."""
+    try:
+        with open(param_file, 'r') as f:
+            content = f.read()
+        m = re.search(r"isobar_seed_file\s*[=:]\s*['\"]([^'\"]+)['\"]", content)
+        return m.group(1) if m else None
+    except OSError:
+        return None
+
+
+def require_seed_file(param_file):
+    """Resolve the isobar seed, failing loudly if it is declared but unfindable.
+
+    Without this the generator simply omits the seed from transfer_input_files
+    and still emits a full queue, and every job then dies inside
+    generate_jobs.py with "Specified isobar seed file not found". That is an
+    expensive way to learn the generator was run from the wrong directory:
+    note that the parameter file's relative path is resolved by
+    generate_jobs.py against its *working* directory at run time, so the
+    generator must be run where that same path resolves.
+    """
+    seed_file_path = detect_seed_files(param_file)
+    if seed_file_path and path.exists(seed_file_path):
+        return seed_file_path
+    declared = declared_seed_file(param_file)
+    if declared:
+        raise SystemExit(
+            "Error: parameter file declares isobar_seed_file = {!r} but it "
+            "could not be resolved from {} (tried the parameter file's "
+            "directory, the repo root, the current directory and "
+            "<cwd>/shared_seeds). Run this generator from a directory where "
+            "that relative path resolves -- e.g. the repository root, or a "
+            "design-point folder holding shared_seeds/.".format(
+                declared, path.abspath(param_file)))
+    return None
+
+
 # ── UrQMD mode ────────────────────────────────────────────────────────────────
+
+def collect_head(para_dict_):
+    """Event-range arithmetic, the EXIT trap, and nothing else.
+
+    Emitted BEFORE generate_jobs.py runs: the range must be known to build the
+    command line, and registering the trap first means a run that dies partway
+    still transfers the events that completed. The part that actually executes
+    submit_job.script lives in collect_tail(), which must come after
+    generate_jobs.py -- it depends on the event folder that creates.
+    """
+    verbose = para_dict_.get("output_mode", "quiet") == "verbose"
+    extra_collect = """
+    for ev in "${SCRATCH_DIR}"/playground/event_*/EVENT_RESULTS_*; do
+        if [ -d "${ev}" ]; then cp -r "${ev}" "${out_dir}/"; fi
+    done
+    for ev in "${SCRATCH_DIR}"/playground/event_*/TRENTo; do
+        if [ -d "${ev}" ]; then cp -r "${ev}" "${out_dir}/"; fi
+    done
+""" if verbose else ""
+
+    return '''
+# Global event ids: job $(Process) owns events [Process*N, Process*N+N-1].
+# Mirrors the OSG generator, so the same event numbering applies on both paths.
+event_start_id=$(( processId * nHydroEvents ))
+event_end_id=${event_start_id}
+event_dir="${SCRATCH_DIR}/playground/event_${event_start_id}"
+
+finalize_job_output() {
+    local status=$?
+    out_dir="${SCRATCH_DIR}/results_${processId}"
+    mkdir -p "${out_dir}"
+
+    # Flow observables and the TRENTo event summary, named with the global event
+    # id, so they stay joinable across jobs.
+    find "${SCRATCH_DIR}/playground" -type f \\
+        \\( -name 'spvn_results_*.h5' -o -name 'trento_event_summary_*.txt' \\) \\
+        -exec cp -f {} "${out_dir}/" \\; 2>/dev/null || true
+''' + extra_collect + '''
+    # Checkpoint archive. Seeds are excluded: they are large and already on input.
+    tar -czf "${SCRATCH_DIR}/job_output_${processId}.tar.gz" \\
+        -C "${SCRATCH_DIR}" playground \\
+        --exclude='*/shared_seeds/*' --exclude='nucleon-seeds*.hdf' 2>/dev/null || true
+
+    printf 'Collected %s file(s) for events %s..%s\\n' \\
+        "$(find "${out_dir}" -type f | wc -l)" "${event_start_id}" \\
+        "$(( event_start_id + nHydroEvents - 1 ))"
+    return ${status}
+}
+trap finalize_job_output EXIT
+'''
+
+
+def collect_tail():
+    """Run the generated event. Emitted AFTER generate_jobs.py.
+
+    Note the `|| status=$?` idiom rather than `if ! cmd; then status=$?`.
+    Under `if !`, `$?` inside the branch is the status of the negation (always
+    0), so a failed simulation would exit 0 and HTCondor's
+    `periodic_remove = (ExitCode == 73)` / `on_exit_hold` rules would never fire.
+    The `||` form also keeps `set -e` from aborting before the status is read.
+    """
+    return '''
+if [ ! -d "${event_dir}" ]; then
+    echo "Missing event directory: ${event_dir}" >&2
+    ls -la "${SCRATCH_DIR}/playground" >&2 || true
+    exit 1
+fi
+
+cd "${event_dir}"
+status=0
+singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" bash submit_job.script || status=$?
+if [ "${status}" -ne 0 ]; then
+    echo "submit_job.script failed with exit code ${status}" >&2
+    exit "${status}"
+fi
+'''
+
 
 def write_submission_script_urqmd(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
@@ -140,8 +255,8 @@ WhenToTransferOutput = ON_EXIT
         transfer_list.append(para_dict_['bayes_file'])
     
     # Detect and add seed files from parameter file
-    seed_file_path = detect_seed_files(para_dict_['param_file'])
-    if seed_file_path and path.exists(seed_file_path):
+    seed_file_path = require_seed_file(para_dict_['param_file'])
+    if seed_file_path:
         transfer_list.append(seed_file_path)
     
     # Add singularity image
@@ -149,22 +264,21 @@ WhenToTransferOutput = ON_EXIT
     
     script.write("\ntransfer_input_files = {}\n".format(", ".join(transfer_list)))
 
-    script.write(
-        "transfer_checkpoint_files = playground/event_0/EVENT_RESULTS_$(Process).tar.gz\n")
-
+    # Outputs are collected by run_singularity.sh's EXIT trap into
+    # results_$(Process)/ instead of being globbed here.
+    #
+    # The previous globs, playground/event_0/EVENT_RESULTS_$(Process)/..., could
+    # never work for two independent reasons:
+    #   * the event folder is named event_${processId * nHydroEvents}, which is
+    #     not expressible as a $(Process) macro once more than one event per job
+    #     is requested;
+    #   * the driver names results after the *global* event id
+    #     (EVENT_RESULTS_<event_id>), not after $(Process). Only Process 0 ever
+    #     matched, so every other job silently transferred nothing.
+    # The trap approach is what the OSG generator already does.
     initial_state_type = detect_initial_state_type(para_dict_["param_file"])
-
-    if para_dict_.get("output_mode", "quiet") == "verbose":
-        transfer_output = "playground/event_0/EVENT_RESULTS_$(Process)"
-    else:
-        quiet_outputs = [
-            "playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5"
-        ]
-        if initial_state_type == "TRENTo":
-            quiet_outputs.append(
-                "playground/event_0/EVENT_RESULTS_$(Process)/trento_event_summary_$(Process).txt"
-            )
-        transfer_output = ", ".join(quiet_outputs)
+    transfer_output = "results_$(Process)"
+    script.write("\ntransfer_checkpoint_files = job_output_$(Process).tar.gz\n")
 
     script.write("""
 transfer_output_files = {3}
@@ -203,6 +317,7 @@ def write_job_running_script_urqmd(para_dict_):
 
     script = open("run_singularity.sh", "w")
     script.write("""#!/usr/bin/env bash
+set -eo pipefail
 
 parafile=$1
 processId=$2
@@ -264,30 +379,29 @@ printf "Job running as user: `/usr/bin/id`\\n"
     script.write('SCRATCH_DIR="${PWD}"\n')
     script.write('SIF="${SCRATCH_DIR}/$(basename ${SINGULARITY_IMAGE})"\n\n')
 
-    if para_dict_["bayesFlag"]:
-        script.write(
-            'singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" '
-            "/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG "
-            "-par ${parafile} -id ${processId} -n_th ${nthreads} "
-            "-n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} "
-            "-b ${bayesFile} --nocopy --continueFlag\n")
-    else:
-        script.write(
-            'singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" '
-            "/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG "
-            "-par ${parafile} -id ${processId} -n_th ${nthreads} "
-            "-n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} "
-            "--nocopy --continueFlag\n")
+    # Trap and event-range arithmetic are emitted BEFORE generate_jobs.py, so a
+    # run that fails partway still transfers the events that did complete
+    # instead of discarding them.
+    script.write(collect_head(para_dict_))
 
-    script.write("""
-cd playground/event_0
-mv EVENT_RESULTS_${processId}.tar.gz playground/event_0
-singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" bash submit_job.script
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
+    extra = " -b ${bayesFile}" if para_dict_["bayesFlag"] else ""
+    # `|| status=$?` rather than `if ! cmd; then`: inside an `if !` branch `$?`
+    # is the status of the negation (always 0), which would hide the failure
+    # from HTCondor. The `||` form is also safe under `set -e`.
+    script.write('''
+status=0
+singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" \\
+        /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG \\
+        -par ${parafile} -id ${processId} -n_th ${nthreads} \\
+        -n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} \\
+        --event_start_id ${event_start_id} --event_end_id ${event_end_id} \\
+        --nocopy --continueFlag''' + extra + ''' || status=$?
+if [ "${status}" -ne 0 ]; then
+    echo "generate_jobs.py failed with exit code ${status}" >&2
+    exit "${status}"
 fi
-""")
+''')
+    script.write(collect_tail())
     script.close()
 
 
@@ -296,12 +410,17 @@ fi
 def write_submission_script_smash(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
     random_seed = random.SystemRandom().randint(0, 10000000)
-    seed_file = para_dict_.get("seed_file", "")
     sif = para_dict_["singularity_image_path"]
     script = open(FILENAME, "w")
 
     # Argument order: param_file $(Process) n_events n_threads seed
-    #                 [bayes_file] [seed_file] singularity_image
+    #                 [bayes_file] singularity_image
+    #
+    # There is no seed_file positional argument: the isobar seed is declared by
+    # the parameter file's `isobar_seed_file` and transferred as an input file,
+    # exactly as in the UrQMD branch. The previous code read a `seed_file` key
+    # that no argparse option ever populated, and then passed it on to
+    # generate_jobs.py as `--isobar_seed_file`, which that script does not accept.
     if para_dict_["bayesFlag"]:
         args_str = "{0} $(Process) {1} {2} {3} {4}".format(
             para_dict_["param_file"], para_dict_["n_events_per_job"],
@@ -310,8 +429,6 @@ def write_submission_script_smash(para_dict_):
         args_str = "{0} $(Process) {1} {2} {3}".format(
             para_dict_["param_file"], para_dict_["n_events_per_job"],
             para_dict_["n_threads"], random_seed)
-    if seed_file:
-        args_str += " {}".format(seed_file)
     # singularity image is always last
     args_str += " {}".format(sif)
 
@@ -332,24 +449,19 @@ WhenToTransferOutput = ON_EXIT
     input_files = [para_dict_['param_file']]
     if para_dict_['bayesFlag']:
         input_files.append(para_dict_['bayes_file'])
-    if seed_file:
-        input_files.append(seed_file)
+    seed_file_path = require_seed_file(para_dict_['param_file'])
+    if seed_file_path:
+        input_files.append(seed_file_path)
     input_files.append(sif)
     script.write("\ntransfer_input_files = {}\n".format(", ".join(input_files)))
 
     initial_state_type = detect_initial_state_type(para_dict_["param_file"])
 
-    if para_dict_.get("output_mode", "quiet") == "verbose":
-        transfer_output = "playground/event_0/EVENT_RESULTS_$(Process)"
-    else:
-        quiet_outputs = [
-            "playground/event_0/EVENT_RESULTS_$(Process)/spvn_results_$(Process).h5"
-        ]
-        if initial_state_type == "TRENTo":
-            quiet_outputs.append(
-                "playground/event_0/EVENT_RESULTS_$(Process)/trento_event_summary.txt"
-            )
-        transfer_output = ", ".join(quiet_outputs)
+    # Same collected-directory scheme as the UrQMD branch; the old globs here
+    # referenced EVENT_RESULTS_$(Process), which never matches because the driver
+    # names results after the global event id.
+    transfer_output = "results_$(Process)"
+    script.write("\ntransfer_checkpoint_files = job_output_$(Process).tar.gz\n")
 
     script.write("""
 transfer_output_files = {3}
@@ -380,14 +492,12 @@ queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
 
 
 def write_job_running_script_smash(para_dict_):
-    seed_file = para_dict_.get("seed_file", "")
-    # seedfile position: $6 (no bayes) or $7 (bayes)
-    seedfile_pos = 7 if para_dict_["bayesFlag"] else 6
-    # singularity image is always the last arg, after optional seed_file
-    sif_pos = seedfile_pos + (1 if seed_file else 0)
+    # singularity image is the last positional arg: $6 (no bayes) or $7 (bayes)
+    sif_pos = 7 if para_dict_["bayesFlag"] else 6
 
     script = open("run_singularity.sh", "w")
     script.write("""#!/usr/bin/env bash
+set -eo pipefail
 
 parafile=$1
 processId=$2
@@ -404,6 +514,7 @@ jobdir=$(pwd)
 export JOBDIR="${jobdir}"
 export TMPDIR="${jobdir}/tmp"
 export HOME="${jobdir}"
+export SEED_DIR="${jobdir}/shared_seeds"
 export XDG_DATA_HOME="${jobdir}/.local/share"
 export XDG_CACHE_HOME="${jobdir}/.cache"
 export TRENTO_CACHE="${jobdir}/.trento"
@@ -419,6 +530,16 @@ mkdir -p "${XDG_DATA_HOME}"
 mkdir -p "${XDG_CACHE_HOME}"
 mkdir -p "${TRENTO_CACHE}"
 mkdir -p "${XDG_DATA_HOME}/trento"
+mkdir -p "${SEED_DIR}"
+
+# generate_jobs.py resolves `isobar_seed_file` (e.g. shared_seeds/nucleon-seeds.hdf)
+# with os.path.abspath against its working directory, so the transferred seed has
+# to sit under shared_seeds/ for the path in the parameter file to resolve.
+for seed_hdf in *.hdf; do
+    if [ -f "${jobdir}/${seed_hdf}" ] && [ ! -f "${SEED_DIR}/${seed_hdf}" ]; then
+        cp "${jobdir}/${seed_hdf}" "${SEED_DIR}/${seed_hdf}"
+    fi
+done
 
 touch "${TRENTO_CACHE}/write_test.txt" || { echo "Cannot write to TRENTO_CACHE"; exit 101; }
 touch "${XDG_DATA_HOME}/write_test.txt" || { echo "Cannot write to XDG_DATA_HOME"; exit 102; }
@@ -443,45 +564,35 @@ echo "==========================="
     if para_dict_["bayesFlag"]:
         script.write("bayesFile=$6\n")
 
-    if seed_file:
-        script.write("seedfile=${{{}}}\n".format(seedfile_pos))
-        script.write(
-            "# Use basename: HTCondor transfers the file to the working directory\n"
-            'SEED_ARG="--isobar_seed_file $(basename ${seedfile})"\n')
-    else:
-        script.write('SEED_ARG=""\n')
-
     script.write("SINGULARITY_IMAGE=${{{}}}\n".format(sif_pos))
     # HTCondor transfers the .sif as basename into the scratch dir.
     # Capture scratch dir and build absolute SIF path before any cd.
     script.write('SCRATCH_DIR="${PWD}"\n')
     script.write('SIF="${SCRATCH_DIR}/$(basename ${SINGULARITY_IMAGE})"\n\n')
 
-    if para_dict_["bayesFlag"]:
-        script.write(
-            'singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" '
-            "/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG "
-            "-par ${parafile} ${SEED_ARG} -id ${processId} -n_th ${nthreads} "
-            "-n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} "
-            "-b ${bayesFile} --nocopy --continueFlag\n")
-    else:
-        script.write(
-            'singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" '
-            "/opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG "
-            "-par ${parafile} ${SEED_ARG} -id ${processId} -n_th ${nthreads} "
-            "-n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} "
-            "--nocopy --continueFlag\n")
+    # Trap and event-range arithmetic are emitted BEFORE generate_jobs.py, so a
+    # run that fails partway still transfers the events that did complete
+    # instead of discarding them.
+    script.write(collect_head(para_dict_))
 
-    script.write("""
-cd playground/event_0
-singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" bash submit_job.script
-status=$?
-if [ $status -ne 0 ]; then
-    exit $status
+    extra = " -b ${bayesFile}" if para_dict_["bayesFlag"] else ""
+    # `|| status=$?` rather than `if ! cmd; then`: inside an `if !` branch `$?`
+    # is the status of the negation (always 0), which would hide the failure
+    # from HTCondor. The `||` form is also safe under `set -e`.
+    script.write('''
+status=0
+singularity exec --bind "${SCRATCH_DIR}:${SCRATCH_DIR}" "${SIF}" \\
+        /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG \\
+        -par ${parafile} -id ${processId} -n_th ${nthreads} \\
+        -n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} \\
+        --event_start_id ${event_start_id} --event_end_id ${event_end_id} \\
+        --nocopy --continueFlag''' + extra + ''' || status=$?
+if [ "${status}" -ne 0 ]; then
+    echo "generate_jobs.py failed with exit code ${status}" >&2
+    exit "${status}"
 fi
-""")
-    if para_dict_.get("output_mode", "quiet") == "verbose":
-        script.write('cp -r TRENTo EVENT_RESULTS_${processId}/\n')
+''')
+    script.write(collect_tail())
     script.close()
 
 
