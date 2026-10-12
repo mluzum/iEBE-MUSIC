@@ -64,16 +64,16 @@ ENV HOME /opt/
 # last known-good commit. To advance: commit and push your work, then update the
 # SHA below in the following commit and rebuild.
 #
-#   d02e9ec = "Speed up isobar sampling 2.8x without changing the physics"
+#   63a78c2 = "Generate nucleon seeds deterministically instead of shipping a pool"
 #             (also carries the dependency pins, sampler-fork fix, pinned Isobar-Sampler
 #             and the faster isobar sampler)
 RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin d02e9ec1fc9ee3b2bcabebe4a4e4f9d2c3b6dba1 && \
+    git fetch -q --depth=1 origin 63a78c2405c74a51bb9c391ce2eb1cfd36ac3af8 && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "d02e9ec1fc9ee3b2bcabebe4a4e4f9d2c3b6dba1" && \
+    test "$(git rev-parse HEAD)" = "63a78c2405c74a51bb9c391ce2eb1cfd36ac3af8" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
