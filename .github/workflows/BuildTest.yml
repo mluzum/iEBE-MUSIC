@@ -26,7 +26,14 @@ jobs:
            sudo apt-get update
            sudo apt-get install libfftw3-dev hdf5-tools libhdf5-dev libgsl-dev libeigen3-dev
       - name: Build the iEBE-MUSIC framework
+        # Uses get_code_packages_test.sh, the pinned script, because that is what
+        # both Dockerfiles use -- so this test validates the build the container
+        # actually performs. It previously used the developer script, which clones
+        # moving upstream branches and therefore tests code the container never
+        # builds. That divergence is real, not theoretical: the dev script failed
+        # here with exit 127 because MUSIC's public_stable branch no longer ships
+        # EOS/download_hotQCD.sh, while the pinned MUSIC commit still does.
         run: |
           cd codes/
-          ./get_code_packages.sh
+          ./get_code_packages_test.sh
           ./compile_code_packages.sh

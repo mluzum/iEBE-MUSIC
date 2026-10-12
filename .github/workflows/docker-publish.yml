@@ -19,7 +19,19 @@ env:
   # Use docker.io for Docker Hub if empty
   # REGISTRY: ghcr.io
   # github.repository as <account>/<repo>
-  IMAGE_NAME: chunshen1987/iebe-music
+  #
+  # Override via the IMAGE_NAME repository variable (Settings > Secrets and
+  # variables > Actions > Variables) to publish to your own Docker Hub namespace
+  # without editing this file. Defaults to the upstream namespace below, which is
+  # NOT writable from a fork.
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || 'chunshen1987/iebe-music' }}
+  # Secrets are not inherited by forks, so DOCKERHUB_USERNAME/PASSWORD are usually
+  # absent. Publishing is therefore gated on them being set; when they are missing
+  # the job still does a full build, which validates the Dockerfile without pushing.
+  # The `secrets` context is not available in step-level `if`, so it is read into
+  # env first and tested there.
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
 
 
 jobs:
@@ -37,12 +49,15 @@ jobs:
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
+        if: >-
+          github.event_name != 'pull_request'
+          && env.DOCKERHUB_USERNAME != ''
+          && env.DOCKERHUB_PASSWORD != ''
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -59,7 +74,7 @@ jobs:
         with:
           context: ./docker
           file: ./docker/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_PASSWORD != '' }}
           tags: ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
@@ -78,12 +93,15 @@ jobs:
       # Login against a Docker registry except on PR
       # https://github.com/docker/login-action
       - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
+        if: >-
+          github.event_name != 'pull_request'
+          && env.DOCKERHUB_USERNAME != ''
+          && env.DOCKERHUB_PASSWORD != ''
         uses: docker/login-action@28218f9b04b4f3f62068d7b6ce6ca5b26e35336c
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
@@ -100,7 +118,7 @@ jobs:
         with:
           context: ./docker
           file: ./docker/Dockerfile_ubuntu
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name != 'pull_request' && env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_PASSWORD != '' }}
           tags: ${{ env.IMAGE_NAME }}:ubuntu-${{ github.ref_name }}
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
