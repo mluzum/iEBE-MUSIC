@@ -64,15 +64,15 @@ ENV HOME /opt/
 # last known-good commit. To advance: commit and push your work, then update the
 # SHA below in the following commit and rebuild.
 #
-#   868d681 = "Pin container provenance and keep in-tree sampler fork"
-#             (dependency pins + sampler-fork fix + pinned Isobar-Sampler)
+#   8af24d1 = "Build Pythia8 from a git pin instead of a pythia.org tarball"
+#             (also carries the dependency pins, sampler-fork fix and pinned Isobar-Sampler)
 RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 868d6812a25712e3964dcac673f70c6cb0e2d7ad && \
+    git fetch -q --depth=1 origin 8af24d149e9a1b9a358da859475a86e79dc464ba && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "868d6812a25712e3964dcac673f70c6cb0e2d7ad" && \
+    test "$(git rev-parse HEAD)" = "8af24d149e9a1b9a358da859475a86e79dc464ba" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
