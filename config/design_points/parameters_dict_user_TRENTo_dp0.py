@@ -27,9 +27,23 @@ isobars_conf_dict_target = {
             "description": "Mass number A of the nuclei.",
             "value": 197,
         },
-        "seeds_file": {
-            "description": "Input file with list of seeds for nucleon positions.",
-            "filename": "nucleon-seeds.hdf",
+        "seed_source": {
+            "description": ("Where nucleon seed rows come from: 'philox' generates "
+                            "them deterministically from (master_seed, pool address); "
+                            "'file' reads the HDF5 pool in seeds_file."),
+            "value": "philox",
+        },
+        "master_seed": {
+            "description": ("Master seed for the 'philox' source. Must never change "
+                            "once events have been produced: every result depends on "
+                            "it. Also recorded in EMULATOR_SWEEP_PLAN.md."),
+            "value": 8675309,
+        },
+        "pool_modulus": {
+            "description": ("Size of the virtual nucleus pool, 2**32. Event g maps to "
+                            "addresses (2g)*K and (2g+1)*K mod this, with "
+                            "K = 2654435761."),
+            "value": 4294967296,
         },
         "output_path": {
             "description": "Output directory where to save",
@@ -66,9 +80,23 @@ isobars_conf_dict_projectile = {
             "description": "Mass number A of the nuclei.",
             "value": 197,
         },
-        "seeds_file": {
-            "description": "Input file with list of seeds for nucleon positions.",
-            "filename": "nucleon-seeds.hdf",
+        "seed_source": {
+            "description": ("Where nucleon seed rows come from: 'philox' generates "
+                            "them deterministically from (master_seed, pool address); "
+                            "'file' reads the HDF5 pool in seeds_file."),
+            "value": "philox",
+        },
+        "master_seed": {
+            "description": ("Master seed for the 'philox' source. Must never change "
+                            "once events have been produced: every result depends on "
+                            "it. Also recorded in EMULATOR_SWEEP_PLAN.md."),
+            "value": 8675309,
+        },
+        "pool_modulus": {
+            "description": ("Size of the virtual nucleus pool, 2**32. Event g maps to "
+                            "addresses (2g)*K and (2g+1)*K mod this, with "
+                            "K = 2654435761."),
+            "value": 4294967296,
         },
         "output_path": {
             "description": "Output directory where to save",

@@ -323,8 +323,18 @@ export OMP_NUM_THREADS={0:d}
     trento_script = """
     # Run Isobar-Sampler ...
 
-target_start=$((2 * evid))
-projectile_start=$((target_start + 1))
+# Nucleus pool addresses for this event.
+#
+# Previously event `evid` used seed rows 2*evid and 2*evid+1, which bound the
+# run to half the rows of the shipped pool (5000 events) and meant the row was
+# only meaningful for that file. Addresses are now mapped through a Weyl
+# sequence -- multiply by the golden-ratio constant mod 2^32 -- which is a
+# bijection on [0, 2^32), so addresses do not repeat before 4.3e9 events and
+# spread evenly over the pool. The mapping depends only on `evid`: never on
+# any nuclear parameter, which is what keeps the design points synchronised.
+address_of() { echo $(( ($1 * 2654435761) & 0xFFFFFFFF )); }
+target_start=$(address_of $(( 2 * evid )))
+projectile_start=$(address_of $(( 2 * evid + 1 )))
 printf "%s %s\n" "$target_start" "$projectile_start" > "$results_folder/start_configuration.txt"
 
 TARGET_START=${target_start} PROJECTILE_START=${projectile_start} python3 - <<'PY'
@@ -803,23 +813,28 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
               shutil.copyfile(path.join(param_folder, 'TRENTo/input'),
                               path.join(event_folder, 'TRENTo/input'))
 
-              seed_file_abs = path.abspath(isobar_seed_file)
-              seed_file_name = path.basename(seed_file_abs)
-              legacy_seed_name = "nucleon-seeds.hdf"
+              # Only the 'file' source needs a seed in the sampler folders. With
+              # 'philox' the rows are generated, so linking a pool file here
+              # would be dead weight in every event folder.
+              if isobar_seed_file:
+                  seed_file_abs = path.abspath(isobar_seed_file)
+                  seed_file_name = path.basename(seed_file_abs)
+                  legacy_seed_name = "nucleon-seeds.hdf"
 
-              for sampler_dir in [
-                    "TRENTo/Isobar-Sampler_projectile",
-                    "TRENTo/Isobar-Sampler_target"]:
-                subprocess.call("ln -sf {0:s} {1:s}".format(
-                    seed_file_abs,
-                    path.join(event_folder, sampler_dir, seed_file_name)),
-                            shell=True)
-                if seed_file_name != legacy_seed_name:
-                    subprocess.call("ln -sf {0:s} {1:s}".format(
-                        seed_file_abs,
-                        path.join(event_folder, sampler_dir,
-                              legacy_seed_name)),
-                                shell=True)
+                  for sampler_dir in [
+                        "TRENTo/Isobar-Sampler_projectile",
+                        "TRENTo/Isobar-Sampler_target"]:
+                      subprocess.call("ln -sf {0:s} {1:s}".format(
+                          seed_file_abs,
+                          path.join(event_folder, sampler_dir,
+                                    seed_file_name)),
+                                      shell=True)
+                      if seed_file_name != legacy_seed_name:
+                          subprocess.call("ln -sf {0:s} {1:s}".format(
+                              seed_file_abs,
+                              path.join(event_folder, sampler_dir,
+                                        legacy_seed_name)),
+                                          shell=True)
 
              # Sets an absolute path to the Isobar and Trento exec
               subprocess.call("ln -s {0:s} {1:s}".format(
@@ -1355,9 +1370,20 @@ def main():
     if 'debugFlag' in parameter_dict.control_dict.keys():
         debugFlag = parameter_dict.control_dict['debugFlag']
 
-    # TRENTo requires a pre-generated isobar seed file provided by the
-    # parameter dictionary.
-    if initial_condition_type == "TRENTo":
+    # Nucleon seeds are either read from an HDF5 pool or generated deterministically
+    # from (master_seed, pool address). Only the former needs a file at all, so
+    # the whole seed-file dance below is skipped when the dictionary selects
+    # 'philox'.
+    isobar_seed_source = "file"
+    for _side in ('target', 'projectile'):
+        try:
+            _conf = getattr(parameter_dict, 'isobars_conf_dict_' + _side)
+            _v = _conf['isobar_samples']['seed_source']['value']
+        except (AttributeError, KeyError, TypeError):
+            continue
+        isobar_seed_source = str(_v).strip().lower()
+
+    if initial_condition_type == "TRENTo" and isobar_seed_source != "philox":
         if not hasattr(parameter_dict, 'isobar_seed_file'):
             print("\U0001F6AB  Missing required `isobar_seed_file` in parameter dictionary:")
             print(path.abspath(args.par_dict))
@@ -1405,6 +1431,9 @@ def main():
 
         # make sure future code uses the absolute path
         isobar_seed_file = abs_seed
+    elif isobar_seed_source == "philox":
+        isobar_seed_file = ""
+        print("\U0001F375  Nucleon seeds: deterministic (philox), no seed file needed")
 
     cent_label = "XXX"
     cent_label_pre = cent_label

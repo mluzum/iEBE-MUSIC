@@ -40,13 +40,18 @@ def default_template_config() -> dict:
             "save_hydro_surfaces": False,
             "save_UrQMD_files": False,
         },
+        # Only consulted when isobar_samples.seed_source == "file". With the
+        # default "philox" no seed file is read or transferred at all, so this
+        # path is carried for reference/back-compatibility only.
         "isobar_seed_file": "shared_seeds/nucleon-seeds.hdf",
         "isobars_conf_dict_target": {
             "isobar_samples": {
                 "description": "Options for the isobar nucleon-position samples",
                 "number_configs": {"description": "Number of configurations to be sampled.", "value": 1},
                 "number_nucleons": {"description": "Mass number A of the nuclei.", "value": 96},
-                "seeds_file": {"description": "Input file with list of seeds for nucleon positions.", "filename": "nucleon-seeds.hdf"},
+                "seed_source": {"description": "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).", "value": "philox"},
+                "master_seed": {"description": "Master seed for the philox source. Never change once events exist.", "value": 8675309},
+                "pool_modulus": {"description": "Size of the virtual nucleus pool, 2**32.", "value": 4294967296},
                 "output_path": {"description": "Output directory where to save", "dirname": "nuclei_target"},
                 "number_of_parallel_processes": {"description": "Number of processes to compute in parallel.", "value": -1},
             },
@@ -69,7 +74,9 @@ def default_template_config() -> dict:
                 "description": "Options for the isobar nucleon-position samples",
                 "number_configs": {"description": "Number of configurations to be sampled.", "value": 1},
                 "number_nucleons": {"description": "Mass number A of the nuclei.", "value": 96},
-                "seeds_file": {"description": "Input file with list of seeds for nucleon positions.", "filename": "nucleon-seeds.hdf"},
+                "seed_source": {"description": "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).", "value": "philox"},
+                "master_seed": {"description": "Master seed for the philox source. Never change once events exist.", "value": 8675309},
+                "pool_modulus": {"description": "Size of the virtual nucleus pool, 2**32.", "value": 4294967296},
                 "output_path": {"description": "Output directory where to save", "dirname": "nuclei_projectile"},
                 "number_of_parallel_processes": {"description": "Number of processes to compute in parallel.", "value": -1},
             },
@@ -408,6 +415,17 @@ def python_literal(value):
 
 def format_isobar_dict(section_name: str, row: dict[str, str]) -> str:
     label = "target" if section_name == "target" else "projectile"
+    samples = DEFAULTS["isobars_conf_dict_" + section_name]["isobar_samples"]
+    seed_source = samples["seed_source"]["value"]
+    master_seed = samples["master_seed"]["value"]
+    pool_modulus = samples["pool_modulus"]["value"]
+    # Mass number comes from the design matrix when the column is present. It
+    # used to be hardcoded to 96, which silently pinned every generated design
+    # point to Zr/Ru even when the CSV asked for something else.
+    if str(row.get("number_nucleons", "")).strip():
+        n_nucleons = int(float(row["number_nucleons"]))
+    else:
+        n_nucleons = int(samples["number_nucleons"]["value"])
     lines = [
         f'isobars_conf_dict_{section_name} = {{',
         '    "isobar_samples": {',
@@ -418,11 +436,19 @@ def format_isobar_dict(section_name: str, row: dict[str, str]) -> str:
         '        },',
         '        "number_nucleons": {',
         '            "description": "Mass number A of the nuclei.",',
-        '            "value": 96,',
+        f'            "value": {n_nucleons},',
         '        },',
-        '        "seeds_file": {',
-        '            "description": "Input file with list of seeds for nucleon positions.",',
-        '            "filename": "nucleon-seeds.hdf",',
+        '        "seed_source": {',
+        '            "description": "Nucleon seeds: philox (deterministic from master_seed and pool address) or file (HDF5 pool).",',
+        f'            "value": "{seed_source}",',
+        '        },',
+        '        "master_seed": {',
+        '            "description": "Master seed for the philox source. Must never change once events exist; recorded in EMULATOR_SWEEP_PLAN.md.",',
+        f'            "value": {master_seed},',
+        '        },',
+        '        "pool_modulus": {',
+        '            "description": "Size of the virtual nucleus pool, 2**32. Event g maps to addresses (2g)*2654435761 and (2g+1)*2654435761 mod this.",',
+        f'            "value": {pool_modulus},',
         '        },',
         '        "output_path": {',
         '            "description": "Output directory where to save",',

@@ -50,6 +50,27 @@ def detect_initial_state_type(param_file):
     return ""
 
 
+def declared_seed_source(param_file):
+    """Return isobar_samples.seed_source from the parameter file, default 'file'.
+
+    With 'philox' the nucleon rows are generated from (master_seed, pool
+    address), so there is no seed file to ship to the worker at all.
+    """
+    try:
+        with open(param_file, 'r') as f:
+            content = f.read()
+        m = re.search(r'seed_source', content)
+        if not m:
+            return "file"
+        # The key sits in a nested dict whose "value" entry is on a later line,
+        # so search a window after it rather than assuming one-line layout.
+        window = content[m.start():m.start() + 800]
+        v = re.search(r'value\W{1,4}["\']?(\w+)', window)
+        return v.group(1).lower() if v else "file"
+    except OSError:
+        return "file"
+
+
 def detect_seed_file(param_file):
     """Return the isobar seed file referenced by the parameter file, if any."""
     try:
@@ -106,7 +127,9 @@ def build_transfer_output_tarball_name():
 def write_submission_script_urqmd(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
     random_seed = random.SystemRandom().randint(0, 10000000)
-    seed_file = detect_seed_file(para_dict_["param_file"])
+    seed_file = None
+    if declared_seed_source(para_dict_["param_file"]) != "philox":
+        seed_file = detect_seed_file(para_dict_["param_file"])
     script = open(FILENAME, "w")
     singularity_image_url = normalize_singularity_image_path(
         para_dict_["singularity_image_path"])
@@ -204,7 +227,9 @@ queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
 
 
 def write_job_running_script_urqmd(para_dict_):
-    seed_file = detect_seed_file(para_dict_["param_file"])
+    seed_file = None
+    if declared_seed_source(para_dict_["param_file"]) != "philox":
+        seed_file = detect_seed_file(para_dict_["param_file"])
     script = open("run_singularity.sh", "w")
     script.write("""#!/usr/bin/env bash
 set -e
@@ -443,7 +468,9 @@ def write_submission_script_smash(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
     random_seed = random.SystemRandom().randint(0, 10000000)
     imagePathHeader = "osdf://"
-    seed_file = detect_seed_file(para_dict_["param_file"])
+    seed_file = None
+    if declared_seed_source(para_dict_["param_file"]) != "philox":
+        seed_file = detect_seed_file(para_dict_["param_file"])
     script = open(FILENAME, "w")
     home_log_dir = path.join(path.expanduser("~"), "log")
     makedirs(home_log_dir, exist_ok=True)
@@ -521,7 +548,9 @@ queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
 
 
 def write_job_running_script_smash(para_dict_):
-    seed_file = detect_seed_file(para_dict_["param_file"])
+    seed_file = None
+    if declared_seed_source(para_dict_["param_file"]) != "philox":
+        seed_file = detect_seed_file(para_dict_["param_file"])
     # seedfile position: after bayesFile (if present), otherwise after seed ($5)
     seedfile_pos = 7 if para_dict_["bayesFlag"] else 6
 

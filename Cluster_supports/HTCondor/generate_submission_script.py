@@ -104,6 +104,27 @@ def detect_seed_files(param_file):
     return None
 
 
+def declared_seed_source(param_file):
+    """Return isobar_samples.seed_source from the parameter file, default 'file'.
+
+    With 'philox' the nucleon rows are generated from (master_seed, pool
+    address), so there is no seed file to ship to the worker at all.
+    """
+    try:
+        with open(param_file, 'r') as f:
+            content = f.read()
+        m = re.search(r'seed_source', content)
+        if not m:
+            return "file"
+        # The key sits in a nested dict whose "value" entry is on a later line,
+        # so search a window after it rather than assuming one-line layout.
+        window = content[m.start():m.start() + 800]
+        v = re.search(r'value\W{1,4}["\']?(\w+)', window)
+        return v.group(1).lower() if v else "file"
+    except OSError:
+        return "file"
+
+
 def declared_seed_file(param_file):
     """Return the raw isobar_seed_file value, or None if not declared."""
     try:
@@ -126,6 +147,8 @@ def require_seed_file(param_file):
     generate_jobs.py against its *working* directory at run time, so the
     generator must be run where that same path resolves.
     """
+    if declared_seed_source(param_file) == "philox":
+        return None
     seed_file_path = detect_seed_files(param_file)
     if seed_file_path and path.exists(seed_file_path):
         return seed_file_path

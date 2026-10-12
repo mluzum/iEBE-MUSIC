@@ -66,6 +66,16 @@ defaults — prefer those over guessing flags.
 
 - **Run `generate_jobs.py` from the repo root.** `isobar_seed_file` is resolved with
   `os.path.abspath` against the *current working directory*, not the parameter file's directory.
+  This only applies to the legacy `seed_source: "file"` path — the default `philox` path reads no
+  file at all.
+- **Nucleon seeds are generated, not shipped (default `seed_source: "philox"`).** Event *g* maps to
+  pool addresses `(2g)*2654435761` and `(2g+1)*2654435761 mod 2**32`, and each row is drawn from
+  `numpy.random.Philox(key=master_seed, counter=address*2**24)`. **The address must depend only on
+  the global event id, never on any nuclear parameter** — that is what keeps design points
+  synchronised, so each sees the same nuclei and the deformation shows up as a small shift in
+  positions. `MASTER_SEED = 8675309` is recorded in `EMULATOR_SWEEP_PLAN.md` and in every generated
+  parameter dictionary; changing it invalidates all existing results. The committed
+  `shared_seeds/nucleon-seeds.hdf` remains only for the legacy `seed_source: "file"` path.
 - **`build_isobars.py` caches its step+Gaussian fit.** `Rst_w_from_WS` (a BFGS `minimize` over
   `quad`/`polylog`) costs ~2.4 s and is a pure function of `(WS_radius, WS_diffusiveness)`, but the
   shipped configs don't set `step_radius`/`step_diffusiveness`. The sampler therefore writes the
@@ -77,10 +87,18 @@ defaults — prefer those over guessing flags.
   `isobar_samples.number_nucleons.value` must be **<= 300**: `build_isobars.py` truncates each seed
   row to `number_nucleons` and exits 1 if `A` exceeds the available entries. Shipped templates use
   96/197, which is fine.
-- TRENTo mode hard-fails unless the parameter module defines a non-empty top-level
-  `isobar_seed_file`.
 - Without `--nocopy`, `generate_jobs.py` `copytree`s the entire `codes/` tree into the working
   folder. `-c osg` forces `--nocopy` and also does `seed += job_id`.
+- **`Cluster_supports/HTCondor/generate_submission_script.py` and the OSG one are separate
+  submission paths from `generate_jobs.py`.** The HTCondor generator has its own defects history:
+  it used to omit `--event_start_id`, so every job recomputed the same events, and it globs
+  `EVENT_RESULTS_$(Process)` although the driver names results after the *global* event id. It now
+  mirrors the OSG path (job *P* owns events `[P·N, P·N+N-1]`) and collects via an EXIT trap into
+  `results_$(Process)/`. If you touch one generator, check whether the other needs the same change.
+- The OSG **SMASH** branch still hardcodes `event_0` (no event range is passed). The UrQMD branch —
+  which is what `afterburner_type: "decay"` uses — is correct. Avoid SMASH until that is fixed.
+- Root-level `collect_events.sh`, `combine_multiple_hdf5.py`, `average_event_spvn_h5.py` are
+  gitignored because `generate_jobs.py` copies them into the CWD. Missing-from-git is not a bug.
 - `submit_design_points.py` contains machine-specific hardcodes that must be edited before use:
   `DEFAULT_OSG_SCRIPT = /home/joaopaulo.picchetti/iEBE-MUSIC/...` and a singularity image under
   `$DATA/singularity_repos/`.
