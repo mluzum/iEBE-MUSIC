@@ -95,22 +95,47 @@ git clone --depth=1 https://github.com/smash-transport/smash.git -b SMASH-3.2.2 
 rm -rf smash_code/.git
 
 # download and build Pythia8 (required to compile SMASH)
+#
+# Cloned from the ALICE mirror at an exact commit instead of downloaded from
+# pythia.org. Every pythia.org tarball path now returns 404 from CI, including
+# the current release, and those paths are not stable anyway -- the previous
+# pythia8315.tgz URL worked when this image was last built on 2026-10-08 and
+# stopped working afterwards. A git pin is immutable in a way a URL is not.
+# The tag is v8315-alice1, i.e. PYTHIA 8.3.15, the version SMASH is built against.
+#
+# PYTHIA_INSTALL_DIR must remain ${HOME}/pythia8315: compile_code_packages.sh
+# hardcodes that path via -DPythia_CONFIG_EXECUTABLE when configuring SMASH.
+#
+# Unlike get_code_packages_test.sh this script does not run under `set -e`, so
+# the subshell enables it explicitly; otherwise a failed clone or checkout would
+# be followed by a confusing configure error instead of a clear one.
+PYTHIA_REPO="https://github.com/alisw/pythia8.git"
+PYTHIA_COMMIT="3c980c58fc8fd2a089e5f3aa40135208463c9b38"  # tag v8315-alice1
 PYTHIA_VERSION="pythia8315"
 PYTHIA_INSTALL_DIR="${HOME}/${PYTHIA_VERSION}"
 if [ ! -f "${PYTHIA_INSTALL_DIR}/bin/pythia8-config" ]; then
-    echo "Building Pythia8 in ${PYTHIA_INSTALL_DIR} ..."
+    echo "Building Pythia8 (${PYTHIA_VERSION}) in ${PYTHIA_INSTALL_DIR} ..."
     (
+        set -e
         cd /tmp
-        wget --no-check-certificate \
-            https://pythia.org/download/pythia83/${PYTHIA_VERSION}.tgz
-        tar xzf ${PYTHIA_VERSION}.tgz
-        cd ${PYTHIA_VERSION}
-        ./configure --prefix=${PYTHIA_INSTALL_DIR}
+        rm -rf pythia8-src
+        git clone --quiet "${PYTHIA_REPO}" pythia8-src
+        cd pythia8-src
+        git checkout --quiet "${PYTHIA_COMMIT}"
+        test "$(git rev-parse HEAD)" = "${PYTHIA_COMMIT}"
+        # Defensive: some CI/container checkouts run with core.fileMode=false,
+        # which would leave configure non-executable.
+        chmod +x configure
+        ./configure --prefix="${PYTHIA_INSTALL_DIR}"
         make -j2
         make install
         cd /tmp
-        rm -rf ${PYTHIA_VERSION} ${PYTHIA_VERSION}.tgz
+        rm -rf pythia8-src
     )
+    if [ ! -f "${PYTHIA_INSTALL_DIR}/bin/pythia8-config" ]; then
+        echo "ERROR: Pythia8 install did not produce ${PYTHIA_INSTALL_DIR}/bin/pythia8-config" >&2
+        exit 1
+    fi
 else
     echo "Pythia8 already installed at ${PYTHIA_INSTALL_DIR}, skipping."
 fi

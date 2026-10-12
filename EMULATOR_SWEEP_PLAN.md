@@ -140,14 +140,37 @@ Pin values are the *known-good* set read out of an image that built and ran succ
 (Python 3.9.25): numpy 1.24.4, scipy 1.10.1, h5py 3.14.0, PyYAML 6.0.3, joblib 1.5.3, mpmath 1.4.1,
 freestream 1.0.1.
 
-Deferred to a follow-up commit (chicken-and-egg): pinning the framework **SHA** in the Dockerfiles.
-A file cannot contain the SHA of the commit containing it, so the procedure is to build once from
-the branch, then bump to the last known-good commit.
+**Also done:** framework SHA pinning (the deferred item). Both Dockerfiles now
+`git fetch --depth=1 origin <SHA>` + `git checkout FETCH_HEAD` + assert the SHA, instead of cloning
+a branch — verified end-to-end against the real remote. Pinned to `868d681`; bump procedure is
+documented in the Dockerfiles and the two must be updated together.
 
 Behaviour change to be aware of: `Dockerfile_ubuntu` previously used `get_code_packages.sh`
 (unpinned branch tips) and now uses `get_code_packages_test.sh` (pinned commits), matching the el9
 variant. This is the parity fix, but those pins have never been built on ubuntu 22.04 — treat the
 first ubuntu build as untested.
+
+CI fixes made while validating the above (all on NME):
+- `BuildTest.yml` now runs `get_code_packages_test.sh` so CI validates the pinned build the
+  container performs. The dev script had drifted: MUSIC's `public_stable` no longer ships
+  `EOS/download_hotQCD.sh` (exit 127).
+- `get_code_packages_test.sh` was mode 644 while its siblings are 755; `./script` failed with
+  "Permission denied". Fixed to 755 and invoked via `bash`.
+- `docker-publish.yml`: push/login gated on `DOCKERHUB_*` secrets being present (forks don't
+  inherit secrets, and `chunshen1987/iebe-music` is not writable from a fork); `IMAGE_NAME`
+  overridable by repository variable.
+- **PYTHIA8 acquisition rewritten.** `https://pythia.org/download/pythia83/pythia8315.tgz` now
+  returns 404 — as do *every* 8.3.x tarball including the current 8.3.17, with and without a
+  browser UA. The URL worked when the last image was built (2026-10-08) and rotted after. Replaced
+  with a git pin on the ALICE mirror `alisw/pythia8` at commit `3c980c58` (tag `v8315-alice1`
+  = 8.3.15, the version SMASH is built against). Verified by building: produces
+  `bin/pythia8-config` reporting `8.315`, plus `libpythia8.{a,so}` and `share/Pythia8/xmldoc`.
+  `PYTHIA_INSTALL_DIR` must stay `${HOME}/pythia8315` because `compile_code_packages.sh:186`
+  hardcodes it via `-DPythia_CONFIG_EXECUTABLE`.
+
+Housekeeping available once Phase B lands: `shared_seeds/nucleon-seeds.hdf` is a tracked 62.8 MB
+binary that GitHub warns exceeds its 50 MB recommendation (GH001). Retiring it from version control
+is a natural follow-on to dropping seed-file transfer.
 
 ### Phase A — Sampler efficiency (file path)
 - Lazy seed read: `f['isobar_seeds'][start : start+n_configs, :n_nucleons, :]` — preserving the
