@@ -212,11 +212,46 @@ fit.
 sampler stage. **This number gates everything downstream.**
 
 ### Phase C — HTCondor generator fixes *(blocking for local validation)*
-Port from the working OSG UrQMD path: pass `--event_start_id`/`--event_end_id`; fix
-`EVENT_RESULTS_$(Process)` globs; move the tarball `mv` to after `submit_job.script`; add `set -e`;
-drop the nonexistent `--isobar_seed_file` and the absent `-seed_file` flag.
+
+Root cause: the generator never passed `--event_start_id`/`--event_end_id`, so
+`generate_jobs.py` used its defaults (`event_start_id=0`, `n_jobs=1`) and **every queued job
+recomputed events 0..N-1**. The transfer globs, `playground/event_0/EVENT_RESULTS_$(Process)/...`,
+could never match either, because the driver names results after the *global* event id. A batch
+therefore produced duplicate results and transferred nothing back.
+
+Fixed in both the UrQMD and SMASH branches:
+
+- Event range from `$(Process)`, mirroring OSG: job *P* owns `[P·N, P·N+N-1]`, one event folder
+  per job. The range and the EXIT trap are emitted *before* `generate_jobs.py`, so a partial run
+  still transfers what completed; the `submit_job.script` invocation stays after, since it needs
+  the folder that creates.
+- Outputs collected by the trap into `results_$(Process)/`, checkpoint archive written as
+  `job_output_$(Process).tar.gz` — replacing globs that never matched.
+- **Exit status now propagates.** Both `singularity` invocations used `if ! cmd; then status=$?`,
+  where `$?` is the status of the *negation* (always 0) — a failed simulation exited 0, so
+  `periodic_remove (ExitCode == 73)` and `on_exit_hold` could never fire. Replaced with
+  `|| status=$?`, which is also safe under the added `set -e`.
+- Removed the checkpoint `mv`, which ran *before* `submit_job.script` and so referenced a tarball
+  that did not exist yet.
+- Removed the phantom `-seed_file` option (documented in the HTCondor README but never defined in
+  argparse) and the `--isobar_seed_file` flag it fed to `generate_jobs.py`, which does not accept
+  that flag. Seeds are detected with the existing helper and staged into `shared_seeds/`.
+- Fails loudly at generation time when `isobar_seed_file` is declared but unresolvable, instead
+  of emitting a doomed queue.
+
+Verified by executing the generated `run_singularity.sh` against a stubbed `singularity`:
+
+- 4 jobs × 3 events ⇒ events 0..11, **each exactly once, no overlaps**
+- mid-run `submit_job.script` failure ⇒ **exit 73**, completed events still transferred, checkpoint
+  archive written
+- `generate_jobs.py` failure ⇒ **exit 85**, trap still ran
+- both branches emit syntactically valid shell
 
 *Exit:* N jobs on the local cluster produce N distinct event ranges and return results.
+
+Note: no container SHA bump was needed for this phase. `Cluster_supports/` runs from the submit
+host, not from inside the image; the container only executes `generate_jobs.py`, the driver and the
+sampler. Bump the pin when a change must take effect *inside* the container.
 
 ### Phase B — Deterministic generation + random selection
 - Philox-based row generation keyed on `(MASTER_SEED, hash(g) mod M)`; no file transfer.
