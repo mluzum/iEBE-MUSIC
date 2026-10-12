@@ -173,10 +173,40 @@ binary that GitHub warns exceeds its 50 MB recommendation (GH001). Retiring it f
 is a natural follow-on to dropping seed-file transfer.
 
 ### Phase A — Sampler efficiency (file path)
-- Lazy seed read: `f['isobar_seeds'][start : start+n_configs, :n_nucleons, :]` — preserving the
-  bounds check and the `A ≤ available` guard.
-- Memoise the 3× `solve_ivp` on `(R_ws, a_ws, l)`.
-- Skip `joblib` when `n_configs == 1`.
+
+Measured first, in the container image (Python 3.9 + the pinned dependency set), because the
+assumed bottleneck turned out not to be the bottleneck. Per `build_isobars.py` invocation:
+
+| Component | Cost | Action |
+|---|---|---|
+| `Rst_w_from_WS` — BFGS `minimize`, each step a `quad` of `polylog` | **2.45 s (61%)** | Persist result to the run's YAML |
+| Full seed read `f['isobar_seeds'][:,:,:]` (66 MB) | 429 ms | Read only the rows needed |
+| `joblib.Parallel` dispatch for a single nucleus | 333 ms (135 ms overhead) | Call directly when `n_configs == 1` |
+| 3× `solve_ivp` (depends only on `R_ws`,`a_ws`,`l`) | 120 ms | Memoise |
+| Module imports (scipy, mpmath, joblib) | ~307 ms | unchanged |
+
+`Rst_w_from_WS` is a pure function of `(R_ws, a_ws)` — constant for a whole design point — yet was
+recomputed twice per event. The computed `step_radius`/`step_diffusiveness` are now written back
+into the run's own configuration file with the `(R_ws, a_ws)` signature they came from; later
+events in the same event folder reuse them, and a signature mismatch forces a recompute.
+`run_trento.sh` already does a load-modify-dump of that YAML per event, so the cache survives.
+
+Results (4 events per folder, seed rows `2·evid`, four shape/deformation scenarios):
+
+| Scenario | Cold event | Warm events | Overall |
+|---|---|---|---|
+| spherical | 2.48 → 1.67 s | 2.51 → 0.37 s (6.7×) | 3.60× |
+| quadrupole | 2.89 → 2.00 s | 2.86 → 0.69 s (4.1×) | 2.81× |
+| quad + octupole | 2.84 → 1.98 s | 2.91 → 0.69 s (4.2×) | 2.85× |
+| other shape params | 2.72 → 1.85 s | 2.74 → 0.69 s (4.0×) | 2.80× |
+
+**All four scenarios produce bit-identical nucleon coordinates** to the pre-optimisation sampler
+(`np.array_equal` on every event). Per event there are two invocations (target + projectile), so
+the sampler stage drops from ~5.7 s to ~1.4 s per event on a warm event folder.
+
+Verified separately: cold event computes and caches; `run_trento.sh`-style round trip preserves the
+cache and skips the fit; changing `R_ws`/`a_ws` forces recomputation rather than reusing a stale
+fit.
 
 *Exit:* identical output hashes on a fixed seed **and** a measured per-event walltime for the
 sampler stage. **This number gates everything downstream.**

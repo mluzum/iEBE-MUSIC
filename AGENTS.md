@@ -66,6 +66,13 @@ defaults — prefer those over guessing flags.
 
 - **Run `generate_jobs.py` from the repo root.** `isobar_seed_file` is resolved with
   `os.path.abspath` against the *current working directory*, not the parameter file's directory.
+- **`build_isobars.py` caches its step+Gaussian fit.** `Rst_w_from_WS` (a BFGS `minimize` over
+  `quad`/`polylog`) costs ~2.4 s and is a pure function of `(WS_radius, WS_diffusiveness)`, but the
+  shipped configs don't set `step_radius`/`step_diffusiveness`. The sampler therefore writes the
+  result back into the run's own YAML with the `(R_ws, a_ws)` signature it came from, and later
+  events in the same event folder reuse it. `run_trento.sh` rewrites that YAML per event via
+  load-modify-dump, so the cache survives. Don't "clean up" the `_step_gaussian_cache` /
+  `step_radius` keys — removing them silently costs ~2.4 s per invocation.
 - The committed `shared_seeds/nucleon-seeds.hdf` is 63 MB with shape `(10000, 300, 6)`.
   `isobar_samples.number_nucleons.value` must be **<= 300**: `build_isobars.py` truncates each seed
   row to `number_nucleons` and exits 1 if `A` exceeds the available entries. Shipped templates use
