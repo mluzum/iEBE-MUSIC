@@ -35,11 +35,30 @@ clone_repo_at_tag() {
   rm -fr "${repo_dir}/.git"
 }
 
+# This repository owns codes/isobar_sampler_code/exec/build_isobars.py as a tracked
+# fork (see EMULATOR_SWEEP_PLAN.md decision D1). The clone below does `rm -fr` on
+# isobar_sampler_code, which would delete the tracked fork, so stash it first and
+# restore it afterwards. Everything else in isobar_sampler_code (notably
+# make_seeds.py) still comes from upstream at the pin below.
+ISO_BAR_FORK_BACKUP="$(mktemp)"
+if [ -f isobar_sampler_code/exec/build_isobars.py ]; then
+    cp isobar_sampler_code/exec/build_isobars.py "${ISO_BAR_FORK_BACKUP}"
+else
+    rm -f "${ISO_BAR_FORK_BACKUP}"
+    echo "WARNING: in-tree Isobar-Sampler fork not found; upstream build_isobars.py will be used." >&2
+fi
+
 # download Isobar-Sampler (used by TRENTo initial conditions)
 clone_repo_at_commit \
   https://github.com/mluzum/Isobar-Sampler.git \
   isobar_sampler_code \
   bc586de03c26a3f3e4d6749e385ea015dcb204f2
+
+if [ -f "${ISO_BAR_FORK_BACKUP}" ]; then
+    cp "${ISO_BAR_FORK_BACKUP}" isobar_sampler_code/exec/build_isobars.py
+    rm -f "${ISO_BAR_FORK_BACKUP}"
+    echo "Restored in-tree Isobar-Sampler fork over upstream clone."
+fi
 
 # download TRENTo (used by TRENTo initial conditions)
 clone_repo_at_commit \

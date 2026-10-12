@@ -1,0 +1,99 @@
+# AGENTS.md — iEBE-MUSIC (NewChain)
+
+Event-by-event relativistic heavy-ion collision simulation driver. This is **not** an importable
+library: top-level scripts generate job folders and cluster submission scripts. There is **no test
+suite, no linter config, and no typechecker** — verification means running one event end-to-end.
+
+## Architecture
+
+- `generate_jobs.py` — main entrypoint. Imports a user parameter file with `__import__`, then writes
+  `<working_folder>/event_<id>/` (each with `submit_job.script`, `hydro_plus_UrQMD_driver.py`,
+  `run_trento.sh`) plus a shared `<working_folder>/model_parameters/` of generated MUSIC / iSS /
+  TRENTo input files.
+- `config/parameters_dict_master.py` — merges the user dict (and optional bayesian/posterior file)
+  and emits the actual solver input files. It is the executable spec of every available parameter;
+  read it instead of guessing key names.
+- `config/parameters_dict_user_*.py`, `config/design_points/*` — user parameter files. Plain Python
+  modules defining top-level dicts (`control_dict`, `trento_dict`, `free_streaming_dict`,
+  `music_dict`, `iss_dict`, `isobars_conf_dict_{target,projectile}`, `isobar_seed_file`).
+- `codes/` — external physics codes fetched at setup (`*_code` dirs are gitignored) plus two
+  in-repo drivers: `codes/hydro_plus_UrQMD_driver.py` (copied into every event folder; takes
+  **positional** args, no argparse) and `codes/isobar_sampler_code/exec/build_isobars.py`.
+- `Cluster_supports/{OSG,HTCondor}/generate_submission_script.py` — Singularity+condor generators
+  that emit `singularity.submit` + `run_singularity.sh`. These are a *separate* path from
+  `generate_jobs.py` (which covers `local`, `nersc`, `wsugrid`, `guillimin`, `mcgill`, `stampede2`,
+  `anvil`). See `Cluster_supports/HTCondor/README.md`.
+- `analysisKit/` — post-processing from `spvn_results_*.h5` (pickle -> merge -> analyze; see its
+  README). `utilities/` — result collection/merging into HDF5.
+
+## Setup
+
+```bash
+cd codes && bash get_code_packages.sh && bash compile_code_packages.sh && cd ..
+```
+
+30–60 min. This also downloads EOS tables, hdf5 delta-f tables, and nucleus configurations.
+On NERSC export `PYTHONIOENCODING=utf-8` and `LC_CTYPE=en_US.UTF8` first.
+
+## Commands
+
+```bash
+# one event, local machine
+python3 generate_jobs.py -w test_dp0 -n 1 -par config/design_points/parameters_dict_user_TRENTo_dp0.py
+cd test_dp0/event_0 && bash submit_job.script
+
+# explicit global event range (inclusive; overrides -n)
+python3 generate_jobs.py -w dp0 -c local --event_start_id 0 --event_end_id 999 \
+  -par config/design_points/parameters_dict_user_TRENTo_dp0.py -n_th 4
+
+# HTCondor/OSG: generate then submit
+python3 Cluster_supports/OSG/generate_submission_script.py -param <par.py> -singularity <img.sif> \
+  -n 10 -nev 1 -nth 1 -jobid <Name>          # writes singularity.submit
+condor_submit singularity.submit
+
+# design-point sweeps (run from the directory that will hold the DesignPointN folders)
+python3 MakeDictionaries.py <design.csv> --start-design-point 1 --end-design-point 250
+python3 submit_design_points.py --dry-run      # then without --dry-run
+
+# collect finished events into a merged HDF5
+./collect_events.sh <fromFolder> <toFolder>
+```
+
+`python3 generate_jobs.py -h` and running `generate_submission_script.py` with no args print full
+defaults — prefer those over guessing flags.
+
+## Gotchas
+
+- **Run `generate_jobs.py` from the repo root.** `isobar_seed_file` is resolved with
+  `os.path.abspath` against the *current working directory*, not the parameter file's directory.
+- The committed `shared_seeds/nucleon-seeds.hdf` is 63 MB with shape `(10000, 300, 6)`.
+  `isobar_samples.number_nucleons.value` must be **<= 300**: `build_isobars.py` truncates each seed
+  row to `number_nucleons` and exits 1 if `A` exceeds the available entries. Shipped templates use
+  96/197, which is fine.
+- TRENTo mode hard-fails unless the parameter module defines a non-empty top-level
+  `isobar_seed_file`.
+- Without `--nocopy`, `generate_jobs.py` `copytree`s the entire `codes/` tree into the working
+  folder. `-c osg` forces `--nocopy` and also does `seed += job_id`.
+- `submit_design_points.py` contains machine-specific hardcodes that must be edited before use:
+  `DEFAULT_OSG_SCRIPT = /home/joaopaulo.picchetti/iEBE-MUSIC/...` and a singularity image under
+  `$DATA/singularity_repos/`.
+- `MakeDictionaries.py` defaults to a `./design` CSV that is **not in the repo** — supply your own.
+  Columns are strict: `WS_radius`, `WS_diffuseness`, `beta_2`, `gamma`, `beta_3`, `nucleon-width`,
+  `tau`, `reduced-thickness`, `fluctuation`, `shear_viscosity_*`, `bulk_viscosity_*`, `T_freeze`.
+  `number_nucleons` is *not* taken from the CSV; it stays at the template value.
+- The OSG/HTCondor generator copies the seed HDF5 next to the param file and references it by
+  basename. That root-level `nucleon-seeds.hdf` is **not** gitignored — do not commit it.
+- `README.md` references `generate_event_batches.py` / `submit_job_batches.py`; neither exists in
+  this tree. Use `--event_start_id/--event_end_id` instead.
+- Root-level `collect_events.sh`, `combine_multiple_hdf5.py`, `average_event_spvn_h5.py` are
+  gitignored because `generate_jobs.py` copies them into the CWD. Missing-from-git is not a bug.
+- `hydro_plus_UrQMD_driver.py`'s positional argument order is assembled in
+  `generate_full_job_script()` (`generate_jobs.py:266`) — change both sides together.
+
+## Style
+
+YAPF only, google-based, configured in `.style.yapf` (2-space before comments, split before
+arithmetic/logical operators). Run `./formatCode.sh` before committing; it formats the repo root and
+`analysisKit/` to depth 2 and silently no-ops if `yapf` is not installed. Match the surrounding
+spacing of generated files rather than reformatting them wholesale — many are machine-generated with
+odd indentation.

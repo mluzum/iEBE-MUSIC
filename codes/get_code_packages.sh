@@ -2,11 +2,44 @@
 
 # download the code package
 
+# This repository owns codes/isobar_sampler_code/exec/build_isobars.py as a tracked
+# fork (see EMULATOR_SWEEP_PLAN.md decision D1). Stash it before the clone below
+# wipes the directory, and restore it afterwards.
+ISO_BAR_FORK_BACKUP="$(mktemp)"
+if [ -f isobar_sampler_code/exec/build_isobars.py ]; then
+    cp isobar_sampler_code/exec/build_isobars.py "${ISO_BAR_FORK_BACKUP}"
+else
+    rm -f "${ISO_BAR_FORK_BACKUP}"
+    echo "WARNING: in-tree Isobar-Sampler fork not found; upstream build_isobars.py will be used." >&2
+fi
+
 #download Isobar-Sampler
+# Pinned to the same commit and fork that get_code_packages_test.sh uses, so that a
+# local run and a container run build the same sampler. This script previously cloned
+# genilssom/Isobar-Sampler at the moving branch `test-newchain`, which meant local
+# development was not reproducible and could silently diverge from the container.
 rm -fr isobar_sampler_code
-git clone https://github.com/genilssom/Isobar-Sampler.git -b test-newchain isobar_sampler_code
-#(cd isobar_sampler_code; git checkout ...)
-#rm -fr isobar_sampler_code/.git
+git clone https://github.com/mluzum/Isobar-Sampler.git isobar_sampler_code
+# This script does not run under `set -e`, so the pin is enforced explicitly here:
+# without this, a failed fetch/checkout would silently leave the clone at the
+# default branch HEAD, which is exactly the unpinned state we are removing.
+(
+  cd isobar_sampler_code || exit 1
+  git fetch --depth=1 origin bc586de03c26a3f3e4d6749e385ea015dcb204f2 || exit 1
+  git checkout bc586de03c26a3f3e4d6749e385ea015dcb204f2 || exit 1
+  test "$(git rev-parse HEAD)" = "bc586de03c26a3f3e4d6749e385ea015dcb204f2" || exit 1
+) || {
+    echo "ERROR: could not check out pinned Isobar-Sampler bc586de0." >&2
+    echo "       Refusing to continue with an unpinned sampler." >&2
+    exit 1
+}
+rm -fr isobar_sampler_code/.git
+
+if [ -f "${ISO_BAR_FORK_BACKUP}" ]; then
+    cp "${ISO_BAR_FORK_BACKUP}" isobar_sampler_code/exec/build_isobars.py
+    rm -f "${ISO_BAR_FORK_BACKUP}"
+    echo "Restored in-tree Isobar-Sampler fork over upstream clone."
+fi
 
 # download TRENTo
 rm -fr trento_code

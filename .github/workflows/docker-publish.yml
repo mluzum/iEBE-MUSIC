@@ -7,11 +7,13 @@ name: CI to Docker Hub
 
 on:
   push:
-    branches: [ main, dev ]
+    # NME is the emulator-sweep branch; without it here, pushes to it build nothing
+    # and the image referenced by the OSG/HTCondor generators cannot be refreshed.
+    branches: [ main, dev, NME ]
     # Publish semver tags as releases.
     tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main, dev, NME ]
 
 env:
   # Use docker.io for Docker Hub if empty

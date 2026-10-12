@@ -1,6 +1,7 @@
-FROM ubuntu:22.04
+# Base image pinned by digest (see docker/Dockerfile for the rationale).
+FROM ubuntu:22.04@sha256:5ec03bb3441e8b0bf3b4f9cd4629a1ae763010dc3035bb8da3ae6cf026486401
 
-MAINTAINER Chun Shen <chunshen@wayne.edu>
+LABEL org.opencontainers.image.source="https://github.com/mluzum/iEBE-MUSIC"
 
 RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -32,17 +33,33 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install pre-reqs python packages
+# Install pre-reqs python packages. All pinned -- see docker/Dockerfile for why
+# `freestream` in particular must not float. Versions match docker/Dockerfile.
 RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install numpy h5py scipy PyYAML joblib mpmath freestream
+    python3 -m pip install \
+        numpy==1.24.4 \
+        scipy==1.10.1 \
+        h5py==3.14.0 \
+        PyYAML==6.0.3 \
+        joblib==1.5.3 \
+        mpmath==1.4.1 \
+        freestream==1.0.1
 
 ENV HOME /opt/
 
 # download and compile the iEBE-MUSIC framework
+#
+# Fork URL is hardcoded, not a build ARG -- see docker/Dockerfile for the rationale
+# and for the SHA-pinning note.
+#
+# NOTE: this variant previously used ./get_code_packages.sh (the developer script,
+# which clones unpinned branches) while the el9 variant used the pinned
+# get_code_packages_test.sh. That meant the two images could build different code
+# from the same commit. It now uses the pinned script, matching docker/Dockerfile.
 RUN cd ${HOME} \
-&& git clone https://github.com/jppicchetti/iEBE-MUSIC -b joao/clean-final \
+&& git clone https://github.com/mluzum/iEBE-MUSIC.git -b NME \
 && cd iEBE-MUSIC/codes \
-&& ./get_code_packages.sh \
+&& ./get_code_packages_test.sh \
 && ./compile_code_packages.sh \
 && cd ../EOS_database \
 && bash download_EOSdatabase1D.sh \
