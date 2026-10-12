@@ -22,9 +22,13 @@ jobs:
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - name: Install dependent libraries
+        # libboost-all-dev is required by the SMASH CMake build (Boost filesystem,
+        # program_options and system). Both Dockerfiles install Boost already; only
+        # this runner was missing it, which surfaced only once the build got past
+        # the earlier MUSIC/Pythia8 failures.
         run: |
            sudo apt-get update
-           sudo apt-get install libfftw3-dev hdf5-tools libhdf5-dev libgsl-dev libeigen3-dev
+           sudo apt-get install libfftw3-dev hdf5-tools libhdf5-dev libgsl-dev libeigen3-dev libboost-all-dev
       - name: Build the iEBE-MUSIC framework
         # Uses get_code_packages_test.sh, the pinned script, because that is what
         # both Dockerfiles use -- so this test validates the build the container
