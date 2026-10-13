@@ -494,7 +494,7 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
         f'            "beta_max": {{"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": {f_beta_max(row, samples)}}},',
         f'            "shape_distribution": {{"description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)", "value": "{f_str(row, "shape_distribution", "wedge")}"}},',
         f'            "sigma_plane": {{"description": "Width of the plane-form Gaussian; 0 is rigid, and works at beta_2 = 0", "value": {f_sigma(row, "sigma_plane")}}},',
-        f'            "plane_anisotropy": {{"description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic", "value": {f_sigma(row, "plane_anisotropy")}}},',
+        f'            "plane_anisotropy": {{"description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate, negative favours triaxial", "value": {f_sigma(row, "plane_anisotropy")}}},',
         '            "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},',
         '            "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},',
         '        },',
