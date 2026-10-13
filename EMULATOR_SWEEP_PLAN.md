@@ -295,6 +295,23 @@ physical rather than sampling noise.
   conversion has to happen on the design side of the boundary.
   Draws are reflected rather than clipped, so overshoot lands back inside with **no boundary
   pile-up** (edge bins 261/252/245 vs 385/392/409 mid-range).
+- **The prior is the bounded Beta of `BetaGammaDistribution.md` §3 Option B**, with §2/§4 also
+  implemented. Beta is drawn on `[0, beta_max]` and γ_lit on the `[0°, 120°]` double domain, then
+  folded by §4. Shape parameters are moment-matched from the same `(mu, sigma)` a design point
+  already specifies, so no new CSV columns are required (`beta_max` is optional, default 0.5).
+  **§3 is CRN-compatible**: draw a Philox uniform, push it through the Beta inverse CDF. The same
+  `u` for every design point at a given event ⇒ common random numbers preserved.
+  Consequences, measured: β is strictly bounded with no cusp at the origin (the old Gaussian draw
+  put 2.7× uniform mass below β = 0.01 at µ/σ = 1.67); and the **uniform wedge prior is reachable
+  and actually uniform** — `Beta(1,1)` has mean ½ and sd `1/√12`, so µ = `(lo+hi)/2` with
+  `σ = (hi−lo)/√12`; joint density flat to 3%, **total variation from uniform 0.0076** (was 0.49).
+- **Open (D7): §5 Jacobian `β⁴|sin 3γ_lit|` is deliberately not implemented.** It encodes a physics
+  claim — a flat PES, i.e. a γ-unstable nucleus — not a default. Consequence to be aware of: under
+  the old Gaussian latents *any* `sigma_gamma > 0` gave an essentially uniform γ_lit (peak/mean
+  1.01–1.02, from σ_γ = 5° all the way to 150°), because folding equidistributes a smooth density
+  onto [0°, 60°]. The parameter could not distinguish γ-soft from γ-unstable at all. Option B makes
+  the choice explicit: σ_γ = uniform value for a soft vibrator, or apply the §5 weight when a
+  γ-unstable prior is wanted.
 - **Backward compatibility.** Every shipped design point uses `γ = 0`, the one value the two
   conventions agree on. Output is bit-identical: the previous commit's sampler and this one agree
   to `maxdiff = 0.0` across eight combinations of `beta2`/`beta3`/correlation, including the
