@@ -414,6 +414,18 @@ def f_sigma(row: dict[str, str], key: str) -> float:
     return float(row[key]) if str(row.get(key, "")).strip() else 0.0
 
 
+def f_beta_max(row: dict[str, str], samples: dict) -> float:
+    """Upper bound on the quadrupole strength for the bounded Beta draw.
+
+    Absent means "use the template's value". This is the support of the Option B
+    draw, so a design point asking for a mean and width wider than beta_max can
+    represent is rejected at generation time rather than silently clipped.
+    """
+    if str(row.get("beta_max", "")).strip():
+        return float(row["beta_max"])
+    return float(samples["beta_max"]["value"])
+
+
 def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) -> str:
     label = "target" if section_name == "target" else "projectile"
     seed_source = samples["seed_source"]["value"]
@@ -472,7 +484,8 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
         # keeps the design point at a fixed shape, i.e. the previous behaviour.
         f'            "sigma_beta_2": {{"description": "Event-by-event width of beta_2; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_2")}}},',
         f'            "sigma_beta_3": {{"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_3")}}},',
-        f'            "sigma_gamma": {{"description": "Event-by-event width of gamma (rad, wrapped); 0 fixes gamma", "value": {f_sigma(row, "sigma_gamma")}}},',
+        f'            "sigma_gamma": {{"description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma", "value": {f_sigma(row, "sigma_gamma")}}},',
+        f'            "beta_max": {{"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": {f_beta_max(row, samples)}}},',
         '            "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},',
         '            "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},',
         '        },',
