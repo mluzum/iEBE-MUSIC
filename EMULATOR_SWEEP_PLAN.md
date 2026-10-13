@@ -501,19 +501,43 @@ OSG, which feeds Phase F.
 *Exit:* local-vs-local and local-vs-OSG both reproduce Tier 1 byte-identically, Tier 2 to the
 recorded tolerance, and `T_e`/`T_o`/`N` are measured.
 
-### Phase F — Container slimming *(deferred until E1/E3 say it is worth it)*
+### Phase F — Container slimming *(DONE 2026-10-13)*
 
-Only if the measurement shows image pull plus startup is a meaningful fraction of job walltime.
-Strip SMASH and the UrQMD binaries, since the campaign is `decay`-only. Before committing:
+The campaign is TRENTo+decay, so every other backend is dead weight that gets pulled per job
+over OSDF. `docker/Dockerfile` now takes a build ARG:
 
-- Confirm MUSIC links nothing in either tree, and that the afterburner scripts do not reference
-  them.
-- The earlier audit kept `/opt/pythia8315` (59 MB) solely because SMASH links and embeds paths
-  into it. If SMASH goes, that goes too.
-- Measure the actual size and pull-time saving and compare it against the per-job transfer it
-  saves. A smaller image that still dominates `T_o` is not worth the divergence risk.
+```
+docker build --build-arg WITH_OPTIONAL_CODES=0 -t iebe-music:slim .   # TRENTo+decay
+docker build --build-arg WITH_OPTIONAL_CODES=1 -t iebe-music:full .   # + SMASH/UrQMD
+```
 
-*Exit:* a smaller image, the same required binaries present, and a re-run of E2 passing.
+`WITH_OPTIONAL_CODES=0` drops SMASH, UrQMD, osc2u, IPGlasma, KoMPoST, photon emission and
+3dMCGlauber, plus `/opt/pythia8315` (only SMASH links it) -- ~555 MB. The always-kept list is
+asserted present in **both** modes and the dropped paths asserted **absent** in mode 0, so a
+future change cannot silently break the decay path.
+
+| | docker image | SIF (what OSG pulls) |
+|---|---|---|
+| full (`WITH_OPTIONAL_CODES=1`) | 2.76 GB | 731 MB |
+| slim (`WITH_OPTIONAL_CODES=0`) | 2.76 GB* | **527 MB** |
+| previous (pythia + SMASH only) | 2.76 GB | 766 MB |
+
+\* docker reports the same size because layers are append-only and `rm` only writes whiteouts;
+the SIF is the number that matters for transfer, and it drops 28% vs the previous image and 28%
+vs full.
+
+Slim0 was verified to run a full 76Ge event end to end (210 s) before being shipped.
+
+**Deployment.** The SIF lives on the OSG spool at
+`/ospool/ap40/data/matthew.luzum/singularity_repos/iebe-music_slim.sif` and is referenced as
+
+```
++SingularityImage = "osdf:///ospool/ap40/data/matthew.luzum/singularity_repos/iebe-music_slim.sif"
+```
+
+Condor log/error/output files point at `/home/matthew.luzum/log/` (home disk), as required --
+the generator takes the log directory from its own working directory, so run it from a home-disk
+directory.
 
 ### Phase G — LHS design generator
 Emit the design CSV over WS radius, diffuseness, deformations + fluctuation widths, TRENTo
