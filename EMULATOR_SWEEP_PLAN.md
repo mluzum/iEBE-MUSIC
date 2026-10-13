@@ -560,7 +560,99 @@ Condor log/error/output files point at `/home/matthew.luzum/log/` (home disk), a
 the generator takes the log directory from its own working directory, so run it from a home-disk
 directory.
 
-### Phase G — LHS design generator
+### Phase G — Design space (PROPOSED, needs sign-off)
+
+Every key below was verified against the compiled MUSIC binary's string table, not assumed
+from the dict: `T_freeze` is a real parameter (default 0.12 GeV), and all four
+`bulk_viscosity_3_*` keys and all four `shear_viscosity_3_*` keys that `MakeDictionaries.py`
+writes are accepted by MUSIC. MUSIC's input writer emits every music key verbatim
+(`itype == 2`), so unknown keys reach the solver rather than being dropped by the framework --
+meaning a *misspelled* design key would be silently inert, which is why the binary was checked.
+
+#### Tier A — nuclear structure (the subject of the campaign)
+
+| parameter | current | proposed range | why |
+|---|---|---|---|
+| `WS_radius` | 7.2 | 6.9 – 7.5 fm | Ge-76 radius; weak prior, couples with deformation |
+| `WS_diffusiveness` | 0.50 | 0.44 – 0.60 | surface diffuseness |
+| `beta_m` | 0.10 | 0 – 0.35 | quadrupole mean |
+| `gamma_m` | 0.436 | 0 – 60 deg | triaxiality mean |
+| `sigma_plane` | 0 (rigid) | 0 – 0.08 | event-by-event shape rigidity |
+| `sigma_beta_3` | 0 | 0 – 0.02 | octupole fluctuation |
+
+Excluded on purpose: the **sign** of `beta_3` (rotation, not a degree of freedom) and
+`shape_distribution` itself (a sampler mode, not physics).
+
+#### Tier B — TRENTo initial condition (deferred to a second phase)
+
+| parameter | current | proposed | comment |
+|---|---|---|---|
+| `reduced-thickness` | 0.0 | 0 – 0.15 | |
+| `fluctuation` | 1.0 | 1.0 fixed | narrowing below 1 is not well constrained by TRENTo |
+| `nucleon-width` | 0.5 | 0.35 – 0.65 | |
+
+Tier B is deferred, not ignored. It is poorly prior-constrained and it is the dimension where
+MUSIC is least smooth (small-system fluctuation edges, b -> 0), so putting it in the first LHS
+costs emulator accuracy everywhere else. Fix at nominal, revisit after Tier A+C is trained.
+
+#### Tier C — medium
+
+| parameter | current | proposed range | comment |
+|---|---|---|---|
+| `shear_viscosity_3_eta_over_s_at_kink` | 0.12 | 0.08 – 0.20 | |
+| `shear_viscosity_3_eta_over_s_T_kink_in_GeV` | 0.18 | 0.14 – 0.22 | **the switching temperature** |
+| `shear_viscosity_3_eta_over_s_high_T_slope_in_GeV` | 0.0 | 0 – 8 | s / GeV, rise above Tc |
+| `bulk_viscosity_3_max` | 0.10 | 0 – 0.15 | |
+| `bulk_viscosity_3_T_peak_in_GeV` | 0.18 | 0.17 – 0.21 | keep tied to shear kink in phase 1 |
+| `T_freeze` | 0.12 | 0.10 – 0.15 | **degeneracy warning below** |
+
+**The one real physics problem in this table.** `T_freeze` and `eta/s` are close to degenerate
+for v2: both act as an overall multiplier on accumulated anisotropy, so an LHS that varies both
+over modest ranges lands samples on a narrow ridge and produces a long, thin, correlated
+posterior in exactly the observable the emulator is being built to predict. Two defensible
+resolutions:
+
+1. Fix `T_freeze = 0.12` and spend the freed dimension on shape. Cheapest, and honest -- it is a
+   modelling choice, not a measured property of the medium.
+2. Widen `T_freeze` to 0.10 – 0.16 *and* keep it, but check the emulator posterior correlation
+   matrix before adding anything else. A visible eta/s--T_freeze ridge is a finding, not a bug,
+   as long as it is measured rather than hidden.
+
+Recommendation: option 1 for the first LHS, option 2 as an explicit second campaign, so the
+degenerate direction gets its own dedicated run rather than degrading the first.
+
+#### Explicitly NOT in the design space
+
+These are fixed for the whole campaign, and each one is a *choice* that must be defended in the
+writeup rather than swept:
+
+- `grid_step = 0.2 fm`. Resolution, not physics. MUSIC cost scales roughly as `dx^-2`, so this is
+  the single most expensive knob in the file. Needs one resolution study (dx = 0.2 vs 0.14,
+  ~2-3 events) to justify, not a design axis.
+- `tau = 1.0` (free-streaming). Small systems are the most sensitive to this and it deserves its
+  own sensitivity check, but it is an initialisation choice.
+- `b`. Not varied: it is event-by-event, not design-by-design. CRN means every design point sees
+  the *same* b sequence, so b contributes a common random effect that must be divided out when
+  comparing design points.
+- Events per design point. Fixed by a target statistical error on v2, not chosen for taste.
+- `nthreads = 1`, pinned. Thread count changes reduction order in MUSIC and would destroy the
+  bit-reproducibility established in Phase E.
+- `tmax = 25`, EOS table, afterburner = decay.
+
+**EOS is a deliberate exclusion.** It is a strong lever on essentially every flow observable, so
+including it would be defensible scientifically -- but it multiplies the cost of the campaign and
+it is a different paper's parameter. Recommendation: fix one EOS, and state it as a limitation
+whose size can be bounded later by re-running a couple of points with a second EOS.
+
+#### Recommended first LHS: 9 dimensions
+
+`WS_radius`, `WS_diffusiveness`, `beta_m`, `gamma_m`, `sigma_plane`, `sigma_beta_3`,
+`eta/s at kink`, `kink temperature`, `bulk zeta/s max` -- with `T_freeze` fixed and Tier B fixed.
+
+Shape and viscosity first, because those are what the deformation question actually needs, and 9
+dimensions is small enough that ~200 points with CRN should give a usable posterior.
+
+ LHS design generator
 Emit the design CSV over WS radius, diffuseness, deformations + fluctuation widths, TRENTo
 parameters, viscosity. De-hardcode `submit_design_points.py:20` (`DEFAULT_OSG_SCRIPT`) and the
 `-n/-nev/-nth` literals — **use the batch size measured in E1.**
