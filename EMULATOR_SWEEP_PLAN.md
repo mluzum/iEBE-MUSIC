@@ -528,12 +528,33 @@ vs full.
 
 Slim0 was verified to run a full 76Ge event end to end (210 s) before being shipped.
 
+**Byte-identity is a within-build invariant, not a cross-build one.** Rebuilding the image
+from a newer pin moved every target nucleon by 1-2 float32 ULP (max 2.4e-7 fm at r ~ 7 fm,
+i.e. ~3e-8 relative). Cause: the Woods-Saxon -> step+Gaussian fit is a BFGS `minimize`, whose
+last bits depend on the numpy/BLAS build; float32 storage rounds the resulting 1e-15
+float64 difference up to 1-2 ULP. Nuclei are still "the same nuclei" for any physics purpose
+(0.5 fm radius, 1 fm nucleon width), but **md5 of the nucleus HDF5 is only an audit tool
+within one image build**. Compare nuclei across builds with a tolerance (~1e-6 fm), not md5.
+Local-vs-OSG md5 equality earlier was same-image, and still stands as evidence.
+
 **Deployment.** The SIF lives on the OSG spool at
 `/ospool/ap40/data/matthew.luzum/singularity_repos/iebe-music_slim.sif` and is referenced as
 
 ```
 +SingularityImage = "osdf:///ospool/ap40/data/matthew.luzum/singularity_repos/iebe-music_slim.sif"
 ```
+
+**Image ledger.** Production images are named `iebe-music_slim_<short-sha>.sif` so the artifact
+is self-identifying. `iebe-music_slim.sif` is kept as a stable alias for the newest one.
+
+| SIF | framework commit | md5 | notes |
+|---|---|---|---|
+| `iebe-music_slim_2f840cc.sif` | `2f840cc` | `97bf05f9f39e411063dc2b887132c1d6` | **current production**, `WITH_OPTIONAL_CODES=0` |
+| `iebe-music_slim.sif` | -- | `97bf05f9...` | alias -> the above |
+| `iebe-music_slim_4d5e6f0.sif` | pre-2f840cc pin | `1370bd59...` nucleus-era image | superseded |
+
+The commit is checked inside the image, not just recorded:
+`docker run ... git -C /opt/iEBE-MUSIC rev-parse HEAD` must print the SHA in the filename.
 
 Condor log/error/output files point at `/home/matthew.luzum/log/` (home disk), as required --
 the generator takes the log directory from its own working directory, so run it from a home-disk
