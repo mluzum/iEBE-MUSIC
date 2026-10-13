@@ -40,8 +40,8 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
 # rsync is required: the Pythia8 Makefile install target uses it exclusively
 # (five `rsync -a` calls, no cp fallback), so without it `make install` dies with
 # Error 127. The el9 image already installed it; this one did not.
-RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install \
+RUN python3 -m pip install --no-cache-dir --upgrade pip && \
+    python3 -m pip install --no-cache-dir \
         numpy==1.24.4 \
         scipy==1.10.1 \
         h5py==3.14.0 \
@@ -79,6 +79,44 @@ RUN cd ${HOME} \
 && bash download_posteriorChain.sh \
 && cd ../arXiv_2408.00537 \
 && bash download_posteriorChain.sh
+
+
+# Same post-build slimming as docker/Dockerfile -- see the keep-list and the
+# rationale there. smash_code, urqmd_code and /opt/pythia8315 are kept because
+# the built smash links libpythia8.so from /opt/pythia8315/lib.
+RUN set -eux; \
+    C=/opt/iEBE-MUSIC/codes; \
+    rm -rf $C/MUSIC_code/build $C/MUSIC_code/src $C/MUSIC_code/tests \
+           $C/MUSIC_code/doxygen $C/MUSIC_code/utilities \
+           $C/MUSIC_code/example_inputfiles; \
+    rm -rf $C/iSS_code/build $C/iSS_code/lib $C/iSS_code/src \
+           $C/iSS_code/utilities $C/iSS_code/tests $C/iSS_code/EOS.tar.gz; \
+    rm -rf $C/hadronic_afterburner_toolkit_code/src \
+           $C/hadronic_afterburner_toolkit_code/unit_tests; \
+    rm -rf $C/3dMCGlauber_code/src $C/3dMCGlauber_code/build; \
+    rm -rf $C/ipglasma_code/src $C/ipglasma_code/build; \
+    rm -rf $C/kompost_code/src; \
+    rm -rf $C/trento_code/src $C/trento_code/test; \
+    rm -rf $C/photonEmission_hydroInterface_code/src; \
+    for p in \
+        $C/MUSIC_code/MUSIChydro $C/MUSIC_code/EOS $C/MUSIC_code/tables \
+        $C/iSS_code/iSS.e $C/iSS_code/iSS_tables \
+        $C/hadronic_afterburner_toolkit_code/hadronic_afterburner_tools.e \
+        $C/hadronic_afterburner_toolkit_code/EOS \
+        $C/hadronic_afterburner_toolkit_code/ebe_scripts \
+        $C/3dMCGlauber_code/3dMCGlb.e $C/3dMCGlauber_code/eps09 \
+        $C/3dMCGlauber_code/tables \
+        $C/ipglasma_code/ipglasma $C/ipglasma_code/utilities \
+        $C/ipglasma_code/nucleusConfigurations $C/ipglasma_code/tables \
+        $C/kompost_code/EKT $C/kompost_code/KoMPoST.exe \
+        $C/trento_code/build/src/trento \
+        $C/photonEmission_hydroInterface_code/hydro_photonEmission.e \
+        $C/photonEmission_hydroInterface_code/ph_rates \
+        $C/isobar_sampler_code/exec/build_isobars.py \
+        $C/smash_code/build/smash $C/urqmd_code/urqmd/urqmd.e \
+    ; do \
+        test -e "$p" || { echo "MISSING after slimming: $p" >&2; exit 1; }; \
+    done
 
 ENV PYTHONIOENCODING utf-8
 
