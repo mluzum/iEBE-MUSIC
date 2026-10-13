@@ -364,35 +364,72 @@ to end since — it now reads its defaults from the template it was invoked agai
 Everything below Phase E is worthless if results are not reproducible, and the batch size
 determines how the whole campaign is submitted. Run this before committing to a design.
 
-#### E1 — Timing benchmark
-Measure two numbers and use them, rather than guessing:
+#### E1 — Timing benchmark  *(measured 2026-10-13, 76Ge+76Ge, decay path)*
 
-- `T_e` — per-event wall time, and its stage breakdown: isobar sampler / TRENTo / MUSIC /
-  afterburner / analysis.
-- `T_o` — per-job fixed overhead: singularity exec, **image pull (cold and warm)**, condor
-  startup, and the sampler's one-off BFGS step+Gaussian fit (~2.4 s), which is cached per event
-  folder and so is a per-job cost, not per-event.
+Setup: full events run inside the container with `OMP_NUM_THREADS=1`, mirroring the OSG
+job. Architecture is **one core per job, events sequential**, so per-event time is irreducible
+at 1 core.
 
-Then size the batch:
+| stage | time |
+|---|---|
+| isobar sampler x2 + TRENTo | 5 s |
+| MUSIC hydro | **119 s** |
+| decay afterburner (iSS) | 32 s |
+| spvn analysis | 9 s |
+| **T_e (per event)** | **165-177 s** |
+
+Measured singles: 165, 166, 165, 169 s. A 3-event sequential batch: 169+176+177 = **522 s =>
+174 s/event**, confirming linearity and negligible per-event overhead. Generating 3 event
+folders: 11 s (3.7 s/event, part of T_e).
+
 ```
-N = floor((T_target - T_o) / T_e)      T_target = 3600 s
-require  T_o / (T_o + N*T_e) <= 5%
+batch N = floor((3600 - T_o) / 174)
 ```
-Report the measured table; Phase G's submission defaults come from it, not from literals.
-Record whether MUSIC time scales with thread count, since that sets `n_th` per job.
+With T_o measured only for image transfer (not reproducible locally, depends on OSG node
+cache state):
+- T_o = 0 (warm): N = 20
+- T_o = 300 s: N = 19, overhead 7.9%  (above the 5% target)
+- T_o = 150 s: N = 20, overhead 4.1%  (meets target)
 
-*Exit:* a measured `T_e`, `T_o`, and a batch size `N` with overhead under 5% of job walltime.
+**So ~19-20 events per 1-core job**, and the exact number depends on the image transfer, which
+is why Phase F (slimming) can directly raise events-per-job. MUSIC at 119 s (68% of the event)
+is the hard floor: on 1 core it does not parallelise further.
 
-#### E2 — Reproducibility *(blocking)*
-Two tiers, because they have different tolerances and different failure modes.
+*Exit:* T_e = 174 s measured; batch N ~ 19-20 pending the OSG T_o measurement.
 
-**Tier 1 — must be byte-identical.** The nucleus HDF5, i.e. the nucleon positions. These come
-from Philox keyed on `(master_seed, address)` alone, so any difference here invalidates the entire
-common-random-numbers design.
+#### E2 — Reproducibility *(blocking; local PASSED 2026-10-13, OSG pending)*
 
-**Tier 2 — must agree to a measured tolerance.** The observables (`v2`, `dE/dy`, …), which pass
-through MUSIC's hydro solver. Asserting bit-identity here is likely wrong; asserting nothing is
-worse. **Record the actual number.**
+Both tiers now pass locally for 76Ge+76Ge: **all 179 observables bit-identical** between two
+full independent runs under NaN-aware exact comparison. Two blocking defects were found and
+fixed to get there:
+
+**Defect 1 -- TRENTo rejected the nucleus file.** TRENTo's `ManualNucleus::create` requires
+exactly one object (`if (file.getNumObjs() != 1) throw`, nucleus.cxx:412). The Phase-D
+provenance written as sibling datasets made it three objects, so every event died at TRENTo.
+Invisible until a full run. Fixed by writing `deformation` / `deformation_harmonic` as HDF5
+**attributes** (attributes are not objects).
+
+**Defect 2 -- two clock-based seeds.** Two identical runs gave 19526 vs 19685 accepted
+particles and 157/179 differing datasets. Two independent seeds default to -1 ("use system
+clock"):
+- `iSS_parameters.dat randomSeed` (afterburner). Parsed via `cut -f 3 -d " "`, so the value must
+  be the third space-separated field and the line must carry no leading space.
+- `hadronic_afterburner_toolkit/parameters.dat randomSeed` (the FD/MC analysis binary). After
+  pinning only the first, v2 and counts matched but **69 of the 72** still-differing datasets
+  were `_weakFD`.
+
+Both now pinned to a Weyl offset of the **global event id** (bases 7919 and 104729 so they are
+uncorrelated), not a clock and not the job-id seed that `-c osg` adds. Neighbouring events stay
+decorrelated while each is reproducible.
+
+Residual byte differences in the output HDF5 are NaN payload encodings in three padding cells
+(numerically identical), plus `run.log` timestamps and `.pyc` caches -- expected to vary.
+
+```
+Tier 1 (nucleus HDF5): byte-identical, local  PASS
+Tier 2 (observables):  all 179 bit-identical, local  PASS
+Tier 1 + Tier 2 on OSG vs local: NOT YET TESTED (Phase E3)
+```
 
 Known suspects to test rather than assume:
 
