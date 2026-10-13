@@ -271,10 +271,40 @@ sampler. Bump the pin when a change must take effect *inside* the container.
 **identical across two different design points** (verifies D4).
 
 ### Phase D — Fluctuating deformation
-Per-config β₂/β₃/γ draws threaded from `build_nucleus` into `deform_nucleus` (already argument-based).
-New YAML keys (`sigma_beta2`, `sigma_beta3`, `gamma_kappa`) need no plumbing (see findings table).
 
-*Exit:* realised β values are recorded per event and match the intended distribution.
+Per-configuration `(beta2, gamma, beta3)` via `sigma_beta_2`, `sigma_beta_3`, `sigma_gamma`. Absent
+or zero reproduces the fixed shape exactly, so existing dictionaries are unaffected.
+
+Latent z-scores come from the same counter-based generator as the nucleon seeds, at `purpose=1`
+(the upper half of each address' counter range → independent of nucleon positions), keyed on
+`(master_seed, address)` alone. This is what makes the sweep a **common-random-numbers** design:
+every design point sees the same z for a given event, so differences between design points are
+physical rather than sampling noise.
+
+- β₂ folded about zero (a negative β₂ is the same shape as positive with γ shifted by π; folding
+  keeps γ interpretable). β₃ stays signed — its sign is physical.
+- **γ is treated as genuinely circular: the draw is a *wrapped* normal, not a plain one**, so
+  there is no artificial edge at 0/2π. This departs from the von Mises proposed in D5, and
+  deliberately so: a wrapped normal agrees with von Mises to leading order at small width but
+  degenerates cleanly to a fixed γ as `sigma_gamma → 0`, whereas a von Mises needs `κ → ∞`. Keeping
+  the fixed-shape design point inside the same parameterisation is worth more than the exact
+  family.
+
+Realised `(beta2, gamma, beta3)` is written to the output HDF5 as a `deformation` dataset plus
+`master_seed`/width attributes, so results stay joinable to the shape that produced them — Phase F
+builds on this.
+
+`MakeDictionaries` reads the three widths from optional CSV columns.
+
+Verified: σ=0 reproduces the fixed shape bit-for-bit; the same design point is bit-identical;
+`beta2 = |mu + sigma*z|` holds exactly across design points with the shared latent; γ stays in
+[0,2π) even at `sigma_gamma = 4`; z-scores are mean≈0, std≈1 over 4000 addresses; multi-config
+batches draw one shape per configuration. End to end through generated event folders, events 0/1/2
+(addresses 0, 1013904226, 2027808452) realise distinct shapes.
+
+Also fixed here: `MakeDictionaries` referenced a module-level `DEFAULTS` constant introduced in
+Phase B that never existed. It had gone unnoticed because `MakeDictionaries` had not been run end
+to end since — it now reads its defaults from the template it was invoked against.
 
 ### Phase E — LHS design generator
 Emit the design CSV over WS radius, diffuseness, deformations + fluctuation widths, TRENTo
