@@ -110,16 +110,31 @@ RUN yum clean all && rm -rf /root/.cache/pip
 #   photonEmission_code -> hydro_photonEmission.e, ph_rates/
 #   isobar_sampler_code -> exec/build_isobars.py
 #
-# smash_code and urqmd_code are left intact, and /opt/pythia8315 is kept: the
-# built `smash` links libpythia8.so from /opt/pythia8315/lib and embeds the path
-# /opt/pythia8315/share/Pythia8/xmldoc, so removing it breaks SMASH at runtime.
+# WITH_OPTIONAL_CODES selects the campaign scope:
+#   1 (default) full image. smash_code and urqmd_code stay, and so does
+#     /opt/pythia8315, because the built `smash` links libpythia8.so from
+#     /opt/pythia8315/lib and embeds /opt/pythia8315/share/Pythia8/xmldoc.
+#   0 slim image for the TRENTo+decay campaign. Drops every backend that path
+#     never touches -- SMASH, UrQMD, osc2u, IPGlasma, KoMPoST, photon emission,
+#     3dMCGlauber -- and /opt/pythia8315 with them. That is ~555 MB of the
+#     image, which matters because the image is pulled per job over OSDF.
+#     The always-kept list above is asserted present in BOTH modes, so 0 cannot
+#     silently drop something an event folder needs.
+# The full image is one flag away:
+#   docker build --build-arg WITH_OPTIONAL_CODES=1 -t iebe-music:full .
+#   docker build --build-arg WITH_OPTIONAL_CODES=0 -t iebe-music:slim .
 # iSS.e, MUSIChydro and hadronic_afterburner_tools.e link only system libraries,
-# which is what makes their build/ trees safe to drop.
+# which is what makes their build/ trees safe to drop in either mode.
 #
 # After the deletions the keep-list is re-checked, so a future change to the
 # packages cannot silently drop something an event folder needs.
+ARG WITH_OPTIONAL_CODES=1
 RUN set -eux; \
     C=/opt/iEBE-MUSIC/codes; \
+    if [ "${WITH_OPTIONAL_CODES}" != "0" ] && [ "${WITH_OPTIONAL_CODES}" != "1" ]; then \
+        echo "WITH_OPTIONAL_CODES must be 0 or 1, got ${WITH_OPTIONAL_CODES}" >&2; \
+        exit 1; \
+    fi; \
     rm -rf $C/MUSIC_code/build $C/MUSIC_code/src $C/MUSIC_code/tests \
            $C/MUSIC_code/doxygen $C/MUSIC_code/utilities \
            $C/MUSIC_code/example_inputfiles; \
@@ -147,11 +162,31 @@ RUN set -eux; \
         $C/photonEmission_hydroInterface_code/hydro_photonEmission.e \
         $C/photonEmission_hydroInterface_code/ph_rates \
         $C/isobar_sampler_code/exec/build_isobars.py \
-        $C/smash_code/build/smash $C/urqmd_code/urqmd/urqmd.e \
-        /opt/pythia8315/lib/libpythia8.so \
     ; do \
         test -e "$p" || { echo "MISSING after slimming: $p" >&2; exit 1; }; \
-    done
+    done; \
+    if [ "${WITH_OPTIONAL_CODES}" = "0" ]; then \
+        echo "WITH_OPTIONAL_CODES=0: dropping every backend the TRENTo+decay"; \
+        echo "path never touches (SMASH, UrQMD, IPGlasma, KoMPoST, photon"; \
+        echo "emission, 3dMCGlauber) plus /opt/pythia8315, which only SMASH"; \
+        echo "links. Nothing above is in the always-kept list, which is what"; \
+        echo "makes this safe; the assertion loop is the check."; \
+        rm -rf $C/smash_code $C/smash $C/urqmd_code $C/osc2u \
+               $C/3dMCGlauber_code $C/ipglasma_code \
+               $C/photonEmission_hydroInterface_code $C/kompost_code \
+               /opt/pythia8315; \
+        for p in $C/smash_code/build/smash \
+                 $C/urqmd_code/urqmd/urqmd.e \
+                 /opt/pythia8315/lib/libpythia8.so; do \
+            test ! -e "$p" || { echo "NOT REMOVED: $p" >&2; exit 1; }; \
+        done; \
+    else \
+        for p in $C/smash_code/build/smash \
+                 $C/urqmd_code/urqmd/urqmd.e \
+                 /opt/pythia8315/lib/libpythia8.so; do \
+            test -e "$p" || { echo "MISSING after slimming: $p" >&2; exit 1; }; \
+        done; \
+    fi
 
 ENV PYTHONIOENCODING utf-8
 WORKDIR ${HOME}

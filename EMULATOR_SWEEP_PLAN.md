@@ -445,8 +445,34 @@ Residual byte differences in the output HDF5 are NaN payload encodings in three 
 ```
 Tier 1 (nucleus HDF5): byte-identical, local  PASS
 Tier 2 (observables):  all 179 bit-identical, local  PASS
-Tier 1 + Tier 2 on OSG vs local: NOT YET TESTED (Phase E3)
 ```
+
+**Cross-platform: OSG worker vs local (Phase E3, 2026-10-13).** Same event id 0, same
+parameter file, run locally in docker and on an OSG worker (wsu-lg07.osris.org, glidein
+MI-HORUS-CE2, `Cpus = 1`), image pulled via `osdf:///ospool/ap40/data/matthew.luzum/
+singularity_repos/iebe-music_slim.sif`.
+
+```
+Tier 1  target_nucleus.h5  md5 6f2a22d4bafdb6b5724dc79a26586fa5  both sides
+        BYTE-IDENTICAL, including every provenance attribute
+        (master_seed, seed_source, deformation, deformation_harmonic)
+
+Tier 2  28 of 114 datasets exactly equal; the rest agree to FLOATING POINT
+        v2 elementwise |diff| <= 1.9e-9, max relative diff 4.3e-2 on a
+        near-empty dNdeta cell
+        event counts (pT bin, N_particles) EXACTLY equal: [99, 429, 100]
+```
+
+So the common-random-numbers design survives the platform change exactly where it has to:
+**the nuclei are bit-identical**, which is what the CRN argument rests on. The observables
+are reproducible to floating-point, not bitwise, because MUSIC's hydro solver reduces in a
+hardware- and compiler-dependent order. For calibration that is far below any statistical
+uncertainty (~1e-2 on v2 with a few thousand events), but it does mean **bit-identity of
+observables must not be asserted across platforms** -- only within one machine.
+
+Reference scale for how large a *real* difference looks: two different events locally differ
+in v2 by 4.5e-3, i.e. ~7 orders of magnitude more than the local-vs-OSG same-event
+difference. The nuclei cannot be differing; the residue is hydro arithmetic.
 
 Known suspects to test rather than assume:
 
