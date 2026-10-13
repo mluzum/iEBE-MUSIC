@@ -64,6 +64,27 @@ defaults — prefer those over guessing flags.
 
 ## Gotchas
 
+- **Reproducibility is assumed, not demonstrated.** The seed scheme is counter-based and the
+  container pins the framework to an exact SHA, but nobody has yet run the same event twice on
+  local HTCondor and once on OSG and diffed the nucleus HDF5. The common-random-numbers design
+  rests entirely on this. See Phase E2 in `EMULATOR_SWEEP_PLAN.md`; treat it as blocking.
+- **Pin thread counts.** OpenMP/MPI reduction order in MUSIC can change `v2` in the last bits for
+  *identical* input, so a 4-thread and an 8-thread run are not bit-identical even when the nucleon
+  configurations are. Pin `OMP_NUM_THREADS`/`MKL_NUM_THREADS` in the job script and record the
+  value in the event's output directory, so a future mismatch is diagnosable. Do not assert
+  bit-identity of observables without measuring it — assert it of the nucleus HDF5, which must be
+  exact.
+- **Merge results by event id, never by completion order.** Each event owns a global id
+  (`--event_start_id`/`--event_end_id`); parallel jobs finish out of order.
+- **`tar` output must not depend on directory iteration order** if archives are compared across
+  runs.
+- **The sign of `beta_3` is a rotation, not a physical degree of freedom.** `Y_30` is odd in `z`, so
+  a π rotation about x maps the `beta_3 = +b` surface onto `beta_3 = -b` (verified to 6.7e-16). The
+  magnitude is the parameter. Do not spend a design axis on the sign.
+- **Fetched code packages may be absent.** `codes/hadronic_afterburner_toolkit`,
+  `codes/hadronic_afterburner_toolkit_code/ebe_scripts/average_event_spvn_h5.py` and
+  `config/hadronic_afterburner_toolkit` are gitignored; without them `generate_jobs.py` cannot
+  build a full event tree. Run `codes/get_code_packages.sh`.
 - **Run `generate_jobs.py` from the repo root.** `isobar_seed_file` is resolved with
   `os.path.abspath` against the *current working directory*, not the parameter file's directory.
   This only applies to the legacy `seed_source: "file"` path — the default `philox` path reads no

@@ -359,12 +359,88 @@ Also fixed here: `MakeDictionaries` referenced a module-level `DEFAULTS` constan
 Phase B that never existed. It had gone unnoticed because `MakeDictionaries` had not been run end
 to end since — it now reads its defaults from the template it was invoked against.
 
-### Phase E — LHS design generator
+### Phase E — Validation & benchmarking *(blocking; must precede the production design)*
+
+Everything below Phase E is worthless if results are not reproducible, and the batch size
+determines how the whole campaign is submitted. Run this before committing to a design.
+
+#### E1 — Timing benchmark
+Measure two numbers and use them, rather than guessing:
+
+- `T_e` — per-event wall time, and its stage breakdown: isobar sampler / TRENTo / MUSIC /
+  afterburner / analysis.
+- `T_o` — per-job fixed overhead: singularity exec, **image pull (cold and warm)**, condor
+  startup, and the sampler's one-off BFGS step+Gaussian fit (~2.4 s), which is cached per event
+  folder and so is a per-job cost, not per-event.
+
+Then size the batch:
+```
+N = floor((T_target - T_o) / T_e)      T_target = 3600 s
+require  T_o / (T_o + N*T_e) <= 5%
+```
+Report the measured table; Phase G's submission defaults come from it, not from literals.
+Record whether MUSIC time scales with thread count, since that sets `n_th` per job.
+
+*Exit:* a measured `T_e`, `T_o`, and a batch size `N` with overhead under 5% of job walltime.
+
+#### E2 — Reproducibility *(blocking)*
+Two tiers, because they have different tolerances and different failure modes.
+
+**Tier 1 — must be byte-identical.** The nucleus HDF5, i.e. the nucleon positions. These come
+from Philox keyed on `(master_seed, address)` alone, so any difference here invalidates the entire
+common-random-numbers design.
+
+**Tier 2 — must agree to a measured tolerance.** The observables (`v2`, `dE/dy`, …), which pass
+through MUSIC's hydro solver. Asserting bit-identity here is likely wrong; asserting nothing is
+worse. **Record the actual number.**
+
+Known suspects to test rather than assume:
+
+- **Thread count changes floating-point reduction order.** OpenMP/MPI in MUSIC can reorder
+  summations, so `v2` can differ in the last bits between a 4-thread and an 8-thread run *with
+  identical input*. Pin `OMP_NUM_THREADS` / `MKL_NUM_THREADS` in the job script and record the
+  value in the output directory so a mismatch is diagnosable rather than mysterious.
+- **TRENTo's own RNG.** Confirm it is seeded from the nucleon configuration. If it draws from its
+  own seed, that seed must derive from the event id.
+- **joblib parallelism** in the sampler is deterministic (verified in Phase A), but pin `n_jobs`
+  anyway.
+- **Result merging order.** Each event owns a global id, so merging must key on id, never on
+  completion order (already the case per Phase C).
+- **Archive ordering.** `tar` output must not depend on directory iteration order.
+
+Acceptance: same event + same seed on local HTCondor, run twice → Tier 1 byte-identical. Same
+event on OSG → Tier 1 byte-identical to local. Tier 2 agreement recorded to a stated relative
+tolerance with threads pinned. **If Tier 1 fails anywhere, stop and fix it before any production
+run** — there is no point spending OSG hours on unreproducible results.
+
+#### E3 — Cross-platform pilot
+One design point, ~20 events, submitted through the *real OSG path* (not the HTCondor one) and
+collected with `collect_events.sh`. Verify against local. This also exercises the image pull on
+OSG, which feeds Phase F.
+
+*Exit:* local-vs-local and local-vs-OSG both reproduce Tier 1 byte-identically, Tier 2 to the
+recorded tolerance, and `T_e`/`T_o`/`N` are measured.
+
+### Phase F — Container slimming *(deferred until E1/E3 say it is worth it)*
+
+Only if the measurement shows image pull plus startup is a meaningful fraction of job walltime.
+Strip SMASH and the UrQMD binaries, since the campaign is `decay`-only. Before committing:
+
+- Confirm MUSIC links nothing in either tree, and that the afterburner scripts do not reference
+  them.
+- The earlier audit kept `/opt/pythia8315` (59 MB) solely because SMASH links and embeds paths
+  into it. If SMASH goes, that goes too.
+- Measure the actual size and pull-time saving and compare it against the per-job transfer it
+  saves. A smaller image that still dominates `T_o` is not worth the divergence risk.
+
+*Exit:* a smaller image, the same required binaries present, and a re-run of E2 passing.
+
+### Phase G — LHS design generator
 Emit the design CSV over WS radius, diffuseness, deformations + fluctuation widths, TRENTo
 parameters, viscosity. De-hardcode `submit_design_points.py:20` (`DEFAULT_OSG_SCRIPT`) and the
-`-n/-nev/-nth` literals.
+`-n/-nev/-nth` literals — **use the batch size measured in E1.**
 
-### Phase F — Provenance + emulator join
+### Phase H — Provenance + emulator join
 Per-event record of `(MASTER_SEED, row_address, realised β₂/β₃/γ, b, mult, design-point id)`; design-point
 id in generated parameter files; replace `combine_multiple_hdf5.py`'s random-letter renaming with
 deterministic names so the X/y join survives merging.
@@ -375,6 +451,13 @@ deterministic names so the X/y join survives merging.
 
 ## 5. Risks and open items
 
+- **Reproducibility is the load-bearing assumption.** The whole common-random-numbers design rests
+  on a given event producing the same nucleon configuration on every machine and every rerun. It
+  is currently *believed*, not demonstrated — the container pins the framework to an exact SHA
+  and the seeds are counter-based, but neither has been checked end to end. Phase E2 is blocking.
+- **Thread count may perturb observables.** OpenMP/MPI reduction order in MUSIC can change `v2`
+  in the last bits for identical input. Pin threads and record the value; do not assert
+  bit-identity of observables without measuring it.
 - **Phase A measurement may change the campaign size.** Do not commit to a design-point count before
   the gate.
 - **Statistical floor.** The anchor's error is dominated by the shape ensemble. With a virtual pool
@@ -382,6 +465,13 @@ deterministic names so the X/y join survives merging.
   `P ≳ 1600` is needed for ~0.5% on the anchor's absolute values.
 - **`decay` path is the only fully-validated one.** SMASH branches in both generators remain broken
   (OSG: `event_0`; transfer globs reference files SMASH does not emit). Avoid SMASH until fixed.
+  This is also why Phase F's slimming is safe in principle — the campaign never uses SMASH.
+- **Fetched code packages are missing from this checkout.** `codes/hadronic_afterburner_toolkit`,
+  `codes/hadronic_afterburner_toolkit_code/ebe_scripts/average_event_spvn_h5.py` and
+  `config/hadronic_afterburner_toolkit` are gitignored and absent, so `generate_jobs.py` cannot
+  currently build a full event tree. Run `codes/get_code_packages.sh` before Phase E.
 - **Anchor point parameters are undecided** (pool/events-per-design-point) pending Phase B.
 - `MakeDictionaries.py` hardcodes `number_nucleons: 96` and omits `beta_4` — resolve if the sweep
   spans systems other than Zr/Ru.
+- **`beta_3` sign is a rotation, not a degree of freedom** (Phase D). Its magnitude is the real
+  parameter; do not spend a design axis on the sign.
