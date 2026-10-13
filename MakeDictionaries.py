@@ -409,9 +409,13 @@ def python_literal(value):
     return format_python_value(value, indent=0, in_list=False, key_quote="'", string_quote='"')
 
 
-def format_isobar_dict(section_name: str, row: dict[str, str]) -> str:
+def f_sigma(row: dict[str, str], key: str) -> float:
+    """Read an optional deformation-width column; absent means a fixed shape."""
+    return float(row[key]) if str(row.get(key, "")).strip() else 0.0
+
+
+def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) -> str:
     label = "target" if section_name == "target" else "projectile"
-    samples = DEFAULTS["isobars_conf_dict_" + section_name]["isobar_samples"]
     seed_source = samples["seed_source"]["value"]
     master_seed = samples["master_seed"]["value"]
     pool_modulus = samples["pool_modulus"]["value"]
@@ -464,6 +468,11 @@ def format_isobar_dict(section_name: str, row: dict[str, str]) -> str:
         f'            "beta_2": {{"description": "Quadrupolar deformation", "value": {float(row["beta_2"])}}},',
         f'            "gamma": {{"description": "Quadrupolar deformation angle (rad)", "value": {float(row["gamma"])}}},',
         f'            "beta_3": {{"description": "Octupolar deformation", "value": {float(row["beta_3"])}}},',
+        # Event-by-event deformation widths. Optional CSV columns; absent (or 0)
+        # keeps the design point at a fixed shape, i.e. the previous behaviour.
+        f'            "sigma_beta_2": {{"description": "Event-by-event width of beta_2; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_2")}}},',
+        f'            "sigma_beta_3": {{"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_3")}}},',
+        f'            "sigma_gamma": {{"description": "Event-by-event width of gamma (rad, wrapped); 0 fixes gamma", "value": {f_sigma(row, "sigma_gamma")}}},',
         '            "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},',
         '            "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},',
         '        },',
@@ -477,6 +486,9 @@ def write_design_point_file(output_dir: Path, index_one_based: int, config: dict
     output_dir.mkdir(parents=True, exist_ok=True)
     file_name = f"parameter_dictionary_design_point_{index_one_based}.py"
     output_path = output_dir / file_name
+    # Defaults (seed_source, master_seed, pool_modulus, mass number) come from
+    # the template this design point is generated against.
+    samples = config["isobars_conf_dict_target"]["isobar_samples"]
 
     lines = [
         "#!/usr/bin/env python3",
@@ -495,9 +507,9 @@ def write_design_point_file(output_dir: Path, index_one_based: int, config: dict
         "",
         "# isobar-sample",
         "",
-        format_isobar_dict("target", row),
+        format_isobar_dict("target", row, samples),
         "",
-        format_isobar_dict("projectile", row),
+        format_isobar_dict("projectile", row, samples),
         "",
     ]
 
