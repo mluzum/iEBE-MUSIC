@@ -64,16 +64,16 @@ ENV HOME /opt/
 # last known-good commit. To advance: commit and push your work, then update the
 # SHA below in the following commit and rebuild.
 #
-#   63a78c2 = "Generate nucleon seeds deterministically instead of shipping a pool"
+#   46de390 = "Drop the 63 MB nucleon-seed pool from git"
 #             (also carries the dependency pins, sampler-fork fix, pinned Isobar-Sampler
 #             and the faster isobar sampler)
 RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 63a78c2405c74a51bb9c391ce2eb1cfd36ac3af8 && \
+    git fetch -q --depth=1 origin 46de3904073e998c835439de9bebcc238559617c && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "63a78c2405c74a51bb9c391ce2eb1cfd36ac3af8" && \
+    test "$(git rev-parse HEAD)" = "46de3904073e998c835439de9bebcc238559617c" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
