@@ -414,6 +414,12 @@ def f_sigma(row: dict[str, str], key: str) -> float:
     return float(row[key]) if str(row.get(key, "")).strip() else 0.0
 
 
+def f_str(row: dict[str, str], key: str, default: str) -> str:
+    """Read an optional string column; absent means the default."""
+    v = str(row.get(key, "")).strip()
+    return v if v else default
+
+
 def f_beta_max(row: dict[str, str], samples: dict) -> float:
     """Upper bound on the quadrupole strength for the bounded Beta draw.
 
@@ -486,6 +492,9 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
         f'            "sigma_beta_3": {{"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_3")}}},',
         f'            "sigma_gamma": {{"description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma", "value": {f_sigma(row, "sigma_gamma")}}},',
         f'            "beta_max": {{"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": {f_beta_max(row, samples)}}},',
+        f'            "shape_distribution": {{"description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)", "value": "{f_str(row, "shape_distribution", "wedge")}"}},',
+        f'            "sigma_plane": {{"description": "Width of the plane-form Gaussian; 0 is rigid, and works at beta_2 = 0", "value": {f_sigma(row, "sigma_plane")}}},',
+        f'            "plane_anisotropy": {{"description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic", "value": {f_sigma(row, "plane_anisotropy")}}},',
         '            "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},',
         '            "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},',
         '        },',
