@@ -305,6 +305,26 @@ physical rather than sampling noise.
   put 2.7× uniform mass below β = 0.01 at µ/σ = 1.67); and the **uniform wedge prior is reachable
   and actually uniform** — `Beta(1,1)` has mean ½ and sd `1/√12`, so µ = `(lo+hi)/2` with
   `σ = (hi−lo)/√12`; joint density flat to 3%, **total variation from uniform 0.0076** (was 0.49).
+- **Two shape-distribution modes (D8).** `shape_distribution: wedge | plane`.
+  - `wedge` (default, Option B): each event's shape is a point (β, γ_lit) inside the
+    Bohr–Mottelson domain. **Cannot express a nucleus with no mean deformation but real
+    shape fluctuations** — the apex is where all six symmetry sectors meet, so reproducing it
+    needs μ_β ≈ 0.01 *and* σ_β ≈ 0.03 *and* σ_γ ≈ 17° at once, and the feasibility guard
+    rejects part of that region.
+  - `plane`: mean tensor given in wedge coordinates, Gaussian drawn in the deformation plane
+    about it, **folded per draw**. σ_plane = 0 is exactly rigid at any mean *including
+    β = 0*. Zero mean deformation with real fluctuations is one parameter: measured prolate
+    fraction **0.500** at σ_plane = 0.02/0.05/0.10/0.20, E[γ_lit] = 35.3° throughout.
+    Prolate/oblate mix automatically.
+  - At σ_plane = 0 the two modes are **bit-identical**, verified end to end; the wedge form is
+    untouched, so existing parameter dictionaries keep their meaning.
+  - **Trade-off, stated plainly:** the wedge form parameterises the *shape*; the plane form
+    parameterises the *mean tensor*. E[γ_lit] still drifts with σ_plane (fold non-linearity),
+    but now that is a **model prediction**, not prior distortion. A flat prior on the mean stays
+    flat on the mean.
+  - CRN carries over for free — the plane draw reuses two of the three existing normal latents.
+  - `plane_anisotropy` is available but **off by default**; the emulator must show it can
+    resolve it first.
 - **Open (D7): §5 Jacobian `β⁴|sin 3γ_lit|` is deliberately not implemented.** It encodes a physics
   claim — a flat PES, i.e. a γ-unstable nucleus — not a default. Consequence to be aware of: under
   the old Gaussian latents *any* `sigma_gamma > 0` gave an essentially uniform γ_lit (peak/mean
