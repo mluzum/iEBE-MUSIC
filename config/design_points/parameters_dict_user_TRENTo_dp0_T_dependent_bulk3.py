@@ -12,8 +12,11 @@ control_dict = {
     'save_UrQMD_files': False,
 }
 
-# Shared pre-generated isobar seed file (required).
-isobar_seed_file = "shared_seeds/nucleon-seeds.hdf"
+# No isobar_seed_file is declared on purpose. Nucleon positions are generated
+# deterministically from isobars_conf_dict_*['isobar_samples']['seed_source']
+# ("philox"), which needs no file. Only the legacy seed_source "file" reads a
+# pool, and then this variable must be set to its path; generate one
+# reproducibly with utilities/make_seed_pool.py.
 
 # isobar-sample
 isobars_conf_dict_target = {

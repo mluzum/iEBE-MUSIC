@@ -127,3 +127,12 @@ average_event_spvn_h5.py
 collect_events.sh
 combine_multiple_hdf5.py
 collect_events_singularity.sh
+
+# Nucleon-seed pools. Nucleon rows are generated deterministically from
+# (master_seed, pool address) by default -- see EMULATOR_SWEEP_PLAN.md decision
+# D2 -- so no pool is needed. A pool is only required by the legacy
+# seed_source: "file" path; generate one reproducibly with
+#   python3 utilities/make_seed_pool.py --output shared_seeds/nucleon-seeds.hdf \
+#       --number-configs N --number-nucleons A --seed 8675309
+shared_seeds/
+nucleon-seeds*.hdf

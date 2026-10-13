@@ -168,9 +168,15 @@ CI fixes made while validating the above (all on NME):
   `PYTHIA_INSTALL_DIR` must stay `${HOME}/pythia8315` because `compile_code_packages.sh:186`
   hardcodes it via `-DPythia_CONFIG_EXECUTABLE`.
 
-Housekeeping available once Phase B lands: `shared_seeds/nucleon-seeds.hdf` is a tracked 62.8 MB
-binary that GitHub warns exceeds its 50 MB recommendation (GH001). Retiring it from version control
-is a natural follow-on to dropping seed-file transfer.
+Housekeeping completed:
+- **`shared_seeds/nucleon-seeds.hdf` removed from git** (63 MB, and GitHub flagged it as
+  GH001). With `seed_source: philox` nothing reads it. It is now gitignored. The legacy `file`
+  path remains functional; `utilities/make_seed_pool.py` generates a pool **reproducibly** from an
+  integer seed, which upstream's `make_seeds.py` cannot do (it draws from numpy's unseeded global
+  state, so two runs differ).
+- The stale `isobar_seed_file = "shared_seeds/nucleon-seeds.hdf"` declaration was removed from the
+  shipped parameter dictionaries and from `MakeDictionaries.py`'s output — it pointed at a file
+  that no longer exists and is unused under `philox`.
 
 ### Phase A — Sampler efficiency (file path)
 

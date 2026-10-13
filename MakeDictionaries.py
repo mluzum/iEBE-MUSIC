@@ -40,10 +40,6 @@ def default_template_config() -> dict:
             "save_hydro_surfaces": False,
             "save_UrQMD_files": False,
         },
-        # Only consulted when isobar_samples.seed_source == "file". With the
-        # default "philox" no seed file is read or transferred at all, so this
-        # path is carried for reference/back-compatibility only.
-        "isobar_seed_file": "shared_seeds/nucleon-seeds.hdf",
         "isobars_conf_dict_target": {
             "isobar_samples": {
                 "description": "Options for the isobar nucleon-position samples",
@@ -492,9 +488,10 @@ def write_design_point_file(output_dir: Path, index_one_based: int, config: dict
         "",
         f"control_dict = {python_literal(config['control_dict'])}",
         "",
-        "# Shared pre-generated isobar seed file (required).",
-        "",
-        f'isobar_seed_file = "{config["isobar_seed_file"]}"',
+        "# No isobar_seed_file: nucleon positions are generated deterministically",
+        "# from isobars_conf_dict_*['isobar_samples']['seed_source'] (\"philox\").",
+        "# Only the legacy seed_source \"file\" reads a pool; generate one with",
+        "# utilities/make_seed_pool.py and set isobar_seed_file to its path.",
         "",
         "# isobar-sample",
         "",
@@ -549,7 +546,6 @@ def main() -> None:
         name: template_ns[name]
         for name in [
             "control_dict",
-            "isobar_seed_file",
             "isobars_conf_dict_target",
             "isobars_conf_dict_projectile",
             "trento_dict",
