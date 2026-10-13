@@ -975,6 +975,31 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
         iSSParamFile = 'iSS/iSS_parameters.dat'
         shutil.copyfile(path.join(param_folder, iSSParamFile),
                         path.join(sub_event_folder, iSSParamFile))
+        # iSS treats randomSeed < 0 as "use the system clock", which makes the
+        # afterburner -- and hence every particle-level observable -- differ
+        # between two runs of the *same* event. Measured: two identical local
+        # runs of event 0 produced 19526 vs 19685 accepted particles.
+        #
+        # Pin it to the global event id instead. That keeps the required
+        # property -- every event differs from every other -- while making each
+        # event reproducible, which is what the common-random-numbers design
+        # rests on. The WEYL offset decorrelates adjacent ids so neighbouring
+        # events do not get correlated seeds.
+        _iSS_SEED_BASE = 7919
+        _iss_seed = _iSS_SEED_BASE + (int(event_id) * 2654435761) % 2147483647
+        # The afterburner parses this file with
+        #   cut -f 3 -d " "  on the matching line, so the value must be the
+        # THIRD space-separated field. The shipped line is "randomSeed = -1"
+        # (no leading space). Preserve that exact shape or the parse silently
+        # yields the keyword instead of the value.
+        with open(path.join(sub_event_folder, iSSParamFile)) as f:
+            _lines = f.readlines()
+        with open(path.join(sub_event_folder, iSSParamFile), 'w') as f:
+            for _line in _lines:
+                if _line.strip().startswith('randomSeed'):
+                    f.write('randomSeed = %d\n' % _iss_seed)
+                else:
+                    f.write(_line)
         if para_dict.control_dict['compute_polarization']:
             if iev < n_urqmd_per_hydro:
                 f1 = open("temp.dat", "w")
@@ -1066,6 +1091,25 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
     shutil.copyfile(
         path.join(param_folder, 'hadronic_afterburner_toolkit/parameters.dat'),
         path.join(event_folder, 'hadronic_afterburner_toolkit/parameters.dat'))
+    # The analysis binary reads a second, independent randomSeed. Left at the
+    # default -1 it uses the system clock, and the _weakFD observables -- which
+    # do their own FD/Monte-Carlo sampling inside hadronic_afterburner_tools.e
+    # -- then differ between two runs of the same event. Measured: with iSS
+    # already pinned, v2 and the event counts matched exactly while 69 of 72
+    # remaining differing datasets were weakFD. Pin this one too, with a
+    # different offset so it is not correlated with the iSS seed.
+    _AB_SEED_BASE = 104729
+    _ab_seed = _AB_SEED_BASE + (int(event_id) * 2654435761) % 2147483647
+    _ab_param = path.join(event_folder,
+                           'hadronic_afterburner_toolkit/parameters.dat')
+    with open(_ab_param) as f:
+        _lines = f.readlines()
+    with open(_ab_param, 'w') as f:
+        for _line in _lines:
+            if _line.strip().startswith('randomSeed'):
+                f.write('randomSeed = %d\n' % _ab_seed)
+            else:
+                f.write(_line)
     for link_i in ['hadronic_afterburner_tools.e', 'EOS']:
         subprocess.call("ln -s {0:s} {1:s}".format(
             path.abspath(
