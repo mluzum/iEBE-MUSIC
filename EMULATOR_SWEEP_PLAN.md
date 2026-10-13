@@ -397,6 +397,23 @@ is the hard floor: on 1 core it does not parallelise further.
 
 *Exit:* T_e = 174 s measured; batch N ~ 19-20 pending the OSG T_o measurement.
 
+**Also measured through the real submission path** (fresh sif built from the pinned commit,
+`singularity exec` on `run_singularity.sh`'s two calls):
+- `singularity exec` startup + `generate_jobs.py`: **1 s**. Container startup is negligible.
+- `singularity exec` + the event(s): dominated by physics, as above.
+
+So `T_o` is essentially all image *transfer*, which is an OSG/GridFTP concern, not a container
+startup concern. Locally the 766 MB `.sif` transfer to the HTCondor worker intermittently failed
+with "Could not initiate file transfer" (evicted) -- a scratch/transfer flake on this shared
+filesystem, not representative of OSG. The image transfer remains the one input to the batch
+size that has not been measured on the target infrastructure.
+
+*Local condor note:* the HTCondor generator's `run_singularity.sh` hardcodes `-c OSG` inside the
+sandbox `generate_jobs.py` call, and the `-c osg` path adds `seed += job_id`. This did not affect
+reproducibility of the two event-id-derived seeds (iSS, FD-analysis), which are pinned to the
+global event id and unaffected by the job-id seed offset. Worth revisiting for the OSG pilot.
+
+
 #### E2 — Reproducibility *(blocking; local PASSED 2026-10-13, OSG pending)*
 
 Both tiers now pass locally for 76Ge+76Ge: **all 179 observables bit-identical** between two
