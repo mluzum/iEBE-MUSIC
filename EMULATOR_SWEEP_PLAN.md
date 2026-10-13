@@ -283,12 +283,25 @@ physical rather than sampling noise.
 
 - β₂ folded about zero (a negative β₂ is the same shape as positive with γ shifted by π; folding
   keeps γ interpretable). β₃ stays signed — its sign is physical.
-- **γ is treated as genuinely circular: the draw is a *wrapped* normal, not a plain one**, so
-  there is no artificial edge at 0/2π. This departs from the von Mises proposed in D5, and
-  deliberately so: a wrapped normal agrees with von Mises to leading order at small width but
-  degenerates cleanly to a fixed γ as `sigma_gamma → 0`, whereas a von Mises needs `κ → ∞`. Keeping
-  the fixed-shape design point inside the same parameterisation is worth more than the exact
-  family.
+- **γ is treated as genuinely circular, and its canonical range is [0°, 180°)** — the draw is a
+  *wrapped* normal, so there is no artificial edge at 0/2π. The wrap target is π, not 2π: for a
+  surface built from β₂₀ and β₂₂ with no β₂₁, a 90° rotation about z maps γ → −γ and leaves Y₃₀
+  (hence β₃) alone, so γ and −γ are the same nucleus. Verified by solving explicitly for the
+  rotation: residual 9e-17 for γ → −γ vs 7e-01 for γ → γ + π. Wrapping to 2π made every shape
+  appear exactly twice in the design.
+  This departs from the von Mises proposed in D5, and deliberately so: a wrapped normal agrees
+  with von Mises to leading order at small width but degenerates cleanly to a fixed γ as
+  `sigma_gamma → 0`, whereas a von Mises needs `κ → ∞`. Keeping the fixed-shape design point inside
+  the same parameterisation is worth more than the exact family.
+- **The 0–60° range quoted in the literature is a different variable.** That is the ellipsoid
+  (Davydov–Filipov) triaxiality γ₀, not the harmonic γ used by `deform_nucleus`. There is no
+  120 − γ reflection in the harmonic (β₂, γ) parameterisation: γ = 65° and γ = 55° have different
+  quadrupole eigenvalues and no rotation relates them (best-case residual 0.30). Folding by
+  120 − γ would alias genuinely different shapes, so it is *not* applied.
+- **Open (D7): γ prior support.** `sigma_gamma = 0.8 rad ≈ 46°` is very wide relative to any
+  physically motivated bound on ground-state triaxiality (typically γ ≲ 30°). Whether to keep an
+  unbounded wrapped-normal prior or truncate to a physical range is a physics decision, not a
+  numerical one — see the question asked in review.
 
 Realised `(beta2, gamma, beta3)` is written to the output HDF5 as a `deformation` dataset plus
 `master_seed`/width attributes, so results stay joinable to the shape that produced them — Phase F
