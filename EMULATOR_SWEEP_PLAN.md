@@ -283,25 +283,28 @@ physical rather than sampling noise.
 
 - β₂ folded about zero (a negative β₂ is the same shape as positive with γ shifted by π; folding
   keeps γ interpretable). β₃ stays signed — its sign is physical.
-- **γ is treated as genuinely circular, and its canonical range is [0°, 180°)** — the draw is a
-  *wrapped* normal, so there is no artificial edge at 0/2π. The wrap target is π, not 2π: for a
-  surface built from β₂₀ and β₂₂ with no β₂₁, a 90° rotation about z maps γ → −γ and leaves Y₃₀
-  (hence β₃) alone, so γ and −γ are the same nucleus. Verified by solving explicitly for the
-  rotation: residual 9e-17 for γ → −γ vs 7e-01 for γ → γ + π. Wrapping to 2π made every shape
-  appear exactly twice in the design.
-  This departs from the von Mises proposed in D5, and deliberately so: a wrapped normal agrees
-  with von Mises to leading order at small width but degenerates cleanly to a fixed γ as
-  `sigma_gamma → 0`, whereas a von Mises needs `κ → ∞`. Keeping the fixed-shape design point inside
-  the same parameterisation is worth more than the exact family.
-- **The 0–60° range quoted in the literature is a different variable.** That is the ellipsoid
-  (Davydov–Filipov) triaxiality γ₀, not the harmonic γ used by `deform_nucleus`. There is no
-  120 − γ reflection in the harmonic (β₂, γ) parameterisation: γ = 65° and γ = 55° have different
-  quadrupole eigenvalues and no rotation relates them (best-case residual 0.30). Folding by
-  120 − γ would alias genuinely different shapes, so it is *not* applied.
-- **Open (D7): γ prior support.** `sigma_gamma = 0.8 rad ≈ 46°` is very wide relative to any
-  physically motivated bound on ground-state triaxiality (typically γ ≲ 30°). Whether to keep an
-  unbounded wrapped-normal prior or truncate to a physical range is a physics decision, not a
-  numerical one — see the question asked in review.
+- **γ is the Bohr–Mottelson triaxiality angle γ_lit, in [0°, 60°]** — the ellipsoid angle used in
+  the literature β–γ sector plots, not the harmonic angle the surface expansion takes. Per
+  `BetaGammaDistribution.md`. Conversion (exact, round-trips to 1.4e-14°):
+  `tan(g) = −√2 tan(γ_lit)`, then `beta20 = beta cos g`, `beta22 = beta sin g / √2`.
+  Anchors: `γ_lit 0°` → pure Y₂₀ (axial prolate); `30°` → `T_yy = 0` (max triaxiality);
+  `60°` → eigenvalues `(−2,1,1)` (axial oblate).
+  The equivalences `γ_lit ≡ γ_lit + 120 ≡ −γ_lit ≡ 120 − γ_lit` are genuine — shape-preserving on
+  4000 random draws — so the protocol's folding removes up to a 4-fold redundancy in the design
+  space. The *same* folding on the harmonic angle fails on all 52 test points, which is why the
+  conversion has to happen on the design side of the boundary.
+  Draws are reflected rather than clipped, so overshoot lands back inside with **no boundary
+  pile-up** (edge bins 261/252/245 vs 385/392/409 mid-range).
+- **Backward compatibility.** Every shipped design point uses `γ = 0`, the one value the two
+  conventions agree on. Output is bit-identical: the previous commit's sampler and this one agree
+  to `maxdiff = 0.0` across eight combinations of `beta2`/`beta3`/correlation, including the
+  `beta2 = 0` axial case. (The comparison must zero `sigma_*`; with `sigma_gamma > 0` the two
+  conventions deliberately give different shapes.)
+
+- **Open (D7): γ prior width.** The support is now correct; the *width* is a physics choice.
+  `sigma_gamma` is still set to 0.8 rad ≈ 46°, which over a 60°-wide domain folds a lot of mass
+  back onto itself. Physically, ground states sit at small γ_lit (≲ 30°); a mean of ~25–30° with
+  `sigma_gamma ≈ 10–15°` would be a better prior. Decide in Phase E.
 
 Realised `(beta2, gamma, beta3)` is written to the output HDF5 as a `deformation` dataset plus
 `master_seed`/width attributes, so results stay joinable to the shape that produced them — Phase F
