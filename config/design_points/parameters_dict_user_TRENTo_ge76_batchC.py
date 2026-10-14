@@ -1,6 +1,12 @@
 # Batch C: 76Ge+76Ge, normalization 7.0, tau 0.905 fm/c -- harder/more compact, tau on the correlated path.
 #
-# Grid-extent measurement campaign. tau is scaled as 1/sqrt(normalization) for B and C so
+# Grid-extent measurement campaign.
+#
+# b-max is 14 fm, not the 0.75 fm an earlier version used. For Ge+Ge the nuclear
+# radius is ~5.1 fm so b_max ~ 10 fm; 0.75 fm sampled only the central core, and
+# multiplicity came out flat in b (corr +0.15 over 19 events), i.e. the whole batch
+# was central collisions. 14 fm is the master default and does not truncate the
+# Glauber weight distribution. tau is scaled as 1/sqrt(normalization) for B and C so
 # the two move together, since the intrinsic timescale of the initial condition goes as
 # 1/sqrt(energy density) and varying either alone is unphysical. D varies tau alone on
 # purpose, to size how much that lever is worth before committing to B and C.
@@ -45,7 +51,7 @@ trento_dict = {
     "cross-section": 4.23,
     "normalization": 7.0,
     "b-min": 0,
-    "b-max": 0.75,
+    "b-max": 14.0,
     "grid-max": 15.0,
     "grid-step": 0.2,
 }

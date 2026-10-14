@@ -565,9 +565,19 @@ def compute_surface_extent(hydro_folder):
     if surf.ndim != 2 or surf.shape[1] < 3:
         return None
     x, y = surf[:, 1], surf[:, 2]
+    # MUSIC names the file surface_eps_<e_fo>.dat, where e_fo is the energy
+    # density at freeze-out, not a time.
+    e_fo = None
+    stem = path.basename(files[0])
+    if stem.startswith('surface_eps_'):
+        try:
+            e_fo = float(stem[len('surface_eps_'):].replace('.dat', ''))
+        except ValueError:
+            pass
     return {
         'n_surface_cells': int(surf.shape[0]),
-        'surface_file': path.basename(files[0]),
+        'surface_file': stem,
+        'e_fo_GeV_fm3': e_fo,
         'max_abs_x': float(np.abs(x).max()),
         'max_abs_y': float(np.abs(y).max()),
         'max_r': float(np.hypot(x, y).max()),
@@ -622,7 +632,9 @@ def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
                     'grid_extent_{}.csv'.format(event_id))
     try:
         with open(out, 'w', newline='', encoding='utf-8') as f:
-            csv.DictWriter(f, fieldnames=list(row.keys())).writerow(row)
+            writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+            writer.writeheader()
+            writer.writerow(row)
     except OSError:
         pass
 
