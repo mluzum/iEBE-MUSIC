@@ -66,9 +66,9 @@ RUN cd ${HOME} \
 && mkdir iEBE-MUSIC && cd iEBE-MUSIC \
 && git init -q . \
 && git remote add origin https://github.com/mluzum/iEBE-MUSIC.git \
-&& git fetch -q --depth=1 origin 2f840cce2080b810a38b300e5bb3b83b8d91963e \
+&& git fetch -q --depth=1 origin e340bbb69ccbca6e10886ede3da2813587b31ca5 \
 && git checkout -q FETCH_HEAD \
-&& test "$(git rev-parse HEAD)" = "2f840cce2080b810a38b300e5bb3b83b8d91963e" \
+&& test "$(git rev-parse HEAD)" = "e340bbb69ccbca6e10886ede3da2813587b31ca5" \
 && cd codes \
 && bash ./get_code_packages_test.sh \
 && ./compile_code_packages.sh \
