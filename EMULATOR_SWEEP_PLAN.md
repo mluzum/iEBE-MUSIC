@@ -672,6 +672,72 @@ All four batches re-launched with `b-max = 14 fm` for a real minimum-bias sample
 question is whether peripheral collisions really are much smaller, which is the premise the
 whole adaptive-grid idea rests on.
 
+#### Result: a sizing rule for the transverse box (141 events, b = 1.46-13.31 fm)
+
+Eight batches, 19 events each, spanning the full centrality range. **First correction to the
+campaign design: `b` scales as a constant fraction of `b-max`**, verified because `b/b_max` came
+out identical (0.366-0.951) for the same event ids at `b_max` = 0.75 and 14. So TRENTo here is
+sampling b as a fixed fraction of `b_max`, not by the Glauber weight, and **central collisions
+come from a small `b-max`, not a large one** -- the opposite of what was assumed when `b-max`
+was raised from 0.75 to 14 to "get minimum bias". Coverage was completed with `b-max` = 4 and 8,
+which together with 14 spans b = 1.46-13.31 fm and multiplicity 3-274.
+
+Measured parameter sensitivity (paired, same events, same nuclei, same b):
+
+| change | d(surface max_r) | d(MUSIC time) |
+|---|---|---|
+| `T_freeze` 0.10 | **+0.56 fm** (0/18 smaller) | +37 s |
+| `T_freeze` 0.15 | -0.05 fm (18/18 smaller) | -57 s |
+| `normalization` 4.50 (tau 1.128) | -0.41 fm | -12 s |
+| `normalization` 7.00 (tau 0.905) | +0.24 fm | +42 s |
+| `tau` 1.25 alone | -0.35 fm | +42 s |
+
+`T_freeze` is the dominant lever and strongly asymmetric, as expected now that freeze-out is on
+temperature: dropping it 0.02 GeV buys +0.56 fm of surface, raising it 0.03 costs almost nothing
+(`e_fo` runs 0.016 / 0.049 / 0.234 GeV/fm^3 at 0.10 / 0.12 / 0.15). So **any sizing rule must
+take the parameters, not just b** -- exactly the concern that motivated this campaign.
+
+The freeze-out surface is well described by a *smoothed* size, not its outermost cell:
+
+```
+max_r / r_rms:  median 1.909   p99 2.543   max 2.573     (and flat vs system size:
+   median 1.80 / 1.90 / 1.93 in successive r_rms bins -- the tail is a clean scale law)
+r_rms  = -0.182 + 1.141 R_rms - 0.109 ln(e_fo) + 0.143 ln(normalization) - 0.810 tau
+         R^2 = 0.966,  sigma = 0.165 fm
+```
+
+`R_rms` is the RMS radius of the **post-free-streaming** initial condition, which is why the
+measure has to be taken after the free-streaming step rather than straight off TRENTo.
+
+**The rule**
+
+```
+L = 2.25 * (r_rms_predicted + 5 * sigma)        # transverse half-width, fm
+```
+
+covers every one of the 141 measured events (requirement is `max(surface max_r, IC R99.9)`, the
+largest of which is 9.24 fm), with zero under-covers. Per event it asks for 52-122 cells at
+dx = 0.2 against the current fixed 200 -- a median MUSIC interior cost of **0.17**.
+
+Realistically MUSIC is ~120 s of a 174 s event and the rest (sampler, TRENTo, afterburner,
+analysis) is fixed, so the end-to-end gain is **~2.6x**, 174 s -> 66 s per event, i.e. ~54 rather
+than ~19 events per OSG hour. The fixed ~41 s of afterburner and analysis is what caps it.
+
+Caveats before this is used to size anything:
+
+- Fit on `R_rms` in 1.81-4.37 fm. Design points with larger Woods-Saxon radius or higher
+  `reduced-thickness` fall outside it; extrapolating the linear model to `R_rms` = 6 fm gives
+  L = 13.6 fm, which is still below 200 cells but is an extrapolation and should be clamped or
+  re-measured.
+- `T_freeze` enters only through `ln(e_fo)`, calibrated over 0.10-0.15 GeV. A design space
+  reaching outside that needs another batch, and the asymmetry above says the low side is the
+  dangerous one.
+- The rule needs `R_rms` *before* MUSIC starts, which is cheap: TRENTo plus free-streaming is
+  ~5 s against 120-270 s of MUSIC, so measure, then crop and run. No need to run TRENTo twice.
+- The `r_rms` model is fitted to a smoothed quantity while the requirement is a maximum, which
+  is why the rule needs a 5-sigma term. That is honest but crude; a quantile of `max_r/r_rms`
+  used directly would be tighter.
+
 #### Measurement campaign (run this BEFORE designing anything)
 
 The point of the campaign is to replace assumptions with measurements. Nothing about the dynamic
