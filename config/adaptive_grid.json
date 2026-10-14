@@ -1,0 +1,33 @@
+{
+  "c0": 0.2733374135811795,
+  "c1": 1.0087041306545599,
+  "c2": -0.11016925419989354,
+  "c3": 0.1314875748019071,
+  "c4": -0.9432297719779276,
+  "sigma": 0.19336744557897095,
+  "k_tail": 1.9,
+  "n_sigma": 7,
+  "_comment": "Sizing rule for the adaptive transverse box, fitted on 141 events (b = 1.46-13.31 fm) across 8 batches spanning T_freeze, normalization, tau and b-max. R_rms_trento is the RMS radius of the TRENTo output BEFORE free-streaming, which is what is available before MUSIC starts. L = k_tail*(r_rms_predicted + n_sigma*sigma) must exceed both the freeze-out surface max radius and the IC R99.9.",
+  "_fitted_range": {
+    "R_rms_trento_fm": [
+      1.66,
+      4.6
+    ],
+    "b_fm": [
+      1.46,
+      13.31
+    ],
+    "T_freeze_GeV": [
+      0.1,
+      0.15
+    ],
+    "normalization": [
+      4.5,
+      7.0
+    ],
+    "tau_fm": [
+      0.905,
+      1.25
+    ]
+  }
+}

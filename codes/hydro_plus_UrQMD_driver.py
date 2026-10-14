@@ -296,7 +296,8 @@ def read_adaptive_coeffs():
     """Sizing coefficients, from adaptive_grid.json if present."""
     coeffs = dict(ADAPTIVE_DEFAULT_COEFFS)
     fname = "adaptive_grid.json"
-    for candidate in (fname, path.join("model_parameters", fname)):
+    for candidate in (fname, path.join("model_parameters", fname),
+                      path.join("..", "model_parameters", fname)):
         if path.exists(candidate):
             try:
                 with open(candidate, "r", encoding="utf-8") as f:

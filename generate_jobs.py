@@ -774,6 +774,20 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                   'fetch_3DMCGlauber_event_from_hdf5_database.py'),
         event_folder)
 
+    # Ship the adaptive-grid sizing coefficients next to the generated inputs.
+    # The driver looks for this file in the event directory, in model_parameters,
+    # or one level up in model_parameters, so it is versioned with the code but
+    # still overridable by dropping a file into the working folder.
+    src_coeffs = path.join(package_root_path, 'config', 'adaptive_grid.json')
+    if path.exists(src_coeffs):
+        try:
+            shutil.copy(src_coeffs,
+                        path.join(param_folder, 'adaptive_grid.json'))
+            shutil.copy(src_coeffs,
+                        path.join(event_folder, 'adaptive_grid.json'))
+        except OSError:
+            pass
+
     logfile = ""
     if cluster_name != "osg" or not debugFlag:
         logfile = " >> run.log"
