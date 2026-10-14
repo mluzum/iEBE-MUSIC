@@ -258,13 +258,16 @@ def generate_full_job_script(cluster_name, folder_name, database, initial_type,
     if hasattr(para_dict, 'trento_dict'):
         trentoOutput = para_dict.trento_dict.get('output', trentoOutput)
 
+    control_dict = getattr(para_dict, 'control_dict', {})
+    adaptiveGrid = bool(control_dict.get('adaptive_grid', False))
+
     free_stream_dict = getattr(para_dict, 'free_streaming_dict', {})
     freeStreamTau = float(free_stream_dict.get('tau', 1.0))
     freeStreamGridMax = float(free_stream_dict.get('grid_max', 10.0))
     freeStreamGridStep = float(free_stream_dict.get('grid_step', 0.2))
 
     script.write("""
-python3 hydro_plus_UrQMD_driver.py {0:s} {1:s} {2:d} {3:d} {4:d} {5:d} {6} {7} {8} {9} $seed_add {10} {11} {12} {13:s} {14:s} {15:s} {16:g} {17:g} {18:g}
+python3 hydro_plus_UrQMD_driver.py {0:s} {1:s} {2:d} {3:d} {4:d} {5:d} {6} {7} {8} {9} $seed_add {10} {11} {12} {13:s} {14:s} {15:s} {16:g} {17:g} {18:g} {19:s}
 """.format(initial_type, database, n_hydro, ev0_id, n_urqmd, n_threads,
            para_dict.control_dict["save_ipglasma_results"],
            para_dict.control_dict["save_kompost_results"],
@@ -273,7 +276,8 @@ python3 hydro_plus_UrQMD_driver.py {0:s} {1:s} {2:d} {3:d} {4:d} {5:d} {6} {7} {
            para_dict.control_dict["compute_polarization"],
            para_dict.control_dict["compute_photon_emission"], enableCheckPoint,
            afterburner_type, kompostFileName, trentoOutput, freeStreamTau,
-           freeStreamGridMax, freeStreamGridStep))
+           freeStreamGridMax, freeStreamGridStep,
+           "true" if adaptiveGrid else "false"))
     script.write("""
 
 status=$?

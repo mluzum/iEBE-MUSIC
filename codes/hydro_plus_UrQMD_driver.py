@@ -11,6 +11,7 @@ import time
 import shutil
 import re
 import json
+import math
 import h5py
 import numpy as np
 import freestream
@@ -148,11 +149,31 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             print("No need to rerun ...")
 
         write_trento_event_summary(res_path, final_results_folder, event_id)
-            
+
+        grid_max = para_dict['free_stream_grid_max']
+        grid_step = para_dict['free_stream_grid_step']
+
+        if para_dict.get('adaptive_grid'):
+            try:
+                new_L = apply_adaptive_grid(res_path, file_name, para_dict,
+                                            grid_step)
+                if new_L is not None:
+                    # rerun TRENTo on the chosen grid, then recollect
+                    run_trento(event_id)
+                    collect_trento_event(res_path)
+                    write_trento_event_summary(res_path,
+                                               final_results_folder, event_id)
+                    grid_max = new_L
+                # keep the diagnostic honest about which grid was actually used
+                para_dict['free_stream_grid_max'] = grid_max
+            except Exception:
+                import traceback
+                print('adaptive grid failed, keeping the fixed box:\n{}'.format(
+                    traceback.format_exc()),
+                      flush=True)
+
         connect_trento_event(res_path, initial_type, file_name,
-                             para_dict['free_stream_tau'],
-                             para_dict['free_stream_grid_max'],
-                             para_dict['free_stream_grid_step'])
+                             para_dict['free_stream_tau'], grid_max, grid_step)
         return status, file_name
     #########################################################################
     elif initial_type == "3DMCGlauber_dynamical":
@@ -241,6 +262,203 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
         sys.exit(1)
         
         
+# --- adaptive transverse grid -------------------------------------------------
+#
+# Measured over 141 events (b = 1.46-13.31 fm) by the grid-extent campaign. The
+# freeze-out surface sits at a fixed multiple of its own RMS radius, and that
+# RMS radius is predicted from the size of the TRENTo initial condition plus the
+# parameters that set how far the system expands before it reaches T_freeze.
+#
+# Coefficients are READ FROM adaptive_grid.json in the working directory, never
+# hard-coded, so they can be refitted and shipped with the parameter file without
+# rebuilding the image.
+#
+# PLACEHOLDER VALUES: these are the fit against the POST-free-streaming R_rms.
+# Free-streaming shifts R_rms by -0.20 fm (-4.9%), which is larger than sigma, so
+# they must be refitted against the pre-free-streaming value before use.
+ADAPTIVE_DEFAULT_COEFFS = {
+    "c0": -0.182,
+    "c1": 1.141,
+    "c2": -0.109,
+    "c3": 0.143,
+    "c4": -0.810,
+    "sigma": 0.165,
+    "k_tail": 2.25,
+    "n_sigma": 5.0,
+}
+
+# e_fo (GeV/fm^3) at which MUSIC freezes out, as a function of T_freeze, measured
+# from the campaign. Interpolation is linear in ln(e_fo).
+ADAPTIVE_EFO_TABLE = [(0.10, 0.0160), (0.12, 0.0486), (0.15, 0.2341)]
+
+
+def read_adaptive_coeffs():
+    """Sizing coefficients, from adaptive_grid.json if present."""
+    coeffs = dict(ADAPTIVE_DEFAULT_COEFFS)
+    fname = "adaptive_grid.json"
+    for candidate in (fname, path.join("model_parameters", fname)):
+        if path.exists(candidate):
+            try:
+                with open(candidate, "r", encoding="utf-8") as f:
+                    coeffs.update(json.load(f))
+            except (OSError, ValueError):
+                pass
+            break
+    return coeffs
+
+
+def e_fo_from_t_freeze(t_freeze):
+    """Energy density at freeze-out, interpolated from the measured table."""
+    pts = ADAPTIVE_EFO_TABLE
+    if t_freeze <= pts[0][0]:
+        return pts[0][1]
+    if t_freeze >= pts[-1][0]:
+        return pts[-1][1]
+    for (t0, e0), (t1, e1) in zip(pts, pts[1:]):
+        if t0 <= t_freeze <= t1:
+            w = (t_freeze - t0) / (t1 - t0)
+            return float(math.exp(math.log(e0) + w * (math.log(e1) - math.log(e0))))
+    return pts[-1][1]
+
+
+def _split_input_line(line):
+    """(key, value) from a MUSIC/TRENTo input line, or (None, None).
+
+    Two formats are in play and mixing them up is silent: TRENTo writes
+    "key = value" while MUSIC writes "key  value" with whitespace only. A patch
+    that only understands the first one appears to succeed and changes nothing.
+    """
+    stripped = line.split("#")[0].strip()
+    if not stripped:
+        return None, None
+    if "=" in stripped:
+        name, _, val = stripped.partition("=")
+        return name.strip(), val.strip()
+    parts = stripped.split(None, 1)
+    if len(parts) == 2:
+        return parts[0].strip(), parts[1].strip()
+    return None, None
+
+
+def read_input_value(fname, key):
+    """Value of `key` in a MUSIC/TRENTo style input file, or None."""
+    try:
+        with open(fname, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("#"):
+                    continue
+                name, val = _split_input_line(line)
+                if name == key:
+                    return val
+    except OSError:
+        pass
+    return None
+
+
+def patch_input_value(fname, key, value):
+    """Rewrite the value of `key` in place. Returns True if the key was found."""
+    try:
+        with open(fname, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError:
+        return False
+    hit = False
+    for i, line in enumerate(lines):
+        if line.startswith("#"):
+            continue
+        name, _val = _split_input_line(line)
+        if name == key:
+            # Preserve the file's own separator. TRENTo requires "key = value"
+            # and rejects a whitespace-only line outright; MUSIC uses plain
+            # whitespace. Writing one format into the other file breaks the run
+            # with a message that does not mention the real cause.
+            if "=" in line.split("#")[0]:
+                lines[i] = "{} = {}\n".format(key, value)
+            else:
+                lines[i] = "{}  {}\n".format(key, value)
+            hit = True
+    if hit:
+        try:
+            with open(fname, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+        except OSError:
+            return False
+    return hit
+
+
+def ic_rms_from_flat(e_flat, grid_max, grid_step):
+    """RMS radius of a square gridded energy density, in fm."""
+    n = int(round(math.sqrt(e_flat.size)))
+    if n * n != e_flat.size:
+        return None
+    step = (2.0 * grid_max) / n
+    x = np.linspace(-grid_max + step / 2.0, grid_max - step / 2.0, n)
+    X, Y = np.meshgrid(x, x, indexing='xy')
+    r = np.hypot(X, Y).ravel()
+    total = e_flat.sum()
+    if total <= 0:
+        return None
+    return float(np.sqrt((e_flat * r**2).sum() / total))
+
+
+def plan_adaptive_half_width(R_rms_trento, t_freeze, normalization, tau,
+                             coeffs, grid_step, current_grid_max):
+    """Half-width the box needs, in fm, or None to leave the box alone."""
+    e_fo = e_fo_from_t_freeze(t_freeze)
+    r_rms = (coeffs["c0"] + coeffs["c1"] * R_rms_trento + coeffs["c2"] * math.log(e_fo)
+             + coeffs["c3"] * math.log(normalization) + coeffs["c4"] * tau)
+    need = coeffs["k_tail"] * (r_rms + coeffs["n_sigma"] * coeffs["sigma"])
+    n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
+    if n_cells < 2:
+        n_cells = 2
+    return n_cells * grid_step / 2.0, n_cells, r_rms
+
+
+def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
+    """Measure the TRENTo IC, choose a box, and rerun TRENTo on that grid.
+
+    Returns the new half-width, or None if the current box was kept.
+    """
+    trento_input = path.join("TRENTo", "input")
+    music_input = path.join("MUSIC", "music_input_mode_2")
+
+    trento_matrix = np.loadtxt(path.join(res_path, file_name))
+    trento_grid_max = float(read_input_value(trento_input, "grid-max") or 15.0)
+    R_rms = ic_rms_from_flat(trento_matrix.ravel(), trento_grid_max, grid_step)
+    if R_rms is None:
+        return None
+
+    normalization = float(read_input_value(trento_input, "normalization") or 1.0)
+    t_freeze = float(read_input_value(music_input, "T_freeze") or 0.12)
+    tau = float(para_dict.get("free_stream_tau", 1.0))
+
+    coeffs = read_adaptive_coeffs()
+    L, n_cells, r_rms = plan_adaptive_half_width(R_rms, t_freeze, normalization,
+                                                 tau, coeffs, grid_step,
+                                                 trento_grid_max)
+
+    current_cells = int(round(2.0 * trento_grid_max / grid_step))
+    # only act if it actually saves, and never grow past what was measured
+    if L >= trento_grid_max - 1e-9 or n_cells >= current_cells:
+        print("\U0001F9FE  adaptive grid: keeping +-{:.1f} fm (needs +-{:.1f})".format(
+            trento_grid_max, L),
+              flush=True)
+        return None
+
+    print("\U0001F9FE  adaptive grid: TRENTo R_rms={:.2f} -> r_rms_pred={:.2f} -> "
+          "+-{:.1f} fm, {} cells (was +-{:.1f}, {})".format(R_rms, r_rms, L, n_cells,
+                                                            trento_grid_max, current_cells),
+          flush=True)
+    if not patch_input_value(trento_input, "grid-max", "{:.4f}".format(L)):
+        return None
+    patch_input_value(trento_input, "grid-step", "{:.4f}".format(grid_step))
+    patch_input_value(music_input, "X_grid_size_in_fm", "{:.4f}".format(L))
+    patch_input_value(music_input, "Y_grid_size_in_fm", "{:.4f}".format(L))
+    patch_input_value(music_input, "Grid_size_in_x", "{:d}".format(n_cells))
+    patch_input_value(music_input, "Grid_size_in_y", "{:d}".format(n_cells))
+    return L
+
+
 def run_trento(event_id):
     """This functions run TRENTo"""
     print(" \U0001F680  Run TRENTo \u2192 freestream...")
@@ -628,6 +846,25 @@ def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
         ic = compute_ic_extent(e_path, grid_max, grid_step)
         if ic:
             row.update(ic)
+    except (OSError, ValueError):
+        pass
+
+    # R_rms of the TRENTo output itself, before free-streaming. This is what the
+    # adaptive sizing rule consumes, because it is available before MUSIC starts.
+    try:
+        src = path.join(final_results_folder,
+                        'trento_results_{}'.format(event_id),
+                        'initial_condition', '0.dat')
+        if path.exists(src):
+            flat = np.loadtxt(src).ravel()
+            n = int(round(math.sqrt(flat.size)))
+            if n * n == flat.size:
+                L = read_input_value(path.join('TRENTo', 'input'), 'grid-max')
+                L = float(L) if L is not None else grid_max
+                rms = ic_rms_from_flat(flat, L, grid_step)
+                if rms is not None:
+                    row['R_rms_trento'] = rms
+                    row['trento_grid_max'] = L
     except (OSError, ValueError):
         pass
 
@@ -1306,6 +1543,13 @@ if __name__ == "__main__":
     except IndexError:
         FREE_STREAM_GRID_STEP = 0.2
 
+    # Optional: size the transverse box per event from the TRENTo initial
+    # condition. Off unless explicitly enabled, so existing runs are unchanged.
+    try:
+        ADAPTIVE_GRID = (sys.argv[21].lower() == "true")
+    except IndexError:
+        ADAPTIVE_GRID = False
+
     known_initial_types = [
         "IPGlasma",
         "IPGlasma+KoMPoST",
@@ -1342,6 +1586,7 @@ if __name__ == "__main__":
         'free_stream_tau': FREE_STREAM_TAU,
         'free_stream_grid_max': FREE_STREAM_GRID_MAX,
         'free_stream_grid_step': FREE_STREAM_GRID_STEP,
+        'adaptive_grid': ADAPTIVE_GRID,
     }
 
     main(para_dict)

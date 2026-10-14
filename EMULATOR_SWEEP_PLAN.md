@@ -719,9 +719,20 @@ covers every one of the 141 measured events (requirement is `max(surface max_r, 
 largest of which is 9.24 fm), with zero under-covers. Per event it asks for 52-122 cells at
 dx = 0.2 against the current fixed 200 -- a median MUSIC interior cost of **0.17**.
 
-Realistically MUSIC is ~120 s of a 174 s event and the rest (sampler, TRENTo, afterburner,
-analysis) is fixed, so the end-to-end gain is **~2.6x**, 174 s -> 66 s per event, i.e. ~54 rather
-than ~19 events per OSG hour. The fixed ~41 s of afterburner and analysis is what caps it.
+**Correction to the baseline, which changes the headline number.** MUSIC does *not* use
+`X_grid_size_in_fm`/`Grid_size_in_x`; its log says
+
+```
+Using Initial_profile=9. Overwriting lattice dimensions: neta=1, nx=150, ny=150 deta=0.1, dx=0.2
+```
+
+i.e. the lattice comes from the IC table header and those keys are overridden. The box has
+therefore always been the TRENTo grid, +-15 fm / 150 cells, never the +-20 fm / 200 cells
+assumed earlier in this document. The earlier claim that MUSIC ran a +-20 fm domain with the
+IC filling only part of it was wrong, and so was the ~2.6x figure derived from it. Against the
+correct 150-cell baseline: median L = 8.1 fm -> 82 cells -> MUSIC factor 0.30 -> event
+174 s -> ~82 s, **~2.1x**, ~44 rather than ~19 events per OSG hour. Range: 60 events/hour for
+the smallest events, 29 for the largest. Still worth having, and less than it looked.
 
 Caveats before this is used to size anything:
 
