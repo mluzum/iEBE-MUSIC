@@ -531,6 +531,102 @@ def run_photon(final_results_folder, event_id):
     return (photon_success, photon_folder_name)
 
 
+def compute_ic_extent(e_path, grid_max, grid_step):
+    """Fractional energy-density radii of the initial condition, in fm."""
+    eps = np.loadtxt(e_path, comments='#')
+    if eps.ndim != 2 or eps.shape[0] != eps.shape[1] or eps.sum() <= 0:
+        return None
+    n = eps.shape[0]
+    step = (2.0 * grid_max) / n
+    x = np.linspace(-grid_max + step / 2.0, grid_max - step / 2.0, n)
+    X, Y = np.meshgrid(x, x, indexing='xy')
+    r = np.hypot(X, Y).ravel()
+    order = np.argsort(r)
+    cum = np.cumsum(eps.ravel()[order]) / eps.sum()
+    out = {'n_cells': int(n), 'grid_max': float(grid_max),
+           'grid_step': float(step)}
+    for frac in (0.90, 0.95, 0.99, 0.999):
+        idx = int(np.searchsorted(cum, frac))
+        out['R{}'.format(int(frac * 1000))] = float(r[order][idx])
+    return out
+
+
+def compute_surface_extent(hydro_folder):
+    """Transverse extent of the Cooper-Frye freeze-out surface, in fm.
+
+    MUSIC writes energy density in column 0 and the transverse coordinates
+    (x, y) in columns 1 and 2. This is the quantity that actually sets how
+    large the transverse box has to be.
+    """
+    files = glob(path.join(hydro_folder, "surface*.dat"))
+    if not files:
+        return None
+    surf = np.loadtxt(files[0])
+    if surf.ndim != 2 or surf.shape[1] < 3:
+        return None
+    x, y = surf[:, 1], surf[:, 2]
+    return {
+        'n_surface_cells': int(surf.shape[0]),
+        'surface_file': path.basename(files[0]),
+        'max_abs_x': float(np.abs(x).max()),
+        'max_abs_y': float(np.abs(y).max()),
+        'max_r': float(np.hypot(x, y).max()),
+    }
+
+
+def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
+                                 e_path, grid_max, grid_step,
+                                 music_seconds=None):
+    """Record how much transverse space this event actually needed.
+
+    Emits one small CSV per event so a whole OSG batch can be collected cheaply
+    and turned into the margin rule for an adaptive grid.
+    """
+    import csv
+
+    row = {'event_id': event_id}
+
+    summary = path.join(final_results_folder,
+                        'trento_event_summary_{}.txt'.format(event_id))
+    if path.exists(summary):
+        try:
+            with open(summary, 'r', encoding='utf-8') as f:
+                for line in f:
+                    parts = line.split()
+                    if len(parts) >= 2 and parts[0] == 'impact_parameter':
+                        row['b'] = parts[1]
+                    if len(parts) >= 2 and parts[0] == 'mult':
+                        row['mult'] = parts[1]
+        except OSError:
+            pass
+
+    try:
+        ic = compute_ic_extent(e_path, grid_max, grid_step)
+        if ic:
+            row.update(ic)
+    except (OSError, ValueError):
+        pass
+
+    try:
+        sf = compute_surface_extent(path.join(final_results_folder,
+                                              hydro_folder))
+        if sf:
+            row.update(sf)
+    except (OSError, ValueError):
+        pass
+
+    if music_seconds is not None:
+        row['music_seconds'] = round(float(music_seconds), 1)
+
+    out = path.join(final_results_folder,
+                    'grid_extent_{}.csv'.format(event_id))
+    try:
+        with open(out, 'w', newline='', encoding='utf-8') as f:
+            csv.DictWriter(f, fieldnames=list(row.keys())).writerow(row)
+    except OSError:
+        pass
+
+
 def prepare_surface_files_for_urqmd(final_results_folder, hydro_folder_name,
                                     n_urqmd, afterburner_type):
     """This function prepares hydro surface for hadronic cascade"""
@@ -1014,6 +1110,7 @@ def main(para_dict_):
                  shell=True)
 
         # first run hydro
+        t_hydro_start = time.time()
         hydro_success, hydro_folder_name = run_hydro_event(
             final_results_folder, event_id)
 
@@ -1024,6 +1121,23 @@ def main(para_dict_):
                   flush=True)
             exitErrorTrigger = True
             continue
+
+        # How much transverse space did this event actually use? Feeds the
+        # adaptive-grid margin study. Runs before any cleanup, and the surface
+        # is present regardless of save_hydro_surfaces.
+        try:
+            write_grid_extent_diagnostic(
+                final_results_folder, event_id, hydro_folder_name,
+                path.join(final_results_folder,
+                          'trento_results_{}'.format(event_id), 'e.dat'),
+                para_dict_['free_stream_grid_max'],
+                para_dict_['free_stream_grid_step'],
+                music_seconds=time.time() - t_hydro_start)
+        except Exception:
+            import traceback
+            print('grid extent diagnostic failed:\n{}'.format(
+                traceback.format_exc()),
+                  flush=True)
 
         if (initial_type == "3DMCGlauber_dynamical"
                 and (initial_condition == "self"

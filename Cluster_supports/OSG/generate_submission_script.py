@@ -418,6 +418,7 @@ finalize_job_output() {
     find "${SCRATCH_DIR}/playground" -type f \( \
         -name 'spvn_results_*.h5' -o \
         -name 'trento_event_summary_*.txt' -o \
+        -name 'grid_extent_*.csv' -o \
         -name 'target_nucleus.hdf' \
     \) -exec cp -f {} "${quiet_out_dir}/" \; || true
 
