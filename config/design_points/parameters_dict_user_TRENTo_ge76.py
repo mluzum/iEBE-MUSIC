@@ -49,23 +49,21 @@ free_streaming_dict = {
 }
 
 music_dict = {
-    "smash": {
-        "ic": 0,
-        "eosL": 1,
-        "eos": 1,
-        "pt": 0.16,
-        "delta": 0.46,
-        "alpha": 0.9,
-        "bulkvisc": 0,
-        "chempot": 0.04,
-        "tmax": 25,
-        "pre": 0.15,
-        "tau0": 0.1,
-        "nb": 200,
-    },
-    "urqmd": {
-        "UrQMD": 0,
-    },
+    # Flat MUSIC input keys. Keep this dict FLAT: parameters_dict_master.py
+    # writes music_dict verbatim into music_input_mode_2, so a nested sub-dict
+    # lands in the input file as a literal Python dict that MUSIC ignores. An
+    # earlier version of this file nested these under "smash"/"urqmd" and the
+    # whole block -- including the EOS specification -- was silently inert.
+    "X_grid_size_in_fm": 20.0,
+    "Y_grid_size_in_fm": 20.0,
+    "Grid_size_in_x": 200,
+    "Grid_size_in_y": 200,
+    # Freeze-out on TEMPERATURE. With use_eps_for_freeze_out = 1 (the master
+    # default) MUSIC finds the Cooper-Frye surface from eps_freeze_max/min = 0.18
+    # and never reads T_freeze, which would make the switching temperature a
+    # dead design axis.
+    "use_eps_for_freeze_out": 0,
+    "T_freeze": 0.12,
 }
 
 iss_dict = {
