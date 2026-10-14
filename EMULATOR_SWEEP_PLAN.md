@@ -550,8 +550,14 @@ is self-identifying. `iebe-music_slim.sif` is kept as a stable alias for the new
 | SIF | framework commit | md5 | notes |
 |---|---|---|---|
 | `iebe-music_slim_2f840cc.sif` | `2f840cc` | `97bf05f9f39e411063dc2b887132c1d6` | **current production**, `WITH_OPTIONAL_CODES=0` |
-| `iebe-music_slim.sif` | -- | `97bf05f9...` | alias -> the above |
-| `iebe-music_slim_4d5e6f0.sif` | pre-2f840cc pin | `1370bd59...` nucleus-era image | superseded |
+| `iebe-music_slim_e340bbb.sif` | `e340bbb` | `5bc987954e7a2c546cb72838a643e439` | **current production**, instrumented driver |
+| `iebe-music_slim_4d5e6f0.sif` | pre-2f840cc pin | `84eeb5b806f5da4b8d800b4bd48e6288` | superseded, do not use |
+
+**There is deliberately no `iebe-music_slim.sif` alias.** One existed, was refreshed in place when
+the instrumented image was deployed, and OSG's OSDF cache kept serving the previous bytes. Two
+batches ran against the stale image; the giveaway was only that *some* workers held with a
+checksum mismatch while others agreed with the cache and proceeded. Mutating a published path can
+silently substitute a different image, so every submission references a commit-named file.
 
 The commit is checked inside the image, not just recorded:
 `docker run ... git -C /opt/iEBE-MUSIC rev-parse HEAD` must print the SHA in the filename.

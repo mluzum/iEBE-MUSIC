@@ -118,6 +118,23 @@ defaults — prefer those over guessing flags.
   `results_$(Process)/`. If you touch one generator, check whether the other needs the same change.
 - The OSG **SMASH** branch still hardcodes `event_0` (no event range is passed). The UrQMD branch —
   which is what `afterburner_type: "decay"` uses — is correct. Avoid SMASH until that is fixed.
+- **Never overwrite a path already published over OSDF.** OSG caches OSDF content by path, so
+  overwriting a `.sif` in place leaves the cache serving the *old* bytes. The failure is
+  inconsistent and therefore dangerous: some workers recompute the checksum from the local file
+  and go on hold with `Pelican Client Error: checksum mismatch`, while others fetch the cached copy,
+  both sides agree, and the job **silently runs the wrong image**. This actually happened —
+  `iebe-music_slim.sif` was refreshed under the same name and two batches ran ~10 minutes against
+  the previous, uninstrumented image before it was caught. Publish every image under a unique
+  commit-named path (`iebe-music_slim_<short-sha>.sif`) and reference *that*; never use a mutable
+  alias. When a batch's results are needed, check the image path in the submit file before
+  concluding anything about the numbers.
+- **OSG resource requests: ask for 1 GB, not 4.** Peak RSS for a 19-event 76Ge batch on one core
+  was 212 MB, so the old 4 GB default requested ~19x what is used purely for scheduling speed.
+  `request_disk` must cover the *whole* batch, not one event, because events run sequentially into
+  one working directory; it is now settable with `-disk` (default 10 GB). Run large batches from
+  the data disk (`/ospool/ap40/data/matthew.luzum`, ~465 GB) so results land there, but keep
+  condor `log`/`error`/`output` on the home disk, which the generator already does via an absolute
+  `home_log_dir`.
 - Root-level `collect_events.sh`, `combine_multiple_hdf5.py`, `average_event_spvn_h5.py` are
   gitignored because `generate_jobs.py` copies them into the CWD. Missing-from-git is not a bug.
 - `submit_design_points.py` contains machine-specific hardcodes that must be edited before use:
