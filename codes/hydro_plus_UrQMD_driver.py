@@ -548,6 +548,11 @@ def compute_ic_extent(e_path, grid_max, grid_step):
     for frac in (0.90, 0.95, 0.99, 0.999):
         idx = int(np.searchsorted(cum, frac))
         out['R{}'.format(int(frac * 1000))] = float(r[order][idx])
+    # RMS radius: the standard size measure, and the one expected to track the
+    # freeze-out extent better than a cumulative radius, since it weights the
+    # bulk of the density rather than the tail.
+    e_rav = eps.ravel()
+    out['R_rms'] = float(np.sqrt((e_rav * r**2).sum() / e_rav.sum()))
     return out
 
 
@@ -574,14 +579,23 @@ def compute_surface_extent(hydro_folder):
             e_fo = float(stem[len('surface_eps_'):].replace('.dat', ''))
         except ValueError:
             pass
-    return {
+    r = np.hypot(x, y)
+    w = surf[:, 0]
+    wsum = w.sum()
+    out = {
         'n_surface_cells': int(surf.shape[0]),
         'surface_file': stem,
         'e_fo_GeV_fm3': e_fo,
         'max_abs_x': float(np.abs(x).max()),
         'max_abs_y': float(np.abs(y).max()),
-        'max_r': float(np.hypot(x, y).max()),
+        'max_r': float(r.max()),
     }
+    # max_r is a max over cells and so is sensitive to a single stray cell;
+    # carry an RMS and a high quantile alongside it as robust summaries.
+    if wsum > 0:
+        out['r_rms'] = float(np.sqrt((w * r**2).sum() / wsum))
+    out['r_p999'] = float(np.percentile(r, 99.9))
+    return out
 
 
 def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
