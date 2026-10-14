@@ -560,6 +560,85 @@ Condor log/error/output files point at `/home/matthew.luzum/log/` (home disk), a
 the generator takes the log directory from its own working directory, so run it from a home-disk
 directory.
 
+### Adaptive transverse grid (FEASIBILITY -- explored, not adopted)
+
+Idea: keep the cell size fixed and size the transverse box to the event, so peripheral
+collisions stop paying for empty cells. Investigation results, all checked against the code
+rather than assumed:
+
+**1. The grid is already fully described by a handful of keys.** MUSIC takes
+`X_grid_size_in_fm`, `Y_grid_size_in_fm`, `Grid_size_in_x`, `Grid_size_in_y`; the driver takes
+`grid_max`/`grid_step` and *derives* `n_grid = 2*grid_max/grid_step` with a hard assertion.
+Both candidate schemes are therefore expressible without new physics code:
+
+| | fixed | per-event | consequence |
+|---|---|---|---|
+| **A** | `dx` = 0.2 fm | number of cells | uniform resolution; runtime varies with b |
+| **B** | number of cells | `dx` | constant runtime; resolution varies with b |
+
+**2. `b` is available in exactly the right order.** TRENTo runs first, and the driver
+*already* parses `impact_parameter` out of `run.log` (that is where the OSG summary value comes
+from). So the box can be chosen after TRENTo and before MUSIC, with no need to take over b
+sampling -- important, because TRENTo's b distribution comes from its own Glauber weight
+function and reimplementing that would be a correctness risk.
+
+**3. Cropping needs no change to `freestream.py`.** `FreeStreamer(initial, grid_max, time)`
+derives its domain as `xymax = grid_max*(1 - 1/nsteps)` from the matrix size *and* the passed
+`grid_max`. Crop the matrix to +/-L and pass `grid_max=L`, and it is consistent by construction.
+
+**4. Per-event MUSIC input already exists.** Each `event_N/` carries its own copy of
+`music_input_mode_2`, so the driver can rewrite the four grid keys in its own directory. No new
+plumbing.
+
+**5. The current setup is already oversized and self-inconsistent.** MUSIC's domain is
++/-20 fm (`Grid_size_in_x=200` at `dx=0.2`) while the IC table only spans +/-15 fm. For a
+peripheral event (b = 0.274 fm) measured on the real output:
+
+```
+R(90%) = 5.57 fm    R(95%) = 6.22 fm    R(99%) = 7.65 fm    R(99.9%) = 9.12 fm
+79.5% of IC cells hold less than 1% of the mean energy density
+3028 of 22500 cells (13%) lie inside R95
+```
+
+So there is a real, already-banked win even without adaptivity: making MUSIC's domain match the
+IC table instead of overhanging it by 5 fm.
+
+#### The design decision that actually matters: what should L depend on?
+
+- **L = f(b), identical for every design point.** The grid then depends only on the impact
+  parameter, which is a common random number, so *discretisation error becomes a common random
+  effect and cancels in design-point contrasts.* This is the version that fits the existing
+  CRN design.
+- **L = f(measured IC extent).** Tempting, because it automatically tracks Woods-Saxon radius,
+  deformation, `reduced-thickness` and `nucleon-width` -- all of which are design parameters.
+  But it makes the *numerical grid itself* design-point-dependent, so the emulator would absorb
+  a discretisation systematic as if it were physics. **Not recommended.**
+
+Recommendation: **Route A (fixed dx) with L = f(b), quantised** to a coarse ladder of cell
+counts (e.g. multiples of 25) so runtime is predictable and you do not accumulate a continuum of
+distinct MUSIC configurations.
+
+#### The one risk that must be tested first
+
+An undersized box is only safe if MUSIC **fails loudly** when the freeze-out surface reaches the
+domain edge. If it instead silently clamps the surface, the damage is invisible. The binary
+contains "freeze-out surface set by temperature is not ...", which suggests a hard error, but that
+is a string, not a guarantee. **This is the blocking question for the whole idea.**
+
+#### Proposed feasibility test
+
+- **Step 0 (instrument only, no behaviour change).** At the current fixed grid, run ~12 events
+  spanning b and record, per event: IC R99 and R99.9, the maximum |x| reached by the freeze-out
+  surface, and wall time. This calibrates the required margin and gives the cost-vs-b curve, and
+  costs about an hour on one core. Everything downstream depends on these numbers.
+- **Step 1.** Implement crop + per-event MUSIC input patch behind a flag (default off).
+- **Step 2.** Validate: rerun the same events adaptive vs reference, compare all 179
+  observables, require the difference to be far below the statistical error, and confirm zero
+  freeze-out failures. Also confirm the IC momentum-distribution files
+  (`ed_etas_distribution_*.dat`) are regenerated on the new grid.
+
+Nothing here should be adopted before Step 0 and Step 2 pass.
+
 ### Phase G — Design space (PROPOSED, needs sign-off)
 
 Every key below was verified against the compiled MUSIC binary's string table, not assumed
