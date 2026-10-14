@@ -634,6 +634,44 @@ is negligible, it does not matter whether the grid is identical across design po
 is common-mode by construction. Making the grid depend on the IC extent is therefore acceptable,
 provided the margin is large enough that the error stays negligible.
 
+#### First measurement (batches A/B/D, 19 events each, b-max 0.75 fm) -- and why it was invalid
+
+```
+            b range     IC R99      surface max_r    MUSIC s
+batch A   0.274-0.713   6.96-8.07      7.33-8.93      94-174
+batch B   0.274-0.713   7.03-8.10      7.12-8.55      59-117
+batch D   0.274-0.713   7.10-8.12      7.16-8.67      76-149
+corr(b, mult) = +0.15    corr(b, R99) = +0.02    corr(b, max_r) = -0.09
+```
+
+Read naively this says the transverse extent does not care about b, which would make an
+adaptive box pointless. That reading is wrong: **the campaign was invalid.**
+
+`b-max` was 0.75 fm. For Ge+Ge the nuclear radius is about 5.1 fm, so `b_max` is about
+10 fm; 0.75 fm samples only the central core. The correlations give it away -- a genuine
+minimum-bias sample has multiplicity falling monotonically with b, and here `dN/dy` runs
+197-300 with no trend. Every event was central. The flat extent-vs-b result therefore says
+nothing about peripheral collisions, and the adaptive-grid question is still open.
+
+What the run *does* establish, central events at least:
+
+- The freeze-out surface reaches only **max_r = 7.3-8.9 fm** while MUSIC runs a **+-20 fm**
+  box. Roughly 11 fm of transverse half-width goes unused even centrally, so there is a
+  large win available from shrinking the box with no adaptivity at all.
+- The surface sits barely outside the initial condition: IC R99.9 is 7.7-9.2 fm against a
+  surface reaching 7.3-8.9 fm. At T_freeze = 0.12 GeV the criterion is met only ~0.5-1 fm
+  beyond the IC edge, so the box is set by IC size plus a modest expansion margin, not by
+  anything that grows with centrality.
+- Runtime varies ~2x *within* a batch (94-174 s) and ~1.6x *between* batches, tracking the
+  energy scale (B, lower `normalization`, is cheapest; A is dearest). Walltime planning must
+  assume the slowest event, not the median.
+- `e_fo = 0.0486 GeV/fm^3` is identical across all three batches, confirming the temperature
+  criterion behaves and is insensitive to the energy-scale variation.
+
+All four batches re-launched with `b-max = 14 fm` for a real minimum-bias sample. The open
+question is whether peripheral collisions really are much smaller, which is the premise the
+whole adaptive-grid idea rests on.
+
 #### Measurement campaign (run this BEFORE designing anything)
 
 The point of the campaign is to replace assumptions with measurements. Nothing about the dynamic
