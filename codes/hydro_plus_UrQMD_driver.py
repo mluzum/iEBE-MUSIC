@@ -817,6 +817,145 @@ def compute_surface_extent(hydro_folder):
     return out
 
 
+def parse_iss_sampling(run_log):
+    """Expected particle yields per iSS sample, from the iSS log.
+
+    iSS does not report how many resamplings it performed, and it will not print
+    "number of events: ..." at any verbosity reachable from the parameter file
+    (the echo level is a compile-time module parameter). The log does, however,
+    print one "dN=<x>" line per species giving the expected number of that
+    species per sample, so summing them gives the expected per-sample yield E.
+
+    These are PRE-resonance-decay yields, so they sit a factor ~1.4 below the
+    final per-sample yield; the ratio is slowly varying, so E is a reliable
+    proxy for recovering the sample count but not exact on its own. Both E and
+    the final particle count are stored so the count can be recomputed later
+    with a better decay-inflation factor.
+    """
+    total = 0.0
+    per_pid = {}
+    cur_pid = None
+    try:
+        with open(run_log, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                m = re.search(r'Monte-carlo index:\s*(-?\d+)', line)
+                if m:
+                    cur_pid = int(m.group(1))
+                m2 = re.search(r'dN=([0-9]*\.?[0-9]+(?:[eE][-+]?\d+)?)', line)
+                if m2 and cur_pid is not None:
+                    try:
+                        val = float(m2.group(1))
+                    except ValueError:
+                        continue
+                    total += val
+                    per_pid[cur_pid] = per_pid.get(cur_pid, 0.0) + val
+    except OSError:
+        return None, {}
+    return (total if total > 0 else None), per_pid
+
+
+def collect_flow_sample_counts(final_results_folder, event_id, row):
+    """Record the freeze-out sample count and its ingredients."""
+    # the iSS run directory lives at the event root, not inside EVENT_RESULTS_0
+    iss_log = path.join('UrQMDev_{}'.format(event_id), 'iSS', 'run.log')
+    e_total, e_pid = parse_iss_sampling(iss_log)
+    if e_total is None:
+        return
+    row['E_per_sample_expected'] = round(e_total, 4)
+
+    # read the particle count from the zipped h5: the per-species arrays carry a
+    # totals row [99, N_particles, N_charge, 0, 0], and by this point the raw
+    # .dat files have been consumed by the zipping step
+    spvn_h5 = path.join(final_results_folder,
+                        'spvn_results_{}.h5'.format(event_id))
+    if not path.exists(spvn_h5):
+        return
+    try:
+        with h5py.File(spvn_h5, 'r') as h:
+            found = []
+            h.visititems(lambda name, obj: found.append(name)
+                         if isinstance(obj, h5py.Dataset) else None)
+            for name in found:
+                base = path.basename(name)
+                if base.startswith('particle_211_vndata_y_'):
+                    data = h[name][:]
+                    if data.ndim == 2 and data.shape[0] > 0:
+                        n_part = float(data[-1, 1])
+                        row['n_pions'] = int(n_part)
+                        if e_pid.get(211):
+                            row['n_samples_est'] = round(n_part / e_pid[211], 1)
+                    break
+    except (OSError, ValueError, IndexError, KeyError):
+        return
+
+
+def append_flow_sample_counts(final_results_folder, event_id):
+    """Append the iSS sample-count ingredients to the per-event diagnostic CSV."""
+    import csv
+    fname = path.join(final_results_folder,
+                      'grid_extent_{}.csv'.format(event_id))
+    if not path.exists(fname):
+        return
+    with open(fname, 'r', newline='', encoding='utf-8') as f:
+        rows = list(csv.DictReader(f))
+    if not rows:
+        return
+    row = {}
+    collect_flow_sample_counts(final_results_folder, event_id, row)
+    if not row:
+        return
+    for r in rows:
+        r.update(row)
+    fields = list(rows[0].keys())
+    with open(fname, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+
+
+def prune_spvn_output(spvn_folder, keep_rapidity_windows=1):
+    """Drop flow output we do not need for 2D boost-invariant runs.
+
+    Rapidty carries no physics here, so the 141-rapidity-bin tables are pure
+    storage. The per-species v_n vs pT arrays, the yields and the all-charged
+    vectors are kept; the (rapidity, pT, v_n) table, the redundant rapidity
+    windows and the space-time eccentricity diagnostics are dropped.
+    """
+    if not path.isdir(spvn_folder):
+        return
+    dropped = kept = 0
+    for fname in glob(path.join(spvn_folder, '*.dat')):
+        base = path.basename(fname)
+        drop = ('pTeta_distribution' in base
+                or '_evo_' in base
+                or 'inverse_Reynolds' in base
+                or 'meanpT_estimators' in base)
+        if not drop and '_vndata_diff_eta_' in base:
+            drop = True
+        # keep the unidentified/all-charged references; the identified-species
+        # _vndata_eta_ arrays duplicate the _vndata_diff_y_ ones and go
+        if not drop and base.startswith('particle_9999_vndata_eta_'):
+            # seven hard-coded rapidity windows; in 2D boost-invariant runs only
+            # one is meaningful, so keep the mid-rapidity one the validator wants
+            drop = '_eta_-0.5_0.5.dat' not in base
+        if (not drop and '_vndata_eta_' in base
+                and not base.startswith('particle_9999_')
+                and not base.startswith('particle_99999_')):
+            drop = True
+        if drop:
+            try:
+                remove(fname)
+                dropped += 1
+            except OSError:
+                pass
+        else:
+            kept += 1
+    if dropped:
+        print('\U0001F5D2  pruned {} flow files ({} kept)'.format(dropped, kept),
+              flush=True)
+
+
 def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
                                  e_path, grid_max, grid_step,
                                  music_seconds=None):
@@ -1029,7 +1168,7 @@ def run_smash_analysis(smash_file_path, final_results_folder, event_id, analysis
     return True    
 
 def run_spvn_analysis(urqmd_file_path, n_threads, final_results_folder,
-                      event_id):
+                      event_id, para_dict_=None):
     """This function runs analysis"""
     final_results_folder = path.join(final_results_folder,
                                      "spvn_results_{0:s}".format(event_id))
@@ -1049,6 +1188,9 @@ def run_spvn_analysis(urqmd_file_path, n_threads, final_results_folder,
 
     call("bash ./run_analysis_spvn.sh", shell=True)
 
+    if para_dict_.get('prune_flow_output', True):
+        prune_spvn_output(spvn_folder)
+
     curr_time = time.asctime()
     print(f"\U0001F3CD  [{curr_time}] Finished spvn analysis ... ", flush=True)
 
@@ -1058,6 +1200,8 @@ def run_spvn_analysis(urqmd_file_path, n_threads, final_results_folder,
 
 def check_an_event_is_good(event_folder):
     """This function checks the given event contains all required files"""
+    # Only require files that survive pruning: the identified-species v_n vs pT
+    # arrays and the unidentified reference.
     required_files_list = [
         'particle_9999_vndata_eta_-0.5_0.5.dat',
         'particle_211_vndata_diff_y_-0.5_0.5.dat',
@@ -1464,11 +1608,19 @@ def main(para_dict_):
 
             # finally collect results
             run_spvn_analysis(urqmd_file_path, num_threads, final_results_folder,
-                              event_id)
+                              event_id, para_dict_)
 
             # zip results into a hdf5 database
             status = zip_results_into_hdf5(final_results_folder, event_id,
                                            para_dict_)
+
+            # the freeze-out sample count is only knowable once iSS has run and
+            # the flow analysis has counted the particles, so it is appended to
+            # the per-event diagnostic here rather than at the grid stage
+            try:
+                append_flow_sample_counts(final_results_folder, event_id)
+            except Exception:
+                pass
 
         # remove the unwanted outputs if event is finished properly
         if status:
