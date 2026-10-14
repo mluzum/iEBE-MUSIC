@@ -218,11 +218,12 @@ on_exit_hold = (ExitBySignal == True) || (ExitCode != 0 && ExitCode != 73)
 # if you don't have a good idea of memory and disk usage.
 request_cpus = {0:d}
 request_memory = {1:d} GB
-request_disk = 2 GB
+request_disk = {5:d} GB
 
 # Queue one job with the above specifications.
 queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
-                      para_dict_["n_jobs"], transfer_output, home_log_dir))
+                      para_dict_["n_jobs"], transfer_output, home_log_dir,
+                      para_dict_["disk_per_job"]))
     script.close()
 
 
@@ -541,11 +542,12 @@ on_exit_hold = (ExitBySignal == True) || (ExitCode != 0 && ExitCode != 73)
 # if you don't have a good idea of memory and disk usage.
 request_cpus = {0:d}
 request_memory = {1:d} GB
-request_disk = 2 GB
+request_disk = {5:d} GB
 
 # Queue one job with the above specifications.
 queue {2:d}""".format(para_dict_["n_threads"], para_dict_["memory_per_job"],
-                      para_dict_["n_jobs"], transfer_output, home_log_dir))
+                      para_dict_["n_jobs"], transfer_output, home_log_dir,
+                      para_dict_["disk_per_job"]))
     script.close()
 
 
@@ -728,7 +730,15 @@ if __name__ == "__main__":
     parser.add_argument('-bayes', '--bayes_file', metavar='', type=str,
                         default="", help='bayes file')
     parser.add_argument('-mem', '--memory_per_job', metavar='', type=int,
-                        default=4, help='memory per job (GB)')
+                        default=1, help='memory per job (GB). Measured peak for '
+                        'a 19-event 76Ge batch on one core was 212 MB, so the '
+                        'old 4 GB default was requesting ~19x what is used and '
+                        'only slows down scheduling.')
+    parser.add_argument('-disk', '--disk_per_job', metavar='', type=int,
+                        default=10, help='scratch disk per job (GB). Events are '
+                        'processed sequentially into the same working '
+                        'directory, so this has to cover the whole batch, not '
+                        'one event.')
     parser.add_argument('-output_mode', '--output_mode', metavar='', type=str,
                         default='quiet', choices=['quiet', 'verbose'],
                         help='output transfer mode: quiet=spvn only, verbose=full EVENT_RESULTS')
