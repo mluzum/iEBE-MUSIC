@@ -609,6 +609,49 @@ R(90%) = 5.57 fm    R(95%) = 6.22 fm    R(99%) = 7.65 fm    R(99.9%) = 9.12 fm
 So there is a real, already-banked win even without adaptivity: making MUSIC's domain match the
 IC table instead of overhanging it by 5 fm.
 
+#### Validation of the adaptive box at scale (49 paired events, adaptive vs fixed)
+
+Three batches rerun with `adaptive_grid: true` and compared event-for-event against the
+identical fixed-box runs:
+
+| batch | b range | cells chosen (of 150) | MUSIC median | speedup |
+|---|---|---|---|---|
+| `b_max=4` (central) | 1.5-3.8 fm | 94-112 | 218 -> 104 s | 2.11x |
+| `b_max=8` | 2.9-7.6 fm | 78-112 | 120 -> 72 s | 1.67x |
+| `b_max=14` (peripheral) | 5.1-13.3 fm | 56-108 | 56 -> 9 s | 6.23x |
+
+**Does it change the physics?** On v2, over the full (pT, vn) array:
+
+```
+max |dv2|        median 1.8e-3,  max 3.3e-2   against typical |v2| of ~3.3
+|dv2| / |v2|     median 5.1e-4,  max 1.1e-2
+49 events: 17 above 1e-3 relative, 1 above 1e-2
+```
+
+So the adaptive box perturbs v2 by ~5e-4 relative per event. That is well below the per-event
+statistical error (order 10% at these multiplicities) and, unlike a systematic shift, it varies
+with b and with the chosen box, so it averages down further across an ensemble. It does
+nevertheless put a **numerical noise floor of ~5e-4 relative on v2** into the emulator, which
+matters only if the emulator is asked to predict design-point differences below that.
+
+This is looser than the single-event spot check, which showed 111 of 114 observables
+bit-identical. The spot check was one event at 108 cells; across 49 events the box choice
+varies from 56 to 112 cells and the surface is not always an exact sub-block of the original,
+so a few particles move between discrete analysis bins. Expected, but worth recording rather
+than quoting the best case.
+
+**Realistic end-to-end gain.** MUSIC is only part of an event; ~46 s is sampler, TRENTo,
+afterburner and analysis and does not shrink:
+
+```
+central     150 s ->  96 s   (24 -> 38 events per OSG hour)
+mid         118 s ->  72 s   (30 -> 50)
+peripheral   55 s ->  48 s   (66 -> 75)
+```
+
+So ~1.5-1.8x end to end, not the 2.2x the cell count alone suggests. The fixed ~46 s floor is
+what caps it, and it caps peripheral events hardest.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
