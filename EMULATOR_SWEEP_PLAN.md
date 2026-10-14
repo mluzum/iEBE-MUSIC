@@ -603,41 +603,79 @@ R(90%) = 5.57 fm    R(95%) = 6.22 fm    R(99%) = 7.65 fm    R(99.9%) = 9.12 fm
 So there is a real, already-banked win even without adaptivity: making MUSIC's domain match the
 IC table instead of overhanging it by 5 fm.
 
-#### The design decision that actually matters: what should L depend on?
+#### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
-- **L = f(b), identical for every design point.** The grid then depends only on the impact
-  parameter, which is a common random number, so *discretisation error becomes a common random
-  effect and cancels in design-point contrasts.* This is the version that fits the existing
-  CRN design.
-- **L = f(measured IC extent).** Tempting, because it automatically tracks Woods-Saxon radius,
-  deformation, `reduced-thickness` and `nucleon-width` -- all of which are design parameters.
-  But it makes the *numerical grid itself* design-point-dependent, so the emulator would absorb
-  a discretisation systematic as if it were physics. **Not recommended.**
+Two things were wrong in the first pass of this section.
 
-Recommendation: **Route A (fixed dx) with L = f(b), quantised** to a coarse ladder of cell
-counts (e.g. multiples of 25) so runtime is predictable and you do not accumulate a continuum of
-distinct MUSIC configurations.
+**3dMCGlauber is not a template to copy, it is a different architecture.** MUSIC reads a
+*participant list* (`read_in_participants_and_compute_TATB`), builds T_A and T_B itself, and
+sizes the grid from the participant positions plus `gridPadding`. The grid is chosen *downstream*
+of the model, by the hydrodynamic solver. TRENTo does the opposite: it deposits onto its own grid
+and hands MUSIC a finished energy-density table, and that same grid is then used by the
+free-streaming stage and by MUSIC. So there is no MUSIC-side auto-sizing to switch on. Making the
+grid adaptive for TRENTo means either running TRENTo twice (measure, then re-emit on the chosen
+grid) or modifying TRENTo to choose its own output grid, and then propagating that choice through
+free-streaming into MUSIC.
 
-#### The one risk that must be tested first
+**Scaling by b alone is wrong**, because the initial-condition size fluctuates event by event at
+fixed b. The right criterion is the one stated in the plan's design principle: choose the number of
+cells so that the *numerical* uncertainty is much smaller than every other uncertainty in play.
+That is a bound on numerical error, not a matching of sizes, and it is the criterion the campaign
+below is built to establish.
 
-An undersized box is only safe if MUSIC **fails loudly** when the freeze-out surface reaches the
-domain edge. If it instead silently clamps the surface, the damage is invisible. The binary
-contains "freeze-out surface set by temperature is not ...", which suggests a hard error, but that
-is a string, not a guarantee. **This is the blocking question for the whole idea.**
+Note this dissolves the CRN worry raised earlier. If the box is sized so that discretisation error
+is negligible, it does not matter whether the grid is identical across design points -- the error
+is common-mode by construction. Making the grid depend on the IC extent is therefore acceptable,
+provided the margin is large enough that the error stays negligible.
 
-#### Proposed feasibility test
+#### Measurement campaign (run this BEFORE designing anything)
 
-- **Step 0 (instrument only, no behaviour change).** At the current fixed grid, run ~12 events
-  spanning b and record, per event: IC R99 and R99.9, the maximum |x| reached by the freeze-out
-  surface, and wall time. This calibrates the required margin and gives the cost-vs-b curve, and
-  costs about an hour on one core. Everything downstream depends on these numbers.
-- **Step 1.** Implement crop + per-event MUSIC input patch behind a flag (default off).
-- **Step 2.** Validate: rerun the same events adaptive vs reference, compare all 179
-  observables, require the difference to be far below the statistical error, and confirm zero
-  freeze-out failures. Also confirm the IC momentum-distribution files
-  (`ed_etas_distribution_*.dat`) are regenerated on the new grid.
+The point of the campaign is to replace assumptions with measurements. Nothing about the dynamic
+grid should be implemented until it completes.
 
-Nothing here should be adopted before Step 0 and Step 2 pass.
+**What is measured, per event:**
+
+| quantity | source | why |
+|---|---|---|
+| impact parameter, multiplicity | `trento_event_summary_*.txt` | already produced |
+| IC radial extent R90/R95/R99/R99.9 | TRENTo output matrix | sizes the IC |
+| **max transverse extent of the CF freeze-out surface** | `surface*.dat` in hydro results | **the number that sets the box** |
+| wall time per event | MUSIC `run.log` timestamps | cost model for batching |
+
+The freeze-out surface is the important one, and it is nearly free: MUSIC already writes
+`surface*.dat` every run (the driver globs it and hard-fails if it is empty -- it symlinks it into
+the iSS results). It is simply not *collected* in quiet mode, so the campaign runs with full output
+or with `surface*.dat` added to the collected set.
+
+**Batching is the test, not just the transport.** A minimum-bias batch of ~19 events at 174 s/event
+is ~1 hour on one core and naturally yields ~19 different b values, because each event draws b from
+its own event-id-derived seed. So one batch tests batching *and* samples b at the same time.
+
+**Batch matrix.** `normalization` and `tau` are varied *together*, never alone: the intrinsic
+timescale of the initial condition goes as 1/sqrt(energy density), so changing `normalization`
+without rescaling `tau` is not a physical variation. Proposed first pass:
+
+| batch | normalization | tau (fm/c) | purpose |
+|---|---|---|---|
+| A | 5.73 (nominal) | 1.00 | reference |
+| B | 4.50 | 1.13 | softer / larger system |
+| C | 7.00 | 0.90 | harder / more compact |
+| D | 5.73 | 1.25 | tau alone, deliberately unphysical, to size that sensitivity |
+
+Batches A-C trace the physical correlation; D is a control that measures how much tau alone moves
+the surface, which is what tells you whether the A-C design has enough leverage to be worth
+running at all.
+
+**Second, cheap experiment (numerical error bound).** A few events at `dx = 0.2` vs `0.14`,
+comparing all observables. This is what converts "the grid is fine enough" from an assertion into
+a number, and it is the same comparison that justifies the fixed grid spacing in the design space.
+
+**Open question worth one line of testing.** `use_eps_for_freeze_out = 1` with
+`eps_freeze_max = eps_freeze_min = 0.18`, i.e. the CF surface is found by *energy density*. MUSIC
+also reads `T_freeze` (default 0.12 GeV). If the energy-density flag selects the criterion outright,
+then `T_freeze` is inert in the current configuration -- which would matter directly to the design
+space, since a switching temperature is one of the proposed axes. Test: one event with
+`T_freeze = 0.12` vs `0.15`, diff the surface and the observables.
 
 ### Phase G — Design space (PROPOSED, needs sign-off)
 
