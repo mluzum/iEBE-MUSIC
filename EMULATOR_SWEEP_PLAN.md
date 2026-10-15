@@ -984,6 +984,72 @@ systems rather than absorbing a per-isotope correction.
   are not comparable with the new ones. **No result in this repository has been produced at the
   correct nuclear radius yet.**
 
+#### BLOCKING: the production configuration destroys the flow signal and is not reproducible
+
+The correct-radius campaign (clusters 16042590-16042597, 32 events x 8 points) completed, but
+**the study cannot be run on it** because two defects in the configuration remove the very
+signal being measured.
+
+**1. The freeze-out oversampling suppresses `v_n` by about an order of magnitude.**
+`sample_upto_desired_particle_number = 1` (the "production" setting added earlier) makes iSS
+resample the freeze-out surface thousands of times, and `run_afterburner.sh` concatenates every
+subevent's `particle_list.bin` into one particle list that the toolkit reads as `N` events. The
+pooled `v_n` is diluted roughly as `1/sqrt(N_samples)` -- consistent with each resampled subevent
+having its flow referenced to its own randomly-oriented frame, so the average cancels.
+
+| | resamplings | unidentified particles/event | mean \|<v_2>\| |
+|---|---|---|---|
+| oversampling OFF | 100 | 345 | **0.0630** |
+| oversampling ON | 3780 | 44234 | 0.0064 |
+
+0.063 is the physically sensible value for this system; 0.0064 is ~10x too small. Note the
+oversampling *does* buy ~20x better per-event precision, so it trades a correct signal for a
+statistically tighter wrong one -- a net loss.
+
+**Consequence: with the production setting the ensemble mean `v_n` is consistent with zero for
+every harmonic.** w=0.50, dx=0.10, 31 central events, unidentified:
+
+| n | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| `<v_n>` | 0.0016 | 0.0022 | 0.0011 | 0.0020 | 0.0008 | 0.0015 | 0.0006 | 0.0005 | 0.0013 |
+
+All-channel v_1 = 0.00055 +/- 0.00050. **Every flow number produced under this setting is wrong,
+and the per-event "precision" measured earlier (130-240%) was precision on noise.**
+
+**2. The freeze-out sampler is seeded from the system clock.** `iss_dict['randomSeed'] = -1`
+means "use system clock" (`parameters_dict_master.py:592`). In `run_afterburner.sh` the guard
+`if [ $RANDOMSEED != "-1" ]; then RANDOMSEED=$((RANDOMSEED + iev)); fi` deliberately leaves
+`-1` in place, so every subevent of every event draws a fresh clock seed. Therefore:
+
+* **Runs are not reproducible.** Re-running the same event gives a different `v_n`. The plan's
+  standing assumption that reproducibility merely "rests on the counter-based scheme" is wrong --
+  it is broken at the freeze-out stage, which is downstream of everything the seed scheme covers.
+* **The freeze-out sampling is not common random numbers.** The paired dx comparison therefore
+  carries full freeze-out noise; only the event-level geometry cancels, since nuclei and `b` are
+  shared. Measured: the paired difference is 0.63x the quadrature statistical error
+  (`chi2/dof` ~ 0.4), which is exactly partial cancellation. That is the ceiling on how finely
+  the convergence can be measured, and it is set by the clock seed.
+
+Also unseeded: `hydro_plus_UrQMD_driver.py:183` draws
+`ran = np.random.default_rng().integers(1e8)` from OS entropy on every call and feeds it to the
+3dMCGlauber rapidity shift. Harmless for a 2D boost-invariant run where rapidity is bookkeeping,
+but it is the same class of defect and should be pinned.
+
+**What *is* verified sound**, and should not be redone:
+* R = 5.08 fm, A = 76, b and multiplicity bit-identical across every dx point (CRN intact).
+* 32 events per point, the full dx ladder at w in {0.25, 0.50}, both w rows complete.
+* Cost scaling, MUSIC seconds/event: dx = 0.25 / 0.20 / 0.15 / 0.10 -> 31 / 69 / 157 / 286 s at
+  w = 0.25. A clean ~4x from dx = 0.25 to dx = 0.10, which is the real argument for the
+  production `dx` and does not depend on the broken sampling.
+* The output plumbing: the pT-integrated `v_n` vectors (real and imag separately, n up to 9 for
+  the unidentified species) are extracted and paired correctly.
+
+**Required before the study can be run:** turn the oversampling off (`sample_upto_desired_particle_number = 0`),
+and pin `iss_dict['randomSeed']` to a value derived from the event id so the freeze-out sampling is
+reproducible and becomes common random numbers across the dx ladder. Both are one-line changes;
+neither has been made, because they change every flow number in the repository and that is a
+decision to take deliberately.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
