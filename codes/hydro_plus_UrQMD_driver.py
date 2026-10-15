@@ -487,7 +487,7 @@ def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
         return None
 
     print("\U0001F9FE  adaptive grid: TRENTo R_rms={:.2f} -> r_rms_pred={:.2f} -> "
-          "+-{:.1f} fm, {} cells, dx={:.3f} (was +-{:.1f}, {}, dx={:.3f})".format(
+          "+-{:.1f} fm, {} cells, dx={:.3f} requested (was +-{:.1f}, {}, dx={:.3f})".format(
               R_rms, r_rms, L, n_cells, dx_used, trento_grid_max, current_cells,
               grid_step),
           flush=True)
@@ -616,6 +616,18 @@ def connect_trento_event(res_path, initial_type, filename,
     if initial_type == "TRENTo":
         file_path = path.join(res_path, filename)
         initial = np.loadtxt(file_path)
+        # Trust the array TRENTo actually produced rather than re-deriving the
+        # extent from grid_max. TRENTo's own grid arithmetic disagrees with
+        # 2*grid_max/grid_step by one cell for some combinations (e.g. 10.8 fm at
+        # 0.15 or 0.30 fm), which made the run die with a shape mismatch. Taking
+        # the extent from the array removes that whole class of rounding failure
+        # and is self-consistent with FreeStreamer, whose domain is
+        # grid_max*(1 - 1/n) -- exactly the cell centres for a grid of step dx.
+        n_actual = initial.shape[0]
+        grid_max = n_actual * grid_step / 2.0
+        print("   \U0001F9FE  lattice from TRENTo output: {} cells, dx={:.4f}, "
+              "half-width +-{:.3f} fm".format(n_actual, grid_step, grid_max),
+              flush=True)
         fs = freestream.FreeStreamer(initial, grid_max, free_stream_tau)
         e = fs.energy_density()
         e_path = path.join(res_path, "e.dat")
@@ -623,13 +635,7 @@ def connect_trento_event(res_path, initial_type, filename,
         hydro_file = "hydro.dat"
         hydro_out = path.join(res_path, hydro_file)
 
-        n_grid_float = (2.0*grid_max)/grid_step
-        n_grid = int(round(n_grid_float))
-        if abs(n_grid*grid_step - 2.0*grid_max) > 1e-8:
-            raise ValueError(
-                "Inconsistent free-streaming grid: "
-                f"2*grid_max/grid_step = {n_grid_float} is not an integer")
-
+        n_grid = n_actual
         convert_matrix_to_table(e_path, hydro_out, n_grid=n_grid,
                                 lower=-grid_max, upper=grid_max)
         hydro_initial_file = "MUSIC/initial/e.dat"
