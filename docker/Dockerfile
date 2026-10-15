@@ -67,6 +67,10 @@ ENV HOME /opt/
 # last known-good commit. To advance: commit and push your work, then update the
 # SHA below in the following commit and rebuild.
 #
+#   05ebd42 = "Fixed seeds, and the LHC baseline energy (TRENTo normalization 15)"
+#             (freeze-out seed derived from base + event_id*1000003 + subevent
+#              instead of the system clock; the 3dMCGlauber draw made deterministic
+#              in (seed_add, event_id); TRENTo normalization 15 for an LHC baseline)
 #   9ac1b3b = "Fluctuate beta2, beta3 and gamma event by event"
 #             (also carries the dependency pins, sampler-fork fix, pinned Isobar-Sampler
 #             and the faster isobar sampler)
@@ -74,9 +78,9 @@ RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 4723b7e514a3c98c96c3d614c6fcfcf79a2ccbf8 && \
+    git fetch -q --depth=1 origin 05ebd42 && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "4723b7e514a3c98c96c3d614c6fcfcf79a2ccbf8" && \
+    test "$(git rev-parse --short HEAD)" = "05ebd42" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
