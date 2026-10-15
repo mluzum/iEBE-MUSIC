@@ -1057,7 +1057,7 @@ Excluded on purpose: the **sign** of `beta_3` (rotation, not a degree of freedom
 |---|---|---|---|
 | `reduced-thickness` | 0.0 | 0 – 0.15 | |
 | `fluctuation` | 1.0 | 1.0 fixed | narrowing below 1 is not well constrained by TRENTo |
-| `nucleon-width` | 0.5 | 0.35 – 0.65 | |
+| `nucleon-width` | 0.5 | **not agreed — deliberately left open** | w sets the scale on which TRENTo smears each nucleon, i.e. the sharpness of the initial condition, so it couples directly to the grid resolution. An earlier draft proposed 0.35–0.65 here; that was my proposal, not an agreed range, and the measurements below extend to w = 1.2 fm specifically so the production resolution can be derived from the numerics rather than inherited from an unreviewed prior. |
 
 Tier B is deferred, not ignored. It is poorly prior-constrained and it is the dimension where
 MUSIC is least smooth (small-system fluctuation edges, b -> 0), so putting it in the first LHS
