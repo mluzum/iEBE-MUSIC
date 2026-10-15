@@ -128,6 +128,15 @@ defaults — prefer those over guessing flags.
   commit-named path (`iebe-music_slim_<short-sha>.sif`) and reference *that*; never use a mutable
   alias. When a batch's results are needed, check the image path in the submit file before
   concluding anything about the numbers.
+- **Never reuse a published SIF filename, even for a "new" build.** Commit-named paths
+  (`iebe-music_slim_<short-sha>.sif`) only protect you if the commit actually changed the
+  image. They do not when the `Dockerfile` pin lags `HEAD`: two builds can both be built
+  from `HEAD = 4723b7e` while containing different pins, so the second overwrites the first
+  under the same path and OSG's OSDF cache keeps serving the stale bytes. That happened here
+  and the workers pulled the *previous* image (`def37b56...`) while the server reported the
+  current one (`443fcee...`). **Put the md5 prefix in the filename**
+  (`iebe-music_slim_<sha>_<md5prefix>.sif`) so uniqueness does not depend on the commit
+  having moved, and derive the name from the pinned SHA rather than from `HEAD`.
 - **OSG resource requests: ask for 1 GB, not 4.** Peak RSS for a 19-event 76Ge batch on one core
   was 212 MB, so the old 4 GB default requested ~19x what is used purely for scheduling speed.
   `request_disk` must cover the *whole* batch, not one event, because events run sequentially into
