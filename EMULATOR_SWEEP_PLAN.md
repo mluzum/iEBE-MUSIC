@@ -776,6 +776,32 @@ absolute terms. A fixed cell budget would instead give small systems finer resol
 in dx versus uniformity in cost. That is now testable with the same machinery, but it is a cost
 decision rather than an accuracy one, since discretisation error depends on dx alone.
 
+#### Statistical error depends strongly on the pT bin, so "how many particles" is the wrong question
+
+Measured on the oversampled runs (dx = 0.10, ~2.2e4 pi+ per event), pion+:
+
+```
+pT range      particles/bin/event   Poisson sigma on v2
+0.05-0.3                 2190            0.021
+0.3-0.6                  1337            0.027
+0.6-1.0                   282            0.060
+1.0-1.5                     21            0.220
+1.5-2.0                      1            ~1.0
+2.0-3.0                      0            undefined
+integrated 0.05-4.05      22205            0.0067
+```
+
+A single bin at 1.0-1.5 GeV is ~30x worse than the integrated value, and above ~1.5 GeV there
+are on average *one or zero* pi+ per bin per event. So per-event identified v_n at high pT is
+not reachable by any affordable oversampling: to get sigma ~0.01 in the 1.0-1.5 bin one would
+need ~1e4 particles *in that bin*, i.e. ~1e7 pi+ per event.
+
+**The oversampling target must therefore be set by the highest pT bin of interest, and high-pT
+identified flow has to come from the ensemble, not from individual events.** With ~1000 events
+per design point, the 1.0-1.5 bin accumulates ~2e4 particles and reaches sigma ~0.007; with
+~1000 events and no oversampling (~410 pi+ per event) that bin would have ~210 particles and
+sigma ~0.07. That, rather than the total particle count, is the argument for oversampling.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
