@@ -802,6 +802,43 @@ per design point, the 1.0-1.5 bin accumulates ~2e4 particles and reaches sigma ~
 ~1000 events and no oversampling (~410 pi+ per event) that bin would have ~210 particles and
 sigma ~0.07. That, rather than the total particle count, is the argument for oversampling.
 
+#### Grid convergence, final ladder
+
+Measured on the **deterministic** hydrodynamic momentum anisotropy (per-event deviation from
+dx = 0.10, median over common events). This is the right instrument for grid convergence: it has
+no freeze-out sampling noise, so a 0.03% effect is measurable with 7-8 events, whereas the same
+comparison on particle v_n needs ~10^3 events per point because the ensemble error is ~30%.
+
+```
+dx      CENTRAL b_max=4 (large L)     PERIPHERAL b_max=14 (small L)
+0.30             n/a                     +0.066%
+0.25           -0.146%                    -0.173%
+0.20           -0.029%                    -0.074%
+0.15           -0.031%                    -0.027%
+```
+
+**Correction.** The earlier claim that dx = 0.20 carries ~1.3% discretisation error came from a
+script with two bugs (it matched `vndata_diff_` when it wanted the integrated file, and it
+divided by a degenerate normaliser). The correct figure is **0.03-0.07%**, two orders of magnitude
+smaller. dx = 0.20 is comfortably converged and there is no case for spending 4x the compute on
+dx = 0.10.
+
+**On absolute dx vs dx/L.** At every dx the two system sizes agree to within ~30% of each other,
+and the batch means differ in size by only ~1.4x, so this is weak leverage. Within the
+peripheral batch, where R_rms_trento spans 1.66-4.35 fm (2.6x), the correlation between system
+size and deviation is -0.12 -- no trend. **There is no evidence that small systems need a finer
+dx**, and no evidence that a fixed cell budget would buy accuracy. The measured cost of a fixed
+cell budget is real (it multiplies cells for the small systems) while the benefit is not seen.
+
+Caveat: the dx = 0.15 and 0.30 points come from the post-fix image and the dx = 0.20/0.25 points
+from the pre-fix one. The fix only changes behaviour where TRENTo's grid arithmetic disagrees by
+one cell, which is exactly dx = 0.15 and 0.30, so the other points are unaffected -- but a single
+image for the whole ladder would be cleaner.
+
+dx = 0.30 is non-monotonic (0.066% against 0.173% at 0.25), which suggests a numerical noise floor
+of order 0.03-0.07% rather than a clean convergence curve. A Richardson extrapolation is therefore
+not meaningful here.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
