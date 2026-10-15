@@ -180,7 +180,13 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
         if database == "self" or database == "fixCentrality":
             file_name = "strings_event_{}.dat".format(event_id)
             specFilename = "spectators_event_{}.dat".format(event_id)
-            ran = np.random.default_rng().integers(1e8)
+            # Deterministic in (seed_add, event_id, iev). This was
+            # np.random.default_rng().integers(1e8) -- fresh OS entropy on every
+            # call, so the run was irreproducible. Deriving it from the event id
+            # also means the same event gets the same Glauber randomness at every
+            # grid resolution.
+            ran = int(
+                np.random.default_rng([seed_add, event_id, iev]).integers(1e8))
             if not path.exists(file_name):
                 if database == "self":
                     cenMin = mapEventIdToCentrality(event_id)
@@ -225,7 +231,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
     elif initial_type == "3DMCGlauber_participants":
         file_name = "participants_event_{}.dat".format(event_id)
         specFilename = "spectators_event_{}.dat".format(event_id)
-        ran = np.random.default_rng().integers(1e8)
+        # deterministic in (seed_add, event_id) -- see the note at the other call site
+        ran = int(np.random.default_rng([seed_add, event_id]).integers(1e8))
         if not path.exists(file_name):
             if database == "self":
                 cenMin = mapEventIdToCentrality(event_id)

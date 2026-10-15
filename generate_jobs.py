@@ -653,10 +653,20 @@ do
     export OMP_NUM_THREADS=1
     cd iSS
     export OMP_NUM_THREADS=1
-    RANDOMSEED=`cat iSS_parameters.dat | grep "randomSeed" | cut -f 3 -d " "`
-    if [ $RANDOMSEED != "-1" ]; then
-        RANDOMSEED=$((RANDOMSEED + iev))
+    # Freeze-out sampling seed. NEVER seeded from the system clock: iSS treats a
+    # negative randomSeed as "use the clock", which made every run irreproducible.
+    # The seed is derived from the base value, the global event id and the sub-event
+    # index, so that (a) re-running an event reproduces it exactly, (b) different
+    # events get different streams, and (c) the SAME event gets the SAME stream at
+    # every grid resolution -- which is what makes a dx comparison a
+    # common-random-numbers comparison instead of a noise-dominated one.
+    # Note $SubEventId is the global event id, despite the name: run_urqmd_event()
+    # passes event_id as the script's $1.
+    BASESEED=`cat iSS_parameters.dat | grep "randomSeed" | cut -f 3 -d " "`
+    if [ "$BASESEED" = "-1" ]; then
+        BASESEED=8675309
     fi
+    RANDOMSEED=$((BASESEED + SubEventId * 1000003 + iev))
     mkdir -p results
     rm -fr results/*
     ln -s ../../hydro_event/${{surfaceFile}} results/surface.dat
