@@ -1050,6 +1050,55 @@ reproducible and becomes common random numbers across the dx ladder. Both are on
 neither has been made, because they change every flow number in the repository and that is a
 decision to take deliberately.
 
+#### The analysis statistic was wrong: v_n must not be averaged over events
+
+**The ensemble-mean `v_n` vector is not a meaningful quantity here, and reporting it was an
+error.** Averaging the flow vector across events with different eccentricities, orientations and
+magnitudes causes cancellation, and odd harmonics such as `v_3` in particular average almost to
+zero. Two consequences, both of which invalidate things I reported earlier:
+
+* The claim that "the flow is ~40x smaller than expected" was computed from `<v_n>` over events.
+  That number is meaningless for odd `n` and was withdrawn.
+* The "oversampling eats the flow" conclusion was **wrong**, and it came from the same bad
+  statistic. The magnitude of a 2-component mean is biased upward by noise: pure noise over `E`
+  events gives `E[|mean|] = 1.2533*sigma/sqrt(E)`. At 8 events with oversampling off, that is
+  0.0451 against an observed 0.0630 -- a factor 1.4, i.e. **the "physically sensible" value was
+  noise**. My own script printed `consistent with ZERO` on that row and I overrode it in the
+  writeup. Oversampling adds no bias, only reduces the variance, exactly as expected: the
+  largest number of samples gives the most accurate result. Oversampling stays **on**.
+
+**The correct statistic** is event-by-event convergence of the *single-event* `v_n`:
+
+```
+for each event e, for each dx:
+    dv_n(e, dx) = v_n(e, dx) - v_n(e, dx_ref)        complex difference, same event
+    weight by the single-event statistical error the file already provides
+    -> chi2/dof = sum(|dv|^2 / sigma_dv^2) / (2 * N_events)
+```
+
+Real and imaginary parts are carried separately throughout; magnitudes are never taken before the
+difference. `dx_ref = 0.10` at the same `w`. With the fixed seed (below) the freeze-out sampling
+becomes common random numbers across `dx`, so the shared nuclear geometry cancels exactly and the
+residual is the numerical difference plus the surviving sampling noise.
+
+**Under that statistic the earlier R=5.08 campaign already showed chi2/dof ~ 0.4 at every
+harmonic 1-9 and every dx** -- differences below the single-event noise -- but the noise was set
+by the clock seed, so that was a statement about the seed, not about convergence.
+
+**Baseline corrected to an LHC collision:** TRENTo `normalization` 5.73 -> **15.0**, free
+streaming `tau` = **1.0** fm/c (already the value in use).
+
+**Seeds fixed.** `iss_dict['randomSeed']` was `-1`, which iSS reads as "use the system clock",
+and `run_afterburner.sh` left it there, so every subevent drew fresh entropy. The seed is now
+`base + event_id*1000003 + subevent`, which is reproducible on re-run, distinct per event, and
+**identical for the same event at every dx** -- which is what turns the paired comparison into a
+common-random-numbers one. A base of `-1` maps to `8675309`, so the clock is unreachable even if
+the parameter is left alone. `hydro_plus_UrQMD_driver.py:183` and `:228` also drew
+`np.random.default_rng().integers(1e8)` from OS entropy per call; both are now deterministic in
+`(seed_add, event_id[, iev])`. Both files are baked into the container, so the pin was bumped to
+`05ebd42` and a new image is required -- running the old image would silently use the
+clock-seeded code.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
