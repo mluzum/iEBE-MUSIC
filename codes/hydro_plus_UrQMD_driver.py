@@ -403,16 +403,43 @@ def ic_rms_from_flat(e_flat, grid_max, grid_step):
 
 
 def plan_adaptive_half_width(R_rms_trento, t_freeze, normalization, tau,
-                             coeffs, grid_step, current_grid_max):
-    """Half-width the box needs, in fm, or None to leave the box alone."""
+                             coeffs, grid_step, current_grid_max,
+                             fixed_cells=0):
+    """Half-width the box needs, in fm, or None to leave the box alone.
+
+    Two schemes, selected by `fixed_cells`:
+
+    * fixed_cells == 0 -- dx is held at `grid_step` and the cell count shrinks
+      with the system. Discretisation error depends on dx only.
+    * fixed_cells > 0  -- the cell count is held fixed and dx = 2L/N varies with
+      the system, so small systems are resolved more finely. This equalises
+      dx/L rather than dx.
+
+    Returns (half_width, n_cells, r_rms_predicted, dx_used).
+    """
     e_fo = e_fo_from_t_freeze(t_freeze)
     r_rms = (coeffs["c0"] + coeffs["c1"] * R_rms_trento + coeffs["c2"] * math.log(e_fo)
              + coeffs["c3"] * math.log(normalization) + coeffs["c4"] * tau)
     need = coeffs["k_tail"] * (r_rms + coeffs["n_sigma"] * coeffs["sigma"])
-    n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
-    if n_cells < 2:
-        n_cells = 2
-    return n_cells * grid_step / 2.0, n_cells, r_rms
+    if fixed_cells and fixed_cells > 0:
+        n_cells = int(fixed_cells)
+        if n_cells < 2:
+            n_cells = 2
+        half = n_cells * grid_step / 2.0
+        # the cell count is held fixed, so the box is quantised in units of
+        # grid_step; round the half-width up so the box still covers `need`
+        n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
+        if n_cells < int(fixed_cells):
+            n_cells = int(fixed_cells)
+        half = n_cells * grid_step / 2.0
+        dx_used = half / (n_cells / 2.0)
+    else:
+        n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
+        if n_cells < 2:
+            n_cells = 2
+        half = n_cells * grid_step / 2.0
+        dx_used = grid_step
+    return half, n_cells, r_rms, dx_used
 
 
 def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
@@ -434,9 +461,22 @@ def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
     tau = float(para_dict.get("free_stream_tau", 1.0))
 
     coeffs = read_adaptive_coeffs()
-    L, n_cells, r_rms = plan_adaptive_half_width(R_rms, t_freeze, normalization,
-                                                 tau, coeffs, grid_step,
-                                                 trento_grid_max)
+    fixed_cells = 0
+    for _k in ("adaptive_fixed_cells", "fixed_cells"):
+        try:
+            _v = read_input_value(trento_input, _k)
+            if _v is None:
+                _v = read_input_value(music_input, _k)
+            if _v is not None:
+                fixed_cells = int(float(_v))
+                break
+        except (TypeError, ValueError):
+            pass
+    L, n_cells, r_rms, dx_used = plan_adaptive_half_width(R_rms, t_freeze,
+                                                          normalization, tau,
+                                                          coeffs, grid_step,
+                                                          trento_grid_max,
+                                                          fixed_cells)
 
     current_cells = int(round(2.0 * trento_grid_max / grid_step))
     # only act if it actually saves, and never grow past what was measured
@@ -447,8 +487,9 @@ def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
         return None
 
     print("\U0001F9FE  adaptive grid: TRENTo R_rms={:.2f} -> r_rms_pred={:.2f} -> "
-          "+-{:.1f} fm, {} cells (was +-{:.1f}, {})".format(R_rms, r_rms, L, n_cells,
-                                                            trento_grid_max, current_cells),
+          "+-{:.1f} fm, {} cells, dx={:.3f} (was +-{:.1f}, {}, dx={:.3f})".format(
+              R_rms, r_rms, L, n_cells, dx_used, trento_grid_max, current_cells,
+              grid_step),
           flush=True)
     if not patch_input_value(trento_input, "grid-max", "{:.4f}".format(L)):
         return None
