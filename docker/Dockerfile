@@ -65,7 +65,9 @@ ENV HOME /opt/
 #
 # BUMPING: this SHA cannot be the commit that contains it, so it always names the
 # last known-good commit. To advance: commit and push your work, then update the
-# SHA below in the following commit and rebuild.
+# SHA below in the following commit and rebuild. It must be the FULL 40-character
+# SHA: `git fetch` does not resolve an abbreviated object name, and a short SHA
+# fails at fetch time with "couldn't find remote ref", not with a checkout error.
 #
 #   05ebd42 = "Fixed seeds, and the LHC baseline energy (TRENTo normalization 15)"
 #             (freeze-out seed derived from base + event_id*1000003 + subevent
@@ -78,9 +80,9 @@ RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 05ebd42 && \
+    git fetch -q --depth=1 origin 05ebd4298477a656fb7584741c266bc3292d72e1 && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse --short HEAD)" = "05ebd42" && \
+    test "$(git rev-parse HEAD)" = "05ebd4298477a656fb7584741c266bc3292d72e1" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
