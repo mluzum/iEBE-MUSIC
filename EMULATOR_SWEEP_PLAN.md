@@ -942,6 +942,48 @@ as the reference. Benchmark is the pT-integrated `v_n` vector for the unidentifi
 grid-spacing error grows with harmonic n -- is only testable where `v_n` is above its own
 statistical floor, which requires central events.
 
+#### The Woods-Saxon radius was that of a lead nucleus
+
+Every parameter file in this repo used **`WS_radius = 7.2 fm` with `A = 76`.** Under the
+conventional `R = 1.2*A^(1/3)` Woods-Saxon scaling, `R = 7.2` corresponds to `A = (7.2/1.2)^3 = 216`.
+The nuclei were built with 76 nucleons spread over the volume of a lead nucleus:
+
+| | R (fm) | r_rms (fm) | |
+|---|---|---|---|
+| as used | 7.20 | 5.88 | A ≈ 216 |
+| **A = 76 correct** | **5.08** | **4.35** | `1.2*A^(1/3)`; experimental matter r_rms ≈ 4.10 |
+
+1.35x too large in `r_rms`, 2.5x in volume. `b_max = 14.0` was self-consistent with `R = 7.2`
+(the formula in `MakeDictionaries.py` gives 14.6 at `w = 0.5`), which is why nothing looked wrong.
+`MakeDictionaries.py`'s own template default is 6.38 fm, i.e. `A ≈ 151` -- also too large for 76Ge.
+
+**Direction of the bias.** A larger IC has a larger structure scale, so at fixed `dx` the old
+tests resolved a true 76Ge *better* than they resolved. Every convergence number obtained at
+`R = 7.2` is therefore optimistic by roughly that factor in the length scale, which is a direct
+error on the production `dx`.
+
+*Verification note:* the `r_rms` figures come from integrating the Woods-Saxon **with the `r^2`
+Jacobian**, matching the sampler's own analytic normalisation
+(`norm = -8*a^3*pi*polylog(3, -exp(R/a))` in `build_isobars.py:166`). An earlier check omitted
+that Jacobian and was caught by a Pb-208 cross-check: the correct convention must reproduce
+~5.5 fm for lead, and the Jacobian-free version gave 4.20.
+
+**Chosen value: R = 5.08 fm**, the conventional `1.2*A^(1/3)`. The alternative would be
+`R = 4.72 fm`, tuned so that the modelled `r_rms` equals the experimental 4.10 fm exactly;
+R = 5.08 is preferred because the residual ~6% excess is the usual Woods-Saxon bias (the same
+convention gives 5.81 vs 5.52 fm for Pb-208, i.e. +5%), so it keeps nuclei comparable across
+systems rather than absorbing a per-isotope correction.
+
+**Also invalidated by this change, and not yet fixed:**
+* `config/adaptive_grid.json` was fitted at `R = 7.2` (141 events, `b = 1.46-13.31`,
+  `R_rms_trento = 1.66-4.6`). The slope `c1 = 1.009` relating the TRENTo IC radius to the nuclear
+  `r_rms` is a property of the nuclear size, so it **does not transfer** and the rule must be
+  refitted from the new runs. Its 7σ = 1.35 fm margin should keep the box from clipping in the
+  meantime, but the rule is stale until refitted.
+* All existing results, including every convergence number in this section, are at `R = 7.2` and
+  are not comparable with the new ones. **No result in this repository has been produced at the
+  correct nuclear radius yet.**
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
