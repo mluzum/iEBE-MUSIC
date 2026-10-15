@@ -741,6 +741,41 @@ All-charged output gets order_max = 10; anything else is forced to 6. Raising it
 species is a one-line change, and since the source is available that is a small fork rather than
 an obstacle.
 
+#### Grid convergence, measured on the final particle observables
+
+The earlier resolution ladder was measured on `momentum_anisotropy_eta`, which is deterministic
+given the hydro and therefore blind to freeze-out sampling. Redone on the identified-particle and
+all-charged pT-integrated v_n from the flow output, with the adaptive box on and oversampled iSS,
+against dx = 0.10 fm as reference (8 common events):
+
+```
+all charged  <v2> at dx = 0.10 : 0.00544 +- 0.00167  (ensemble SEM)
+              dx = 0.25 vs 0.10 : -4.7%
+              dx = 0.20 vs 0.10 : +1.3%
+pion+        <v2> at dx = 0.10 : 0.01280 +- 0.00315
+              dx = 0.25 vs 0.10 : +28%      <- within the statistical error
+              dx = 0.20 vs 0.10 : +27%      <- within the statistical error
+```
+
+For all-charged v2 the scaling is clean and monotone in dx, so dx = 0.20 carries about a **1.3%**
+discretisation error relative to dx = 0.10. For identified particles the differences sit inside
+the statistical error, because per-event v_n on ~2e4 pions still fluctuates by ~5e-3 -- comparable
+to the signal. So **per-event identified v_n cannot resolve dx differences at all**; the test only
+works on ensemble means.
+
+This reorders the error budget completely. With a few hundred events per design point the
+statistical error on v2 falls to the percent level, at which point the dx = 0.20 discretisation
+error becomes the limiting term. Reaching for dx ~ 0.15 to keep the discretisation error under
+1% costs ~1.8x the MUSIC time; dx = 0.10 costs ~4x. dx = 0.15 and dx = 0.30 runs are still in
+flight to complete the ladder and allow a Richardson extrapolation.
+
+**On fixed cells.** The adaptive sizing rule already makes `dx` exactly the requested grid step
+for every event (`n_cells = 2*ceil(L/dx)`), while the *box* shrinks, so resolution is uniform in
+absolute terms. A fixed cell budget would instead give small systems finer resolution
+(dx from ~0.09 to 0.20 fm) at a constant cell cost. Both are defensible; the trade is uniformity
+in dx versus uniformity in cost. That is now testable with the same machinery, but it is a cost
+decision rather than an accuracy one, since discretisation error depends on dx alone.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
