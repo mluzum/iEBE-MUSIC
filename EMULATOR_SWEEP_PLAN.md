@@ -840,52 +840,59 @@ dx = 0.30 is non-monotonic (0.066% against 0.173% at 0.25), which suggests a num
 of order 0.03-0.07% rather than a clean convergence curve. A Richardson extrapolation is therefore
 not meaningful here.
 
-#### The dx ladder was noise, and the w-dependence is the real result
+#### Grid convergence: what the percent error actually is, and a bug in it
 
-Two corrections to the table above.
+**Definition.** For each event, paired by event id (same seed, same b), take the MUSIC
+lattice diagnostic `momentum_anisotropy_eta_-0.5_0.5.dat` -- shape `(n_tau, 19)`:
 
-**1. The ladder does not resolve a convergence curve.** The per-event deviations are
-distributed with an IQR 3-20x the median, and **no deviation is distinguishable from zero**
-(two-sided sign test over 7-8 events, all p > 0.05). The `dx^2.9` / `dx^1.7` power-law fits
-were fitting noise, and the non-monotonicity at dx = 0.30 that I called a "numerical noise
-floor" is just noise. The median is the wrong statistic here.
+```
+per_event_percent(w, dx) = 100 * (mean|v|_dx - mean|v|_0.10) / mean|v|_0.10
+    |v|_dx = mean over columns 1..18 and all rows with tau <= min(tau_end_dx, tau_end_0.10)
+```
 
-The right statistic is the **worst case over events** (`max |dev|`), because the
-discretisation error is a systematic per-event effect that does not average away, and the
-quantity is a deterministic MUSIC lattice diagnostic with no freeze-out sampling noise:
+then report the median and the max over events. The reference is dx = 0.10 **at the same w**,
+so w is never confounded with dx. Reported as a max because the discretisation error is a
+systematic per-event effect, not a fluctuation that averages away.
 
-| dx | w = 0.50 (peripheral) | w = 0.25 (peripheral) |
-|---|---|---|
-| 0.15 | 0.31% | 2.80% |
-| 0.20 | **0.34%** | 3.78% |
-| 0.25 | 1.47% | 5.61% |
-| 0.30 | 1.87% | n/a |
+**Bug, and it was mine.** The statistic was originally written as `np.abs(arr).mean()` over the
+whole array. **Column 0 is proper time `tau`, not anisotropy.** Its magnitude is ~1.2-1.7
+against ~0.03-0.06 for the anisotropy columns, so tau supplied **96-98% of the quantity being
+differenced** -- the statistic was mostly "mean proper time of the run". It happened to be
+harmless at w = 0.50 and 0.75, where `tau_end` is bit-identical between dx values for all 8
+events, and it wrecked w = 0.25, where `tau_end` *does* move with dx. The w = 0.25 row of the
+table reported earlier was therefore contaminated and is replaced below.
 
-**2. dx=0.20 is converged at w=0.50 and badly unconverged at w=0.25.** At fixed dx = 0.20 the
-worst-case error grows by a factor ~11 when w halves (0.34% -> 3.78%), and even dx = 0.15 is
-2.8% at w = 0.25. This is the coupling flagged earlier and it is large, not marginal, so
-**production dx must be a function of w** -- coarser for large w, finer for small w.
+**Corrected** (column 0 excluded, per-pair common time window, max over 7-8 events):
 
-The mechanism is the power spectrum of the initial condition. TRENTo builds the IC as a sum of
-Gaussians of width `w`, so for a nucleus of mass `A` the IC carries power up to roughly
-`k_max ~ sqrt(A)/w`; the MUSIC lattice resolves only up to `k_Nyq = pi/dx`. Halving `w` doubles
-`k_max`, and at w = 0.25, dx = 0.20 the unresolved fraction of the IC is large -- which is
-exactly the 11x measured.
+| w | dx=0.15 | dx=0.20 | dx=0.25 | dx=0.30 |
+|---|---|---|---|---|
+| 0.25 | 4.83% | **9.38%** | 6.74% | n/a |
+| 0.50 | 0.48% | **0.48%** | 1.11% | 1.13% |
+| 0.75 | n/a | **0.44%** | n/a | 0.80% |
 
-**What is NOT established.** The exact scaling law is unresolved at 7 events. The w=0.25
-medians are non-monotonic in sign with dx (-1.41% at 0.15, +0.44% at 0.20, +0.77% at 0.25),
-which means either the dx = 0.10 reference at w = 0.25 is itself unconverged, or the errors
-are not yet in an asymptotic regime. Either way the *constant* in any `dx <= c(w)` rule is
-not yet measurable, and the campaign as designed (8 events per point) cannot get it: resolving
-the IQR down to the median needs ~16x more events.
+**The conclusion survives and strengthens.** At dx = 0.20 the error is ~0.45-0.48% for
+w = 0.50 and 0.75 but 9.4% at w = 0.25 -- a factor ~20. dx = 0.20 is comfortably converged for
+w >= 0.5 and nowhere near it for w = 0.25, so **production dx must be a function of w**. The
+large-w half of that is still unsupported: w = 0.75 at dx = 0.20 is indistinguishable from
+w = 0.50, and only at dx = 0.30 is large w mildly better (0.80% vs 1.13%, about 1 IQR).
 
-The practical implication is the one that matters before the rule can be written down:
-**w = 0.25 may be unreachable at any affordable dx.** If dx = 0.15 still costs 2.8%, then
-dx = 0.10 (4x the cells) is the only untested option and its cost is already steep. That makes
-the *lower* end of w a numerics question, not a preference question, and the design space
-should not be given a small-w end until a converged dx = 0.10 reference at w = 0.25 exists.
-The upper-w runs (0.75, 1.0, 1.2) are still in flight and are the ones that can license a
-*coarser* dx for large w.
+**Known weaknesses of this statistic, none of them fixed:**
+* `tau_end` is an emergent, event-dependent quantity (event 5 at w = 0.25 ends at tau = 0.60,
+  event 2 at 2.15). It varies by ~3x across events, so each event is only ever compared to
+  itself over its own common window. A single row-wide window is *wrong* -- it truncates every
+  event to the shortest one.
+* Columns 7-18 supply 93% of the magnitude and their meaning is **unknown**; the MUSIC source
+  is not in the tree. So the statistic averages 12 columns that are not identified.
+* Uniform time weighting includes the early phase, which is dominated by initial-state geometry
+  rather than the flow physics being tested.
+* Using a signed mean instead of `mean|v|` explodes the answer (factor 368 instead of 20) because
+  columns 1-6 average through zero. **A relative error is the wrong normalisation for a
+  sign-changing quantity**; the absolute-value convention is a stabiliser, not a physics choice.
+* It is a lattice proxy. The plan requires convergence tests on the final particle observables,
+  and this is not that. The reason it was used is that it is deterministic and the particle
+  comparison needs ~10^3 events per point to resolve a 0.5% effect.
+* The reference dx = 0.10 is itself unverified as converged, and at w = 0.25 it is the least
+  trustworthy point in the campaign.
 
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
