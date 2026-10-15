@@ -1165,6 +1165,41 @@ value is 10x the real target), and `os10x`/`os100x` (clusters 16042933/16042934)
 the achieved particle count, sigma and walltime at 10x and 100x to size the real ladder
 rather than assume the scaling holds.
 
+#### Oversampling measured: unbiased, 1/sqrt(N) exact, and the cap is 100000 resamplings
+
+`os10x`/`os100x` (clusters 16042933/16042934) raised `number_of_particles_needed` 10x and
+100x at fixed everything else, same 4 events:
+
+| batch | particles/event | resamplings | sigma(v_2) | predicted 1/sqrt(N) |
+|---|---|---|---|---|
+| baseline | 44981 | 1240 | 0.00471 | -- |
+| os10x | 451762 | 13095 | 0.00149 | 0.00149 |
+| os100x | 3464502 | 100000 | 0.00054 | 0.00054 |
+
+**sigma follows 1/sqrt(N) exactly**, and the value is unchanged (same 4 events, n = 2:
+0.0152 / 0.0132 / 0.0126; n = 3: 0.0025 / 0.0005 / 0.0010 -- all within the 4-event
+scatter). So sampling more of the freeze-out surface adds precision and no bias, which is
+what was assumed and is now measured.
+
+**Useful ceiling: 100000 resamplings.** `os100x` asked for 100x and got 77x in particles
+(3.46e6 rather than 4.49e6) because the resampling count saturated at exactly 100000. That
+is the largest precision this knob can buy, and it is 8.7x better than the baseline.
+
+Cost is not proportional to the sampling: MUSIC time is untouched (286/266/252 s per event
+across the three), because the extra work is all in iSS. End-to-end walltime went 3.0 ->
+6.5 -> 14.1 min per event, so 100x sampling costs 4.7x, not 100x.
+
+**This is the right lever, and it is far better value than more events.** The bound on a
+coherent numerical shift is `1.96*sigma/sqrt(N_events)`, so os100x improves it 8.7x for
+4.7x the compute, whereas buying the same factor with events alone would cost 76x.
+
+**Final ladder launched** (`fin25*`/`fin50*`, clusters 16042985-16042992):
+w in {0.25, 0.50} x dx in {0.10, 0.15, 0.20, 0.25}, 31 events per point, 100x sampling,
+R = 5.08, normalization 15, fixed seeds. With `sigma = 5.4e-4` and 31 events the expected
+95% bound on the coherent numerical shift is ~2.7e-4 absolute, i.e. about **1% of v_2** and
+**4% of v_3** -- tight enough that the growth of the discretisation error with harmonic `n`
+becomes a measurement rather than a bound.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
