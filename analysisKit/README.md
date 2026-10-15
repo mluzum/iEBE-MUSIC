@@ -2,6 +2,13 @@
 
 This directory contains tools to extract Qn vectors from `spvn_results_*.h5` files and run ensemble analyses.
 
+**Read [`FLOW_OUTPUT_FORMAT.md`](FLOW_OUTPUT_FORMAT.md) before writing any extraction or
+analysis code.** It is the data dictionary for what is actually inside the HDF5: the column
+layout of every `particle_*_vndata*` table, the analytic pT bin edges, which species are
+covered, which files are pruned, and the resample count. Two things in there are
+counter-intuitive and will silently corrupt results if you assume otherwise — column 0 is
+*not* the bin centre, and the rapidity in the filename is *not* the rapidity of the data.
+
 Recommended pipeline (example):
 
 1. Extract per-run pickles from each HDF5 `spvn_results_*.h5` using `fetch_Qnch_from_hdf5.py`.

@@ -42,6 +42,7 @@ All references were checked against the working tree. Re-verify before acting if
 | `make_seeds.py` exists upstream (required by compile step) but is absent from this tree | `codes/compile_code_packages.sh:49` |
 | `MakeDictionaries.py` hardcodes `number_nucleons: 96`; never writes `beta_4` | `MakeDictionaries.py:419-422` |
 | `combine_multiple_hdf5.py` renames colliding groups with **random letters** ⇒ breaks X/y join | `utilities/combine_multiple_hdf5.py:38-46` |
+| Output data dictionary: exact pT bin edges, column layout, `9999` vs `99999` harmonic caps, the 16 hard-coded `9999` rapidity windows | **`analysisKit/FLOW_OUTPUT_FORMAT.md`** — read before writing extraction or analysis code |
 
 ---
 
@@ -838,6 +839,53 @@ image for the whole ladder would be cleaner.
 dx = 0.30 is non-monotonic (0.066% against 0.173% at 0.25), which suggests a numerical noise floor
 of order 0.03-0.07% rather than a clean convergence curve. A Richardson extrapolation is therefore
 not meaningful here.
+
+#### The dx ladder was noise, and the w-dependence is the real result
+
+Two corrections to the table above.
+
+**1. The ladder does not resolve a convergence curve.** The per-event deviations are
+distributed with an IQR 3-20x the median, and **no deviation is distinguishable from zero**
+(two-sided sign test over 7-8 events, all p > 0.05). The `dx^2.9` / `dx^1.7` power-law fits
+were fitting noise, and the non-monotonicity at dx = 0.30 that I called a "numerical noise
+floor" is just noise. The median is the wrong statistic here.
+
+The right statistic is the **worst case over events** (`max |dev|`), because the
+discretisation error is a systematic per-event effect that does not average away, and the
+quantity is a deterministic MUSIC lattice diagnostic with no freeze-out sampling noise:
+
+| dx | w = 0.50 (peripheral) | w = 0.25 (peripheral) |
+|---|---|---|
+| 0.15 | 0.31% | 2.80% |
+| 0.20 | **0.34%** | 3.78% |
+| 0.25 | 1.47% | 5.61% |
+| 0.30 | 1.87% | n/a |
+
+**2. dx=0.20 is converged at w=0.50 and badly unconverged at w=0.25.** At fixed dx = 0.20 the
+worst-case error grows by a factor ~11 when w halves (0.34% -> 3.78%), and even dx = 0.15 is
+2.8% at w = 0.25. This is the coupling flagged earlier and it is large, not marginal, so
+**production dx must be a function of w** -- coarser for large w, finer for small w.
+
+The mechanism is the power spectrum of the initial condition. TRENTo builds the IC as a sum of
+Gaussians of width `w`, so for a nucleus of mass `A` the IC carries power up to roughly
+`k_max ~ sqrt(A)/w`; the MUSIC lattice resolves only up to `k_Nyq = pi/dx`. Halving `w` doubles
+`k_max`, and at w = 0.25, dx = 0.20 the unresolved fraction of the IC is large -- which is
+exactly the 11x measured.
+
+**What is NOT established.** The exact scaling law is unresolved at 7 events. The w=0.25
+medians are non-monotonic in sign with dx (-1.41% at 0.15, +0.44% at 0.20, +0.77% at 0.25),
+which means either the dx = 0.10 reference at w = 0.25 is itself unconverged, or the errors
+are not yet in an asymptotic regime. Either way the *constant* in any `dx <= c(w)` rule is
+not yet measurable, and the campaign as designed (8 events per point) cannot get it: resolving
+the IQR down to the median needs ~16x more events.
+
+The practical implication is the one that matters before the rule can be written down:
+**w = 0.25 may be unreachable at any affordable dx.** If dx = 0.15 still costs 2.8%, then
+dx = 0.10 (4x the cells) is the only untested option and its cost is already steep. That makes
+the *lower* end of w a numerics question, not a preference question, and the design space
+should not be given a small-w end until a converged dx = 0.10 reference at w = 0.25 exists.
+The upper-w runs (0.75, 1.0, 1.2) are still in flight and are the ones that can license a
+*coarser* dx for large w.
 
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
