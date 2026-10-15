@@ -1099,6 +1099,72 @@ the parameter is left alone. `hydro_plus_UrQMD_driver.py:183` and `:228` also dr
 `05ebd42` and a new image is required -- running the old image would silently use the
 clock-seeded code.
 
+#### Reproducibility is now demonstrated, not assumed (Phase E2 closed)
+
+This was the plan's standing blocker: nobody had run the same event twice and diffed it.
+It is now measured. Two independently submitted batches with byte-identical parameters
+(`reproA`/`reproB`, clusters 16042857/16042858, 4 events, dx = 0.20, w = 0.50) agree
+**bit-for-bit** in every pT-integrated `v_n`, real and imaginary, for every harmonic:
+
+| event | max abs difference over all v_n | resamplings |
+|---|---|---|
+| 0 | 0.000e+00 | 1100 / 1100 |
+| 1 | 0.000e+00 | 1380 / 1380 |
+| 2 | 0.000e+00 | 1230 / 1230 |
+| 3 | 0.000e+00 | 2180 / 2180 |
+
+The resampling counts match too, which is the stronger statement: iSS is not merely
+landing on the same answer, it is drawing the same sequence of samples. Cause: the seed
+is now `base + event_id*1000003 + subevent` instead of `-1` (system clock). Note the
+earlier claim that reproducibility "rests on the counter-based scheme" was wrong -- that
+scheme covers the nuclei, and the freeze-out sampler downstream of it was on the clock,
+so **no result produced before this fix is reproducible**, whatever it says about seeds.
+
+#### CRN works on the nuclei, not on the particles -- and that sets the whole ceiling
+
+The LHC-baseline ladder (clusters 16042752-16042759, R = 5.08, normalization 15, fixed
+seeds, 31 events per point) confirms normalization scales the energy as expected:
+multiplicity 501 (w = 0.25) and 750 (w = 0.50), against 161/255 at normalization 5.73 --
+a factor ~3, and now at central 76Ge scale. `b` and mult are bit-identical across every
+`dx`, so the geometry is shared.
+
+Under the correct statistic -- the complex per-event difference
+`dv_n = v_n(dx) - v_n(0.10)` for the same event, weighted by the file's single-event
+sigma -- the result is `chi2/dof ~ 0.4-0.6` at every `n = 1..9` and both `w`. That value
+is not "below the noise floor" as I first read it, it is **exactly the independent-runs
+expectation** for two complex components:
+
+```
+independent runs:  E[|dv|^2] = 2*sigma^2,  sigma_q^2 = 2*sigma^2  =>  chi2/dof = 1/2
+```
+
+The decisive evidence that CRN is nevertheless working is `n = 2`: its event-to-event
+scatter is **5.3x** its statistical error, and that entire geometry-driven fluctuation
+cancels in the paired difference. So:
+
+* CRN removes the geometry fluctuation exactly -- the nuclear configuration and `b` are
+  shared, and their contribution cancels.
+* The residual is **1/sqrt(N_particles)**, which does not cancel, because the
+  freeze-out surface itself differs between resolutions even when the seed is fixed.
+  Same seed, different surface, different particle draw.
+
+**So the ceiling on this measurement is particle statistics, not seeds and not the
+analysis.** With 44877 unidentified particles per event, `sigma(v_n) = 0.0047`, giving a
+95% bound on the coherent numerical shift of ~0.002 absolute. Expressed as a fraction of
+the signal that is 9% for `v_2` (|v_2| = 0.023) but 36% for `v_3` (|v_3| = 0.006).
+
+**This is why the n-scaling cannot yet be read off.** The bound on the *absolute*
+difference is roughly constant in `n`, so its *relative* bound grows simply because
+`|v_n|` falls from 0.023 at n = 2 to 0.004 at n = 9. Whether the numerical error grows
+with `n` -- the expectation being tested -- is not separable from "v_n shrinks and our
+resolution is fixed" until the particle noise is reduced.
+
+The lever is the freeze-out sampling, which adds no bias. `number_of_particles_needed`
+is the knob (divided by 10 in `parameters_dict_master.py:1003`, so the parameter file
+value is 10x the real target), and `os10x`/`os100x` (clusters 16042933/16042934) measure
+the achieved particle count, sigma and walltime at 10x and 100x to size the real ladder
+rather than assume the scaling holds.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
