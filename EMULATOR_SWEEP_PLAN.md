@@ -894,6 +894,54 @@ w = 0.50, and only at dx = 0.30 is large w mildly better (0.80% vs 1.13%, about 
 * The reference dx = 0.10 is itself unverified as converged, and at w = 0.25 it is the least
   trustworthy point in the campaign.
 
+#### The convergence ladder was run on the wrong file, and on events that cannot measure v_3
+
+**The documented format was not used.** The ladder was computed from
+`momentum_anisotropy_eta_-0.5_0.5.dat`, a MUSIC hydro output. That file is **not** described in
+`analysisKit/FLOW_OUTPUT_FORMAT.md` (which documents the afterburner's `spvn_results_*.h5`), its
+columns were never identified, and the 19-column layout means 93% of the magnitude comes from
+columns 7-18 of unknown meaning. So no: the analysis was not being run on the documented output.
+
+**The `c4dx` "central" arm was never central.** All 47 design-point parameter files carry
+`"b-max": 14.0` except one. The `c4dx*` files that were meant to be the central arm
+(`b-max = 4`) only ever had their `dx` substituted -- `b-max` was left at 14.0. Verified: the
+`grid_extent` CSVs for `c4dx10` and `w25dx10` list **identical** impact parameters
+(5.12, 9.74, 10.47, 11.49, 12.16, 12.33, 12.41, 13.31 fm). The earlier claim that central and
+peripheral systems agreed on dx was therefore comparing a set of events with itself, and the
+"does system size change the required dx" question is **untested**, not answered.
+
+**Every existing w/dx event is extremely peripheral.** `b = 5-13 fm` of `b_max = 14`, giving
+multiplicities of **7-89** against a central value near 700. Consequence, measured on the
+pT-integrated `v_n` vectors (unidentified species, which reach n = 9):
+
+| n | 1 | 2 | 3 | 4 | 5 | 8 |
+|---|---|---|---|---|---|---|
+| per-event precision `sigma/\|v_n\|` | 138% | 130% | 177% | 141% | 174% | 242% |
+
+**Every `v_n` is measured with an error larger than the value itself.** No numerical-error bound
+below ~25-200% can be extracted, so these runs cannot answer the question regardless of how they
+are analysed.
+
+**What they do establish.** Paired by event id against dx = 0.10 at the same w, the difference in
+the pT-integrated `v_n` **vector** (real and imag separately, never the magnitude) is consistent
+with zero for **every harmonic n = 1..9**, at both w = 0.25 and w = 0.50:
+`chi2/dof` between 0.17 and 0.74 across 38 separate species-harmonic combinations, never above
+1. The observed RMS of the difference is ~0.7x the quadrature statistical error, i.e. the runs
+are correlated through the common nuclei and b, so the paired difference is cheaper than an
+unpaired one.
+
+**This does not support the proxy's headline.** The MUSIC proxy reported a 9.4% error at
+w = 0.25, dx = 0.20 (a factor ~20 over w = 0.50). The particle observables show no such effect
+-- differences are consistent with zero at both w. The proxy result is withdrawn, and the
+conclusion "dx must depend on w" is **withdrawn with it**. That question is open, not settled.
+
+**Method fixed for the retest** (now running, `cen*` batches, clusters 16042572-16042579):
+b-max = 4.0, w in {0.25, 0.50}, dx in {0.10, 0.15, 0.20, 0.25}, 32 events per point, dx = 0.10
+as the reference. Benchmark is the pT-integrated `v_n` vector for the unidentified species
+(n up to 9), plus pi+ and the all-charged reference. The expectation being tested -- that the
+grid-spacing error grows with harmonic n -- is only testable where `v_n` is above its own
+statistical floor, which requires central events.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
