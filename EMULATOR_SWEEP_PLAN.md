@@ -1200,6 +1200,39 @@ R = 5.08, normalization 15, fixed seeds. With `sigma = 5.4e-4` and 31 events the
 **4% of v_3** -- tight enough that the growth of the discretisation error with harmonic `n`
 becomes a measurement rather than a bound.
 
+#### Framing corrected: oversampling is an instrument, not a production setting
+
+I had been presenting oversampling as a general improvement -- "better value than more
+events" -- which is wrong and would mis-set the production configuration. The correct
+framing:
+
+**Event-to-event fluctuations are physical.** They are what the emulator exists to learn,
+and they cannot be reduced by sampling more particles inside one hydrodynamic event. A
+large oversample does not buy statistics on the physics; it only sharpens the estimate of
+a *single event's* observables.
+
+**Both finite-particle statistics and finite-grid-spacing numerics are nuisances.** The
+target is for each to sit well below the uncertainties that actually matter -- emulator
+and experimental, of order 1% -- and no lower. Beyond that the compute is wasted.
+
+**So the balance differs between the two tasks:**
+
+| | oversampling | hydro events | why |
+|---|---|---|---|
+| **measure the grid-spacing error** (now) | high -- needs the particle noise below the grid signal in a *single* event | few (31/point) | the grid error is a per-event systematic, so it must be resolved event by event |
+| **production** | modest -- the default is enough | many (O(1000)/point) | per-event `sigma ~ 2%` gives ~0.06% on an ensemble of 1000, already negligible; 4.7x per-event cost would buy nothing |
+
+The `fin*` ladder is therefore an **instrument for measuring convergence**, not a
+proposal for production. Stated plainly because I had not stated it at all.
+
+**Consequence for the analysis.** Because the grid error is a per-event systematic, its
+*distribution* across events is itself a result -- it says how strongly the discretisation
+error depends on the event's geometry. The analysis therefore reports, per harmonic: the
+complex per-event difference, its decomposition into a component parallel to `v_n(0.10)`
+(a flow-magnitude error) and perpendicular to it (a flow-plane/phase error), the excess
+over the `sqrt(2)*sigma` particle-noise floor, and the spread of that excess across events
+-- never an average of `v_n` itself.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
