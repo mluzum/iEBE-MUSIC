@@ -855,17 +855,15 @@ def parse_iss_sampling(run_log):
 
 
 def collect_flow_sample_counts(final_results_folder, event_id, row):
-    """Record the freeze-out sample count and its ingredients."""
-    # the iSS run directory lives at the event root, not inside EVENT_RESULTS_0
-    iss_log = path.join('UrQMDev_{}'.format(event_id), 'iSS', 'run.log')
-    e_total, e_pid = parse_iss_sampling(iss_log)
-    if e_total is None:
-        return
-    row['E_per_sample_expected'] = round(e_total, 4)
+    """Record the freeze-out sample count and particle counts, exactly.
 
-    # read the particle count from the zipped h5: the per-species arrays carry a
-    # totals row [99, N_particles, N_charge, 0, 0], and by this point the raw
-    # .dat files have been consumed by the zipping step
+    The toolkit writes a totals row [99, total_N, total_number_of_events, 0, 0]
+    at the end of every particle_<pid>_vndata_*.dat file, with the comment "this
+    quantity is useful when one wants to reconst the Qn vectors". The third entry
+    IS the number of iSS resamplings, so no estimate is needed: verified by
+    decoding particle_list.bin directly, which contains exactly that many records
+    (5740 records, 893926 particles, 155.7 per resampling).
+    """
     spvn_h5 = path.join(final_results_folder,
                         'spvn_results_{}.h5'.format(event_id))
     if not path.exists(spvn_h5):
@@ -880,10 +878,12 @@ def collect_flow_sample_counts(final_results_folder, event_id, row):
                 if base.startswith('particle_211_vndata_y_'):
                     data = h[name][:]
                     if data.ndim == 2 and data.shape[0] > 0:
-                        n_part = float(data[-1, 1])
-                        row['n_pions'] = int(n_part)
-                        if e_pid.get(211):
-                            row['n_samples_est'] = round(n_part / e_pid[211], 1)
+                        tot = data[-1]
+                        row['n_pions'] = int(tot[1])
+                        row['n_iss_resamplings'] = int(tot[2])
+                        if row['n_iss_resamplings'] > 0:
+                            row['pions_per_resampling'] = round(
+                                row['n_pions'] / row['n_iss_resamplings'], 4)
                     break
     except (OSError, ValueError, IndexError, KeyError):
         return

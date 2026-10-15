@@ -692,6 +692,55 @@ the two runs -- so it must not be used to judge flow statistics. Scaling as 1/sq
 10^4 particles gives ~7% per event, 10^5 gives ~2%, 10^6 gives ~0.7%; averaged over 1000 events
 per design point, 10^4 particles already gives ~0.2%, comparable to the discretisation floor.
 
+#### The flow output format, read from the source (not inferred)
+
+The toolkit source is public (`github.com/chunshen1987/hadronic_afterburner_toolkit`) and was
+cloned to check what is actually written, rather than guessing from array shapes.
+
+**The sample count was there all along.** `single_particleSpectra.cpp` ends every
+`particle_<pid>_vndata_*.dat` with
+
+```
+// output total number of particles in the last row
+// this quantities is useful when one wants to reconst the Qn vectors
+99   total_N   total_number_of_events   0.0   0.0
+```
+
+so the third column is the number of iSS resamplings, exactly. Verified independently by
+decoding `particle_list.bin` (`[int n_particle][n x (int pdg + 9 floats)]`): **5740 records**,
+893,926 particles, 155.7 per resampling -- the same number the totals row reports. The earlier
+"the count is not recoverable" conclusion was wrong; the column had simply been mislabelled.
+Recorded per event now as `n_pions`, `n_iss_resamplings`, `pions_per_resampling`.
+
+**V_n are stored as vectors, not magnitudes**, real and imaginary parts separately, and n=0 is
+present as the yield. Header and layout of `particle_<pid>_vndata_diff_<rap>.dat`:
+
+```
+# pT  EdN/d^3p  Qn_real(pT)  Qn_imag(pT) (n=1-5)
+col 0      pT bin centre
+col 1      EdN/dp3p            <- n = 0, the yield
+col 2,3    Qn_real, Qn_imag     n = 1
+col 4,5    Qn_real, Qn_imag     n = 2
+...
+col 12     total_NpT            particles in this pT bin
+```
+
+This is exactly the object that was asked for: per identified species, n = 0 plus v_1..v_5 as
+vector components, in fine pT bins, with the raw multiplicity per bin for normalisation and for
+self-correlation subtraction. No fork is needed for this. Two notes: the columns are interleaved
+(real, imag) per harmonic, not blocked by harmonic; and `EdN/dp3p` is the *invariant* yield, so
+converting to dN/dy needs the pT weight and the pseudorapidity Jacobian.
+
+**Identified-particle harmonics are hard-capped at n=5** by one line:
+
+```cpp
+if (particle_monval != 9999) order_max = 6;      // single_particleSpectra.cpp:52
+```
+
+All-charged output gets order_max = 10; anything else is forced to 6. Raising it for identified
+species is a one-line change, and since the source is available that is a small fork rather than
+an obstacle.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
