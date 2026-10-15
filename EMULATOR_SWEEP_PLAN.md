@@ -652,6 +652,46 @@ peripheral   55 s ->  48 s   (66 -> 75)
 So ~1.5-1.8x end to end, not the 2.2x the cell count alone suggests. The fixed ~46 s floor is
 what caps it, and it caps peripheral events hardest.
 
+#### Checks: resolution, extrapolation, oversampling
+
+**Resolution ladder** (dx = 0.15 / 0.20 / 0.25 at a fixed +-15 fm box, so cost is identical and
+only resolution changes; 16 and 14 paired events against the dx = 0.20 baseline):
+
+```
+dx = 0.15 vs 0.20:  median |dv2|/|v2| = 9.5e-4,  max 3.5e-3
+dx = 0.25 vs 0.20:  median |dv2|/|v2| = 1.8e-3,  max 8.3e-3
+```
+
+The pair implies convergence of order ~1.2 in dx, so the discretisation error at the production
+dx = 0.20 is **~1.3e-3 relative in v2**. Two consequences:
+
+- It is *systematic* -- it does not average down over an ensemble, unlike statistical error. It
+  is the floor on what design-point difference the emulator can resolve.
+- It is about **2.5x larger than the adaptive-box noise floor (~5e-4)**. The adaptive grid is
+  therefore cheaper, in accuracy terms, than the discretisation error we are already accepting.
+  Resolution, not the box, is the limiting numerical factor.
+
+**Min and max dx.** With the adaptive box as implemented, dx is *fixed* at 0.20 fm and only the
+cell count varies (56-112). So min dx = max dx = 0.20 fm. The "fixed cells, scaled box"
+alternative would instead give dx from 0.09 (peripheral, L = 5.1 fm at 112 cells) to 0.20
+(central) -- but it is strictly more expensive for the same accuracy, because discretisation error
+depends on dx and not on the cell count, so peripheral events would pay ~4x the cells to reach an
+error the fixed-dx scheme gets for free. Not recommended. If finer resolution is wanted, the lever
+is dx itself: dx = 0.15 costs ~1.8x the MUSIC time for a 1.35x error reduction.
+
+**Extrapolation.** WS_radius 7.2 -> 8.1 pushes R_rms_trento to 4.91 fm, just past the 4.60 fm the
+rule was fitted to; reduced-thickness 0.15 stays inside at 4.38 fm. The rule still covers the
+extrapolated events with margin (needs 8.96 fm, rule asks 11.79 fm, zero under-covers), so mild
+extrapolation of this kind is safe. Larger excursions should still be re-measured.
+
+**Oversampling.** The default 10-sample configuration carries a large FD statistical error:
+after normalising the per-species arrays by their own particle count, pi+ v_n differs from an
+oversampled run by a median **34% relative** (max 99%) per event. The `momentum_anisotropy_eta`
+array is *not* sensitive to this -- it is deterministic given the hydro and agrees to 3e-8 between
+the two runs -- so it must not be used to judge flow statistics. Scaling as 1/sqrt(N), a target of
+10^4 particles gives ~7% per event, 10^5 gives ~2%, 10^6 gives ~0.7%; averaged over 1000 events
+per design point, 10^4 particles already gives ~0.2%, comparable to the discretisation floor.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
