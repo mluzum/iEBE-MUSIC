@@ -1415,6 +1415,54 @@ the open question for the extrapolation idea: within 0.05-0.40 the continuum is 
 so high-statistics runs at dx = 0.30-0.40 would be ~1% accurate, but there is no evidence yet
 about how far that extends.
 
+#### Higher harmonics: the measurement is floor-limited, NOT evidence of worse convergence
+
+The expectation was that the grid error grows with harmonic `n`. Repeating the consecutive-dx
+analysis for all `n = 1..9` at w = 0.50 gives large, highly significant *relative* shifts that
+look exactly like that -- e.g. the 0.15 -> 0.20 step gives -14% (n=1), -9% (n=3), -18% (n=6),
+-45% (n=7), -90% (n=8), **-119% (n=9)**, all resolved above 2 sigma. **They are not grid
+error.** Two checks kill that reading.
+
+**1. The shifts sit at the residual sampling floor.** The per-event sigma is ~5.4e-4 at 100x
+sampling, and the coherent shift across 31 events has SEM ~ sqrt(2)*sigma/sqrt(31) ~ 0.25 sigma.
+The measured shifts, in units of the per-event sigma:
+
+| n | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|
+| \|shift\|/sigma | 0.48 | **0.05** | 0.37 | 0.55 | 0.47 | 0.43 | 0.64 | 0.89 | 1.13 |
+
+Only n = 2 is clearly below the floor, and only n = 2 is consistent with zero. Everything else
+is at 0.4-1.1 sigma, i.e. the resolution limit.
+
+**2. The decisive test: does the shift depend on the sampling?** A genuine grid error is a
+property of the solution and must be *independent* of oversampling, so
+`|shift(1x)| / |shift(100x)|` should be ~1. Sampling contamination shrinks as `1/sqrt(N)`, so
+going from 100x to 1x should make it ~10x **larger**:
+
+| n | 1 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|
+| ratio of absolute shifts, 1x / 100x | 17 | 22 | 12 | 10 | 19 | 10 | 10 | 4 |
+
+All ~10-20, i.e. the shifts scale like sampling noise, not like a fixed grid error. (The n = 2
+entry is 52 but is meaningless there: its 100x shift is 0.00002, so the ratio divides by
+almost zero.)
+
+**Conclusion: we have no information about the grid error at n >= 3**, because the residual
+freeze-out sampling floor is ~0.5 sigma per event and the 100x oversampling knob is **capped at
+100000 resamplings**, so it cannot be pushed lower with the current settings. A real grid error
+at high n smaller than that floor would be invisible to this method. The steep rise with n is
+therefore not established as physics, and the earlier "70-126% errors at high n" must not be
+quoted.
+
+Note the two tests disagree in an informative way: the *relative* shifts agree in **sign**
+between 1x and 100x for 25 of 27 harmonic-steps, which is why the pattern looks convincing.
+Sign agreement is not enough -- the magnitude has to be sampling-independent, and it is not.
+
+**To break the floor**, one of: (a) find a parameter that lifts the 100000-resampling cap, so
+`sigma` can be pushed lower; (b) more events, which lowers the SEM but not the per-event
+scatter and so helps only slowly; or (c) a different high-n observable. (a) is the cheapest and
+is the obvious next thing to check.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
