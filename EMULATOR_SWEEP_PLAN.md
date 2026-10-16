@@ -1295,6 +1295,73 @@ adequate either.** The remaining question is whether dx = 0.10 is itself converg
 (dx = 0.075 or 0.05) is needed before any production dx can be justified. Cost at dx = 0.10 was
 822 s/event for MUSIC alone, so this is a real cost question, not a formality.
 
+#### RESULT: the grid error depends on w, and dx = 0.20 is fine at w = 0.50
+
+With the `fin*` ladder complete at both w (31 events/point, 100x sampling, `sigma = 5.4e-4` at
+w = 0.50 and 7.3e-4 at w = 0.25), the coherent parallel shift in the one clean harmonic:
+
+| w (fm) | dx=0.15 | dx=0.20 | dx=0.25 |
+|---|---|---|---|
+| 0.25 | +3.4% (+4.4 sigma) | **+7.0% (+6.8 sigma)** | +8.4% (+8.5 sigma) |
+| 0.50 | +0.3% (+0.8 sigma) | **+0.4% (+0.8 sigma)** | +0.8% (+1.2 sigma) |
+
+**At w = 0.50 there is no detectable grid error in v_2 at any dx** -- every point is ~1 sigma, so
+the honest statement is an upper bound of order +-1%, not a measurement of 0.4%. At w = 0.25 the
+same measurement gives 7-8%. The grid error in v_2 therefore depends strongly on `w`, which is
+the coupling that was flagged at the outset and is now measured rather than assumed. The
+perpendicular component is zero in every case: a too-coarse grid gets the flow *magnitude* wrong
+and leaves its direction alone.
+
+The `fin50*` numbers are consistent with zero but each is only ~1 sigma. They are a **bound**,
+not a detection, and must not be quoted as a 0.4% error.
+
+#### Only v_2 is a usable harmonic, at both w
+
+A harmonic is usable only if its single-event value is above the particle noise **and** stable
+under further sampling. Suppression = `|v_n|`(1x)/`|v_n|`(100x).
+
+| n | w=0.25 \|v\|/sig | w=0.25 supp. | w=0.50 \|v\|/sig | w=0.50 supp. | usable |
+|---|---|---|---|---|---|
+| 1 | 6.6 | 1.43x | 3.1 | 2.81x | no |
+| **2** | **24.1** | **1.01x** | **43.0** | **0.98x** | **yes** |
+| 3 | 6.9 | 1.35x | 3.9 | 2.19x | no |
+| 4 | 9.0 | 1.23x | 11.9 | 1.22x | no |
+| 5 | 3.7 | 1.85x | 5.3 | 1.76x | no |
+| 6-9 | 0.8-1.9 | 2.9-6.4x | 0.9-2.1 | 3.2-9.2x | no -- noise |
+
+n=2 passes both tests at both w and is the only harmonic that does. The expected growth of the
+grid error with harmonic `n` therefore **cannot be tested with this observable**, and the 70-126%
+"relative errors" at n >= 6 must not be quoted: for n >= 6 the single-event `v_n` is not a
+measurement (at w = 0.50, `|v_8| = 0.00048` against `sigma = 0.00054` is 0.9 sigma). Testing the
+n-dependence needs an observable that is not fluctuation-dominated at high n -- pT-differential
+or event-plane-projected v_n, where the dilution differs -- or far more events.
+
+#### Extended ladder launched: dx from 0.05 to 0.40
+
+The prior on `w` is **[0.5, 1.5]**, so w = 0.25 is out of range and the question becomes the
+*shape* of the dx curve inside the prior and whether it plateaus. A plateau is the precondition
+for the idea of running high-statistics at large dx and extrapolating to the continuum; without
+one there is nothing stable to extrapolate towards. Two specific reasons the fine end matters:
+
+1. The whole ladder has been referenced to dx = 0.10, and **dx = 0.10 is not shown to be
+   converged**. Without a finer reference there is no established continuum value.
+2. Convergence must be judged from **consecutive** differences, `|v_2(dx_i) - v_2(dx_i+1)|`, so
+   the conclusion does not depend on any single reference being converged.
+
+`crv*` points (clusters 16043718-16043728): w = 0.5 at dx = 0.05, 0.075, 0.30, 0.35, 0.40
+(fine end 31 events and 4-3 GB; coarse end 62 events for tighter bounds, since coarse dx is
+cheap), plus a coarse subset at w = 1.0 and w = 1.5 (dx = 0.20, 0.30, 0.40) to see how the
+dx-sensitivity moves across the prior.
+
+**Structural caveat, and it is not fixable by parameter.** MUSIC's lattice is taken from the
+shape of TRENTo's output array (`driver:633`, `n_actual = initial.shape[0]`), so the hydro
+lattice spacing is *forced* to equal TRENTo's `grid-step`. There is one knob, not two. At
+dx = 0.40 with w = 0.5, `dx/w = 0.8`, so TRENTo is under-resolving its own nucleon profiles on
+top of MUSIC being coarse, and the large-dx points conflate the two. Separating them needs a
+driver change -- letting MUSIC use a lattice spacing independent of the TRENTo array -- which has
+not been made. The series is still the operationally relevant one, since it is the configuration
+a production run would actually ship.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
