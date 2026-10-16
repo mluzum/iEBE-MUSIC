@@ -1362,6 +1362,59 @@ driver change -- letting MUSIC use a lattice spacing independent of the TRENTo a
 not been made. The series is still the operationally relevant one, since it is the configuration
 a production run would actually ship.
 
+#### RESULT: v_2 is converged to ~1% for dx from 0.05 to 0.40, and dt is converged
+
+Full campaign landed (clusters 16043739-16043754). Judged from **consecutive** differences
+`|v_2(dx_i) - v_2(dx_i+1)|` for the same events, so nothing rests on one reference being
+converged. `v_2` remains the clean harmonic everywhere: `|v_2|/sigma` = 43 (w=0.5), 42 (w=1.0),
+31 (w=1.5) per event.
+
+**Spatial, w = 0.50, dx = 0.05 -> 0.40 (a factor of 8):**
+
+| step | shift | z | step | shift | z |
+|---|---|---|---|---|---|
+| 0.05 -> 0.075 | -0.92% | -2.3 | 0.20 -> 0.25 | -0.42% | -1.0 |
+| 0.075 -> 0.10 | +0.01% | +0.0 | 0.25 -> 0.30 | +0.33% | +0.7 |
+| 0.10 -> 0.15 | -0.37% | -0.9 | 0.30 -> 0.35 | +0.46% | +1.8 |
+| 0.15 -> 0.20 | -0.10% | -0.3 | 0.35 -> 0.40 | +0.22% | +0.8 |
+
+Every step <= 0.92%, and 7 of 8 are below 2 sigma with no sign trend. `<|v_2|>` on one common
+set of 27 events spans 0.02283-0.02327, non-monotone (peaking at dx = 0.25), i.e. scatter.
+
+**w = 1.0:** +0.25% then +0.99% (the latter 2.2 sigma). **w = 1.5:** -0.08% then +0.50%.
+
+**So dx = 0.20 is amply converged, and so is dx = 0.40.** The whole prior in `w` is covered by
+the statement "v_2 is converged to ~1% anywhere in 0.05 <= dx <= 0.40".
+
+**Time resolution, w = 0.50, dx = 0.20, against the production `Delta_Tau` = 0.005 fm/c:**
+
+| varied | to | shift | z |
+|---|---|---|---|
+| hydro step (freeze-out window held at 0.05 fm/c) | 0.0025 | -0.24% | -0.7 |
+| hydro step | 0.00125 | -0.75% | -2.0 |
+| freeze-out window alone | 0.025 fm/c | -0.72% | -1.5 |
+| freeze-out window alone | 0.10 fm/c | -0.59% | -1.5 |
+| hydro step, at dx = 0.40 | 0.00125 | +0.50% | +1.2 |
+
+`Delta_Tau` contributes at most ~0.75%, consistent with the Courant number: at dx = 0.20,
+dt = 0.005 gives 0.043, so the scheme is far from any stability limit and reducing dt fourfold
+buys almost nothing. **dt = 0.005 and a 10-step freeze-out average are both converged; there is
+no reason to spend compute on either.**
+
+**One loose thread that is not resolved.** The w = 0.25 series (outside the prior) shows
+*non-monotone* behaviour: the largest consecutive step is at the FINEST dx (-3.48% from 0.10
+to 0.15), not the coarsest, which is the opposite of what a discretisation error should do.
+And the two points with dx/w = 0.80 behave very differently -- w = 0.25 at dx = 0.20 carries
+~7% while w = 0.50 at dx = 0.40 carries <1% -- so **dx/w does not govern the error**. Since
+w = 0.25 is outside the prior this does not block the production decision, but it is a genuine
+inconsistency and it means the error budget is understood empirically only within the prior,
+not predicted.
+
+**Not tested: dx > 0.40.** The curve is flat to 0.40, so where it breaks is unknown. That is
+the open question for the extrapolation idea: within 0.05-0.40 the continuum is flat to ~1%,
+so high-statistics runs at dx = 0.30-0.40 would be ~1% accurate, but there is no evidence yet
+about how far that extends.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
