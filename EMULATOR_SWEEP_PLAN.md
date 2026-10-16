@@ -1233,6 +1233,68 @@ complex per-event difference, its decomposition into a component parallel to `v_
 over the `sqrt(2)*sigma` particle-noise floor, and the spread of that excess across events
 -- never an average of `v_n` itself.
 
+#### RESULT: dx = 0.20 carries a ~7% error in v_2, and only v_2 is measurable
+
+The `fin*` ladder (100x sampling, `sigma = 7.3e-4` per event, 31 events/point) resolves the
+grid-spacing error for the first time. `w = 0.25`, per-event complex
+`dv_n = v_n(dx) - v_n(0.10)`, resolved into a component **parallel** to `v_n(0.10)` (a
+flow-magnitude error) and **perpendicular** to it (a flow-plane/phase error):
+
+| dx | n | parallel shift | significance | perpendicular | significance |
+|---|---|---|---|---|---|
+| 0.15 | 2 | **+3.4%** | 4.4 sigma | ~0 | <1 |
+| 0.20 | 2 | **+7.0%** | 6.8 sigma | ~0 | <1 |
+| 0.25 | 2 | **+8.4%** | 8.5 sigma | ~0 | <1 |
+
+**The error is a flow-magnitude error, not a flow-plane error.** The perpendicular component
+is consistent with zero everywhere, so a too-coarse grid gets the *size* of the flow wrong and
+leaves its direction alone.
+
+**Cross-checked at two independent sampling levels.** The same shifts appear at baseline
+sampling (1x), just with larger error bars: dx = 0.20 gives +6.1%, dx = 0.25 gives +6.4%,
+consistent with the 100x values. So this is not an oversampling artifact.
+
+**Correction to earlier statements.** I had reported dx = 0.20 as "converged to <1%" (from the
+withdrawn MUSIC-proxy analysis) and then as "bounded below 9%" from the baseline ladder. Both
+were statements about sensitivity, not about the error. With 6.7x better particle statistics the
+same shift is a 6.8 sigma **measurement** of 7%. The baseline ladder had the sensitivity to say
+only "below ~40% per event"; the coherent shift was always there at 1.4 sigma.
+
+**Only n = 2 is a clean benchmark, and the reason matters.** A harmonic is only usable if the
+single-event `v_n` is above the particle noise *and* stable under further sampling:
+
+| n | \|v_n\| / sigma at 100x | suppression \|v_n\|(1x)/\|v_n\|(100x) | usable? |
+|---|---|---|---|
+| 1 | 6.6 | 1.43x | no -- value moves with sampling |
+| **2** | **24.1** | **1.01x** | **yes** |
+| 3 | 6.9 | 1.35x | no |
+| 4 | 9.0 | 1.23x | no |
+| 5 | 3.7 | 1.85x | no |
+| 6 | 1.9 | 2.89x | no -- at the noise level |
+| 7 | 1.1 | 4.93x | no -- pure noise |
+| 8 | 1.0 | 5.37x | no -- pure noise |
+| 9 | 0.8 | 6.36x | no -- pure noise |
+
+**So the expected growth of the grid error with harmonic `n` cannot be tested with this
+observable, and the large "relative errors" at high `n` (70-126%) must not be quoted as
+results.** For n >= 6 the single-event `v_n` is not a measurement at all -- `|v_7| = 0.00082`
+against `sigma = 0.00073` is 1.1 sigma, i.e. noise -- so a "87% error in v_7" is a percentage of
+noise. For n = 1, 3, 4, 5 the value itself moves by 23-85% between sampling levels, so the
+harmonic is contaminated by residual fluctuation and its grid shift is not separable from a
+change in that contamination. Only n = 2 is both 24 sigma and sampling-stable.
+
+Testing the `n`-dependence therefore needs a *different* observable: either a per-event
+quantity that is not fluctuation-dominated at high `n` (e.g. event-plane-projected or
+pT-differential v_n, where the fluctuation dilution differs), or many more events so that
+ensemble averages of `|v_n|` can be formed without per-event detection.
+
+**Practical conclusion for dx.** 7% at dx = 0.20 and 3.4% at dx = 0.15 are both far above the
+~1% emulator/experimental target, so **dx = 0.20 is not adequate and dx = 0.15 is not obviously
+adequate either.** The remaining question is whether dx = 0.10 is itself converged; the trend
+(8.4% at 0.25, 7.0% at 0.20, 3.4% at 0.15) suggests it is not, and a finer reference
+(dx = 0.075 or 0.05) is needed before any production dx can be justified. Cost at dx = 0.10 was
+822 s/event for MUSIC alone, so this is a real cost question, not a formality.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
