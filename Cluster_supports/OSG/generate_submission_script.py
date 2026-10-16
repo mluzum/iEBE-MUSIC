@@ -729,11 +729,16 @@ if __name__ == "__main__":
                         default="test", help='job name')
     parser.add_argument('-bayes', '--bayes_file', metavar='', type=str,
                         default="", help='bayes file')
-    parser.add_argument('-mem', '--memory_per_job', metavar='', type=int,
-                        default=1, help='memory per job (GB). Measured peak for '
-                        'a 19-event 76Ge batch on one core was 212 MB, so the '
-                        'old 4 GB default was requesting ~19x what is used and '
-                        'only slows down scheduling.')
+    parser.add_argument('-mem', '--memory_per_job', metavar='GB', type=int,
+                        default=1, help='memory per job IN GIGABYTES (not MB). '
+                        'Measured peak for a 19-event 76Ge batch on one core was '
+                        '212 MB, so the old 4 GB default was requesting ~19x what '
+                        'is used and only slows down scheduling. Peak scales as '
+                        '171 MB + 3.87/dx^2 MB, so 1 GB covers dx >= 0.10; dx = '
+                        '0.075 needs ~0.9 GB and dx = 0.05 needs ~1.7 GB, so '
+                        'those two want -mem 2. Passing -mem 1024 means 1024 GB, '
+                        'which matches nothing and leaves every job idle forever.'
+                        )
     parser.add_argument('-disk', '--disk_per_job', metavar='', type=int,
                         default=10, help='scratch disk per job (GB). Events are '
                         'processed sequentially into the same working '
