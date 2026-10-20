@@ -1624,6 +1624,38 @@ harmonic-dependent correction, since dx = 0.50 is already 5-23% off there. The s
 version is therefore "run v_2 at coarse dx and correct the higher harmonics with a
 resolution-dependent term", or simply "run everything at dx = 0.15".
 
+#### dx = 0.10 IS a converged reference -- the fine end is flat
+
+The open question was whether dx = 0.10 was converged, since every quoted drift was measured
+against it. Consecutive steps at the fine end, all-charged, w = 0.50:
+
+| step | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|
+| 0.05 -> 0.075 | -0.37% | -0.45% | -0.65% | -0.37% | +0.03% |
+| 0.075 -> 0.10 | -1.20% | -0.11% | +1.91% | -0.32% | -1.31% |
+| 0.10 -> 0.15 | -2.00% | -0.27% | -0.22% | -0.80% | +0.03% |
+
+Every step is <= 2% and all but one are consistent with zero, so **the error stops growing
+below dx = 0.10 and dx = 0.10 is a valid converged reference.** Measured from dx = 0.075
+instead, the drift at dx = 0.10 is -1.2%/-0.1%/+1.9%/-0.3%/-1.3% for n = 1..5.
+
+**The converged-dx statement, now on solid ground:**
+
+| dx | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|
+| 0.10 | -1.2% | -0.1% | +1.9% | -0.3% | -1.3% |
+| 0.15 | -2.0% | -0.4% | +2.4% | -1.1% | -0.7% |
+| 0.20 | -2.1% | -0.9% | -2.3% | **-5.7%** | **-7.1%** |
+| 0.25 | -2.4% | -1.1% | -7.8% | -8.9% | -12.0% |
+
+* **n = 2: converged to ~1% for dx <= 0.25**, and to 1.9% all the way to dx = 0.60.
+* **n = 3, 4, 5: converged to ~2% for dx <= 0.15.** dx = 0.20 is fine for n = 3 but carries
+  5.7% (n=4) and 7.1% (n=5).
+
+So the production recommendation is now unambiguous for a v_2-only observable (dx = 0.20 is
+ample) and for one that includes n >= 3 (**dx = 0.15**, with dx = 0.10 as the safe choice if
+the ~2% floor at 0.15 is not acceptable).
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
