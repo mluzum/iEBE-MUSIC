@@ -1463,6 +1463,78 @@ Sign agreement is not enough -- the magnitude has to be sampling-independent, an
 scatter and so helps only slowly; or (c) a different high-n observable. (a) is the cheapest and
 is the obvious next thing to check.
 
+#### METHOD CORRECTION: the benchmark table was a 15x smaller sample than it should have been
+
+Every harmonic analysis above used the **unidentified** table `particle_9999_vndata_eta_-0.5_0.5`.
+Its per-event particle count is far smaller than the all-charged reference:
+
+| table | particles per freeze-out resampling | dN/deta |
+|---|---|---|
+| **all charged (99999)** | **602.5** | 75.31 |
+| unidentified (9999) | 40.5 | 40.51 |
+| pi+ identified | 20.5 | 20.50 |
+| p+ identified | 3.03 | 3.03 |
+
+**The unidentified table holds 15x fewer particles than the all-charged one.** 602 charged
+particles per freeze-out sampling is the expected number for central 76Ge, so the all-charged
+table has the correct multiplicity and the full acceptance, while the unidentified one is a
+much smaller sample. The exact reason -- a rapidity cut versus a species selection -- is not
+settled: the identified species sum to 48.37 and the unidentified to 40.51, which together
+*exceed* the all-charged 75.31, so the tables do not share one acceptance. That needs checking
+against the toolkit source rather than guessing, but it does not change the actionable point.
+
+Switching the benchmark to the all-charged table (which carries n = 1..5) changes the results
+completely:
+
+| n | \|v_n\|/sigma, unidentified | \|v_n\|/sigma, all charged | suppression, all charged |
+|---|---|---|---|
+| 1 | 3.1 | 11.4 | 1.28x (mixed) |
+| 2 | 43 | **159** | 1.01x (clean) |
+| 3 | 3.9 | **15.6** | 1.10x (clean) |
+| 4 | 11.9 | **45.1** | 1.04x (clean) |
+| 5 | 5.3 | **20.1** | 1.17x (mixed) |
+
+sigma falls from 5.4e-4 to 1.4e-4, i.e. 3.9x as sqrt(15) predicts. **n = 3 and n = 4 become
+clean, sampling-independent measurements**, and the grid error at them becomes measurable.
+
+**With the all-charged table the grid error is real and grows with n**, as expected. Cumulative
+paired drift from dx = 0.10, w = 0.50:
+
+| dx | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|
+| 0.15 | -2.0% | -0.3% | -0.2% | -0.8% | +0.0% |
+| 0.20 | -3.1% | -0.8% | -4.9% | -5.5% | -6.2% |
+| 0.25 | -3.8% | -0.9% | -10.1% | -8.7% | -11.0% |
+| 0.30 | -0.6% | -0.6% | -13.3% | -10.5% | -12.8% |
+| 0.40 | -10.6% | +0.6% | -15.8% | -9.3% | -11.4% |
+
+The sampling-ratio test now separates the two: |shift(1x)|/|shift(100x)| is **1.2-4.7** for
+n = 2..5 over the overlapping steps, not the ~10 that signals pure sampling contamination.
+So these are genuine discretisation errors, unlike the earlier unidentified-table numbers.
+
+**How high in n can be trusted:**
+* **n = 2** -- converged to <1% for every dx in 0.05-0.40.
+* **n = 3, 4, 5** -- converged to <3% for dx <= 0.15, then drift to 10-16% by dx = 0.30. Usable
+  as a grid-error diagnostic, and the higher harmonics are the sensitive ones.
+* **n = 1** -- too small (\|v_1\| = 0.0016, 11 sigma) to be useful; shifts consistent with zero.
+
+**Unexplained: the drift saturates.** For n = 3, 4, 5 the error grows with dx up to dx = 0.30
+and then *stops growing* -- it stays at -16%, -10%, -13% out to dx = 0.40, and
+`<|v_n|>` itself plateaus at the same place. A discretisation error should keep growing with
+dx. Saturation suggests that at dx >= 0.30 the high-harmonic flow is dominated by a
+resolution-independent numerical artifact rather than a smooth loss of accuracy. **That is not
+explained and should not be reported as a converged result for dx >= 0.30.** The dx = 0.50, 0.60
+and 0.75 points now running will say whether it is a genuine plateau or an artifact.
+
+**On the differential output.** Integrating the `_diff_` table over pT with yield weighting
+reproduces the `_vndata_` table to 1e-10, so for a given species and window the two routes are
+the same computation. The win was not the integration method but the *sample*: the all-charged
+table carries 15x the particles of the unidentified one. Worth doing the pT integration
+explicitly anyway, since it lets any pT cut be applied consistently across species and lets the
+identified tables be combined -- the identified species share the full acceptance with the
+all-charged reference (pi+/charged = 0.27, as expected for 76Ge), so they are the natural
+analysis product and they are the ones with the right acceptance.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
