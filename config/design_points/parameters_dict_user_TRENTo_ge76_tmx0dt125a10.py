@@ -1,13 +1,8 @@
-# DECOMPOSE the dx=0.20 time-shift anomaly: is it the HYDRO STEP or the SURFACE
-# QUADRATURE? dt = 0.00125, average_surface_over_this_many_time_steps = 10 (the PRODUCTION
-# value, so the number of averaged surface points is unchanged and only the hydro
-# integration and the window width differ).
-#
-# The anomaly: at dx=0.20 the n=4,5 time shifts (~5-7%) pass the sampling-consistency
-# check but do NOT shrink when dt is halved again, so they are not a simple dt error.
-# The tm series changed dt AND the averaging together (dt 0.0025/avg 20, dt 0.00125/avg
-# 40), so it cannot separate the two. This point holds avg at 10, which isolates the
-# hydro step; comparing it against tmdt25 (dt 0.0025, avg 20) closes the 2x2 in
+# DECOMPOSE the dx=0.20 time-shift anomaly: HYDRO STEP or SURFACE QUADRATURE?
+# dt = 0.00125 fm/c with the freeze-out averaging left at the PRODUCTION value of 10, so the
+# number of averaged surface points is unchanged and only the hydro integration and the
+# window width differ. The tm series changed dt AND the averaging together, so it could
+# not separate them; comparing against tmdt25 (dt 0.0025, avg 20) closes the 2x2 in
 # (window, quadrature).
 #
 # w = 0.50, dx = 0.20, 100x oversampling, R = 5.08, normalization 15.
@@ -159,6 +154,7 @@ music_dict = {
     # dead design axis.
     "use_eps_for_freeze_out": 0,
     "T_freeze": 0.12,
+    "Delta_Tau": 0.00125,
 }
 
 iss_dict = {

@@ -1,8 +1,8 @@
 # Converged-dx statement across the prior: w = 1.0 fm, dx = 0.15 fm.
 #
-# The w = 1.0 and 1.5 rows have dx = 0.20, 0.30, 0.40 but no dx = 0.10 reference and
-# no dx = 0.15, so the recommendation 'dx = 0.15 is the minimum for n >= 3' is only
-# established at w = 0.50. This closes that gap over the prior [0.5, 1.5].
+# The w = 1.0 and 1.5 rows had dx = 0.20, 0.30, 0.40 but no dx = 0.10 reference and
+# no dx = 0.15, so 'dx = 0.15 is the minimum for n >= 3' was established only at
+# w = 0.50. This closes that gap over the prior [0.5, 1.5].
 #
 # w = 1.0, dx = 0.15, R = 5.08, normalization 15, b-max = 4.0, 100x oversampling,
 # fixed seeds.
@@ -118,13 +118,13 @@ trento_dict = {
     "output": "initial_condition",
     "reduced-thickness": 0.0,
     "fluctuation": 1.0,
-    "nucleon-width": 0.5,
+    "nucleon-width": 1.0,
     "cross-section": 4.23,
     "normalization": 15.0,
     "b-min": 0,
     "b-max": 4.0,
     "grid-max": 15.0,
-    "grid-step": 0.2,
+    "grid-step": 0.15,
 }
 
 # grid_max MUST agree with trento_dict["grid-max"]: the driver rebuilds the
@@ -135,7 +135,7 @@ trento_dict = {
 free_streaming_dict = {
     "tau": 1.000,
     "grid_max": 15.0,
-    "grid_step": 0.2,
+    "grid_step": 0.15,
 }
 
 music_dict = {
@@ -146,8 +146,8 @@ music_dict = {
     # whole block -- including the EOS specification -- was silently inert.
     "X_grid_size_in_fm": 15.0,
     "Y_grid_size_in_fm": 15.0,
-    "Grid_size_in_x": 150,
-    "Grid_size_in_y": 150,
+    "Grid_size_in_x": 200,
+    "Grid_size_in_y": 200,
     # Freeze-out on TEMPERATURE. With use_eps_for_freeze_out = 1 (the master
     # default) MUSIC finds the Cooper-Frye surface from eps_freeze_max/min = 0.18
     # and never reads T_freeze, which would make the switching temperature a

@@ -1,13 +1,12 @@
 # FLOOR PROBE: maximum_sampling_events 10000 -> 100000 (10x the particles per event).
 #
-# The 100000 'resamplings' quoted everywhere are 10 subevents x 10000 iSS sampling events,
-# and `maximum_sampling_events` is the per-invocation cap -- so it was the binding limit on
-# the measurement floor all along, not the oversampling knob. Raising it 10x should cut
-# sigma by sqrt(10) = 3.16x and take the n >= 3 floor from ~0.5 sigma down to ~0.16 sigma.
+# The '100000 resamplings' are 10 subevents x 10000 iSS sampling events, and
+# maximum_sampling_events is the PER-INVOCATION cap -- so it, not the oversampling knob, was
+# the binding limit on the measurement floor. Raising it 10x should cut sigma by sqrt(10)
+# = 3.16x and take the n >= 3 floor from ~0.5 sigma to ~0.16 sigma.
 #
-# Exploratory: 8 events only, to measure the achieved particle count, sigma and walltime
-# before committing a full campaign. If the walltime scales as ~10x, this is not affordable
-# in production and only worth it for precision-limited measurements.
+# Exploratory: 8 events, to measure the achieved count, sigma and walltime before
+# committing a full campaign.
 #
 # w = 0.50, dx = 0.20, 100x oversampling.
 
@@ -170,7 +169,7 @@ iss_dict = {
     # emulator input across the whole centrality range.
     "sample_upto_desired_particle_number": 1,
     "number_of_particles_needed": 10000000,
-    "maximum_sampling_events": 10000,
+    "maximum_sampling_events": 100000,
 }
 
 hadronic_afterburner_toolkit_dict = {

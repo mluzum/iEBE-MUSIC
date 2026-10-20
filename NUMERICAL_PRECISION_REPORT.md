@@ -227,9 +227,16 @@ This is the reason the "higher harmonics are far more grid-sensitive" result app
 The residual sampling floor is set by the number of particles per event. The "100 000
 resamplings" quoted throughout are **10 subevents × 10 000 iSS sampling events**, and
 `iss_dict['maximum_sampling_events']` (default 10 000) is the **per-invocation** cap — so it,
-not the oversampling knob, was the binding limit all along. Raising it to 100 000 should cut σ by
-√10 = 3.2× and take the n ≥ 3 floor from ~0.5σ to ~0.16σ. A probe was run to measure the
-achieved count, σ and walltime before committing to it.
+not the oversampling knob, was the binding limit all along, and raising it to 100 000 should cut
+σ by √10 = 3.2× and take the n ≥ 3 floor from ~0.5σ to ~0.16σ.
+
+**A first attempt at this probe was invalid** and its result discarded: the parameter files
+were written by a helper that discarded the return value of the mutation, so all seven points
+were submitted as duplicates of the reference configuration. The files were rebuilt and then
+verified **end-to-end by emitting the configuration with `parameters_dict_master.py` and reading
+back the emitted `music_input_mode_2`, `TRENTo/input` and `iSS_parameters.dat`** — the source
+parameter file is not what the run uses, so that is the only check that means anything. The
+verification table is reproduced in §9.
 
 ### 5.3 What is out of reach
 
@@ -283,3 +290,47 @@ For the record, these were stated at some point and withdrawn:
 4. **Why the `n` ≥ 3 drift stops growing between `dx` = 0.30 and 0.40** before resuming
    steeply. Not explained; the local plateau is real but its origin is not known.
 5. **The acceptance of the unidentified table** (§2.3) — needs the toolkit source.
+
+---
+
+## 9. Verification of the final job batch
+
+Every parameter file is checked by **emitting the configuration and reading the emitted files**,
+not by inspecting the source parameter file — the source is not what the run consumes. The
+builder also asserts the expected pattern is present after each edit, so a silent no-op edit
+fails loudly rather than producing a duplicate of the reference.
+
+| point | Delta_Tau | nucleon-width | TRENTo grid-step | max_sampling_events | purpose |
+|---|---|---|---|---|---|
+| `tmx0dt25a10` | 0.0025 | 0.5 | 0.2 | 10 000 | hydro step vs surface quadrature |
+| `tmx0dt125a10` | 0.00125 | 0.5 | 0.2 | 10 000 | hydro step vs surface quadrature |
+| `crv100dx10` | 0.005 | 1.0 | 0.1 | 10 000 | converged-dx statement across the prior |
+| `crv100dx15` | 0.005 | 1.0 | 0.15 | 10 000 | converged-dx statement across the prior |
+| `crv150dx10` | 0.005 | 1.5 | 0.1 | 10 000 | converged-dx statement across the prior |
+| `crv150dx15` | 0.005 | 1.5 | 0.15 | 10 000 | converged-dx statement across the prior |
+| `osx10` | 0.005 | 0.5 | 0.2 | **100 000** | can the measurement floor be lowered? |
+
+Reference for comparison: `fin50dx20` = Delta_Tau 0.005, nucleon-width 0.5, grid-step 0.2,
+max_sampling_events 10 000.
+
+---
+
+## 10. Reproduction
+
+```bash
+# the convergence campaign, by hand
+python3 config/parameters_dict_master.py -par <param>.py -path <out>
+# then read the emitted model_parameters/ and run the event chain
+
+# the analysis (this is the whole method, in one place)
+#   per event, paired by event id:
+#     dv_n = v_n(e,dx) - v_n(e,dx_ref)          complex, real/imag kept separate
+#     rotate into the frame of v_n(dx_ref):  parallel / perpendicular
+#     SEM = std(parallel)/sqrt(N),  z = mean/SEM
+#   the benchmark table is particle_99999_vndata_eta_-4_4.dat  (all charged, 602 particles
+#   per freeze-out resampling) -- NOT particle_9999_*  (40.5 particles per resampling)
+```
+
+The output data dictionary is in [`analysisKit/FLOW_OUTPUT_FORMAT.md`](analysisKit/FLOW_OUTPUT_FORMAT.md).
+The campaign history, including every correction above and the reasoning behind it, is in
+[`EMULATOR_SWEEP_PLAN.md`](EMULATOR_SWEEP_PLAN.md).
