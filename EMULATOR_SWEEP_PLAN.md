@@ -1656,6 +1656,60 @@ So the production recommendation is now unambiguous for a v_2-only observable (d
 ample) and for one that includes n >= 3 (**dx = 0.15**, with dx = 0.10 as the safe choice if
 the ~2% floor at 0.15 is not acceptable).
 
+#### The sampling test, done correctly, and the time-step recommendation
+
+**The test, stated properly.** A genuine effect of size `mu` gives `z_100x = mu*sqrt(N)/s_100x` and
+`z_1x = mu*sqrt(N)/s_1x`, and since `s_1x = 8.72*s_100x` (measured: sigma 0.00014 vs 0.00122,
+from 77x the particles) we need `z_1x = z_100x/8.72`. **The raw shift ratio is the wrong
+statistic** -- what has to be compared is the z-scores, and the earlier "ratio of shifts"
+framing was misleading. Measured on the grid step dx 0.15 -> 0.20, w = 0.50:
+
+| n | 100x shift | z_100x | 1x shift | z_1x | z_1x expected if real | verdict |
+|---|---|---|---|---|---|---|
+| 1 | -0.00001 | -0.19 | -0.00081 | -4.03 | -0.02 | noise |
+| 2 | -0.00011 | -3.42 | -0.00051 | -2.97 | -0.39 | noise |
+| 3 | -0.00011 | -2.95 | -0.00048 | -2.61 | -0.34 | noise |
+| 4 | -0.00030 | -5.48 | -0.00084 | -4.42 | -0.63 | noise |
+| 5 | -0.00020 | -5.46 | -0.00082 | -3.67 | -0.63 | noise |
+
+The 1x shifts are all ~-0.0007 regardless of harmonic -- a **common, harmonic-independent
+offset** -- while the 100x shifts are harmonic-dependent and smaller. That is the signature of
+a sampling-dependent *bias* (residual fluctuation, not averaged out at 1x) whose dx-dependent
+part masquerades as a grid error. **So the grid shifts quoted from the 100x runs are upper
+bounds**, overestimates by up to ~30% if the contamination scales as 1/sqrt(N).
+
+This does not overturn the production conclusion, it makes it conservative: at dx = 0.20 the
+measured n = 4, 5 errors of 5.7% and 7.1% are upper bounds on the true ones. It does mean the
+1x series (`lhc*`) is **not** a valid reference for anything and must not be quoted.
+
+**Time step at the production candidate dx = 0.15, measured there (100x, reference `fin50dx15`):**
+
+| varied | to | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|
+| hydro step (freeze-out window held at 0.05 fm/c) | dt 0.0025 | +1.07% | **-0.01%** | -0.53% | +0.51% | -0.31% |
+| hydro step | dt 0.00125 | +1.53% | **-0.12%** | +1.67% | +0.35% | -0.15% |
+| freeze-out window alone | 0.025 fm/c | +0.42% | **0.00%** | -0.80% | -0.32% | -0.18% |
+| freeze-out window alone | 0.10 fm/c | +3.70% | **+0.04%** | +0.43% | -0.85% | -0.15% |
+
+**At dx = 0.15 every time-related shift for n >= 2 is <= 1.7% and every one is consistent with
+zero (|z| <= 1.2).** n = 1 is the exception and is the noisiest harmonic (|v_1| = 0.0016,
+11 sigma): the freeze-out window doubling moves it +3.7% at 2.2 sigma, which is the expected
+behaviour -- v_1 is the most sensitive to the freeze-out surface because it is the least
+averaged harmonic.
+
+**RECOMMENDATION for a dx = 0.15 production run: keep `Delta_Tau` = 0.005 fm/c and the 10-step
+freeze-out average unchanged.** The measured time sensitivity there is <= 1% for n >= 2 and
+consistent with zero; the Courant number is 0.058, an order of magnitude from the stability
+limit; and the only time-related sensitivity worth acting on is in n = 1, where the freeze-out
+window is the knob -- and n = 1 is too small to be a useful observable anyway.
+
+At dx = 0.20 the n = 4, 5 time shifts (~5-7%) do pass the consistency check, but they **do not
+shrink when dt is halved again** (n=4: 0.00032 then 0.00030), so they are not a simple
+time-discretisation error. They more likely reflect the changed *quadrature* of the freeze-out
+surface average -- 40 points at 0.00125 versus 10 at 0.005 over the same 0.05 fm/c window --
+rather than the hydro integration. **Unresolved, and it does not affect the recommendation
+because dx = 0.15 is the production candidate and is clean there.**
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
