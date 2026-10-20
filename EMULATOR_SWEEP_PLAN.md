@@ -1535,6 +1535,56 @@ identified tables be combined -- the identified species share the full acceptanc
 all-charged reference (pi+/charged = 0.27, as expected for 76Ge), so they are the natural
 analysis product and they are the ones with the right acceptance.
 
+#### Time step: converged. And the all-charged benchmark re-opens the harmonic question
+
+**Time resolution, re-analysed with the all-charged benchmark (99999), w = 0.50, dx = 0.20:**
+
+| varied | to | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|
+| hydro step (freeze-out window held at 0.05 fm/c) | dt 0.0025 | +0.38% | **-0.05%** | +2.58% | +1.19% | +0.30% |
+| hydro step | dt 0.00125 | +0.29% | **-0.05%** | +1.62% | +1.16% | +0.34% |
+| freeze-out window alone | 0.025 fm/c | -1.80% | **+0.04%** | -0.03% | -0.14% | +0.15% |
+| freeze-out window alone | 0.10 fm/c | -1.40% | **+0.02%** | -0.37% | +0.03% | -0.17% |
+| hydro step, at dx = 0.40 | dt 0.00125 | -2.70% | **+0.02%** | -0.76% | +0.77% | +1.53% |
+
+**n = 2 is unmoved in every single time test** (|shift| <= 0.05%). Reducing the hydro step
+fourfold, or changing the freeze-out averaging window by a factor of four either way, changes
+v_2 by less than the noise. **`Delta_Tau` = 0.005 fm/c and the 10-step freeze-out average are
+both converged.**
+
+The n = 3, 4 entries (1-2.6%) are **not established as a time error**: they show no n-growth
+(n=3 2.58%, n=4 1.19%, n=5 0.30%), and they do not scale with the step -- dt = 0.0025 and
+dt = 0.00125 give near-identical shifts, where a genuine discretisation error would shrink by
+~2x. They sit at the same ~1-2 sigma level as the sampling floor. The `tm*` runs exist only at
+100x sampling, so the sampling-ratio test that settled the grid analysis cannot be applied to
+them; that is the missing check.
+
+**Grid error per w, cumulative paired drift, all-charged benchmark:**
+
+| w | dx | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|
+| 0.50 | 0.15 | -2.0% | -0.3% | -0.2% | -0.8% | +0.0% |
+| 0.50 | 0.20 | -3.1% | -0.8% | -4.9% | -5.5% | -6.2% |
+| 0.50 | 0.25 | -3.8% | -0.9% | -10.1% | -8.7% | -11.0% |
+| 0.50 | 0.30 | -0.6% | -0.6% | -13.3% | -10.5% | -12.8% |
+| 0.50 | 0.40 | -10.6% | +0.6% | -15.8% | -9.3% | -11.4% |
+| 1.00 | 0.30 | +6.9% | +0.2% | -12.2% | -7.7% | -8.6% |
+| 1.00 | 0.40 | +7.8% | +1.3% | -22.6% | -13.9% | -18.4% |
+| 1.50 | 0.30 | +6.6% | +0.5% | +1.0% | -1.3% | -6.7% |
+| 1.50 | 0.40 | +9.1% | +1.1% | -8.3% | -7.5% | -14.5% |
+
+**The production decision splits on the harmonic.**
+* If the emulator observable is **v_2**, dx = 0.20 is fine: <= 1.3% everywhere in the prior.
+* If it includes **v_3, v_4, v_5**, dx = 0.20 is **not** adequate -- 5-23% errors -- and
+  dx = 0.15 is where they converge (<3% at w = 0.50). The worst case in the prior is
+  w = 1.0 at dx = 0.40, where n = 3 is off by 22.6%.
+
+**The w = 0.25 non-monotonicity was largely the small sample.** With the all-charged table the
+consecutive steps at w = 0.25 are -3.1%, -3.4%, -1.9% for n = 2 and n = 1 now grows *monotonically*
+with dx (+1.6%, +3.6%, +5.7%), which is the behaviour a discretisation error should have. The
+"largest step at the finest dx" signature is gone. So the w-dependence of the grid error is
+real and monotone, and the earlier anomaly was an artifact of using the cut table.
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
