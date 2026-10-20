@@ -1585,6 +1585,45 @@ with dx (+1.6%, +3.6%, +5.7%), which is the behaviour a discretisation error sho
 "largest step at the finest dx" signature is gone. So the w-dependence of the grid error is
 real and monotone, and the earlier anomaly was an artifact of using the cut table.
 
+#### Final dx curve to 0.75: the error was NOT saturating, and the breakdown points are now known
+
+The coarse-dx points (dx = 0.50, 0.60, 0.75) complete the ladder. All-charged benchmark,
+w = 0.50, cumulative paired drift from dx = 0.10:
+
+| dx | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|
+| 0.15 | -2.0% | -0.3% | -0.2% | -0.8% | +0.0% |
+| 0.20 | -3.1% | -0.8% | -4.9% | -5.5% | -6.2% |
+| 0.25 | -3.8% | -0.9% | -10.1% | -8.7% | -11.0% |
+| 0.30 | -0.6% | -0.6% | -13.3% | -10.5% | -12.8% |
+| 0.40 | -10.6% | +0.6% | -15.8% | -9.3% | -11.4% |
+| 0.50 | -51.9% | +1.3% | -22.7% | -4.1% | -5.4% |
+| 0.60 | -84.2% | +1.9% | -47.5% | -10.4% | -26.0% |
+| 0.75 | -93.4% | -9.2% | -78.7% | -52.1% | -83.7% |
+
+**The error was not saturating.** The plateau at dx = 0.30-0.40 for n = 3, 4, 5 was local; beyond
+it the error resumes growing steeply (-16% -> -23% -> -48% -> -79% for n = 3). The earlier
+"resolution-independent artifact" concern is withdrawn -- it was a plateau region, not a
+saturation, and the breakdown is ordinary.
+
+**The breakdown points, which is what the extrapolation plan needs:**
+* **n = 2: converged to <= 1.9% for dx <= 0.60**, breaking at dx = 0.75 (-9.2%). Very robust.
+* **n = 3, 4, 5: converged to <= 3% for dx <= 0.15**; 5-11% at dx = 0.20; 10-16% at
+  dx = 0.25-0.40; 23-48% at dx = 0.50-0.60.
+* **n = 1 is unusable at coarse dx**: `<|v_1|>` grows from 0.00157 at dx = 0.40 to 0.00688 at
+  dx = 0.75, a factor 4.3, and the drift reaches -93%. A quantity that changes by 4x under a
+  resolution change is not a measurement.
+
+At w = 1.0 the same comparison (dx = 0.75 against dx = 0.50) is milder: n=2 +5.6%, n=3 +15.9%,
+n=4 +18.1%, n=5 +22.6%. **Larger w tolerates coarse dx better**, as it should -- the IC is
+smoother, so there is less structure to miss.
+
+**For the high-statistics-at-large-dx idea:** it is viable for v_2, where dx = 0.50 is within
+1.3% of dx = 0.10 and dx = 0.60 within 1.9%. It is not viable for n >= 3 without a
+harmonic-dependent correction, since dx = 0.50 is already 5-23% off there. The sensible
+version is therefore "run v_2 at coarse dx and correct the higher harmonics with a
+resolution-dependent term", or simply "run everything at dx = 0.15".
+
 #### Correction: b alone is the wrong criterion, and MUSIC already solves this for 3dMCGlauber
 
 Two things were wrong in the first pass of this section.
