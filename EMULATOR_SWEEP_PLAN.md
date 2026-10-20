@@ -1,5 +1,11 @@
 # Emulator-targeted design-point sweep — implementation plan
 
+> **The numerical-precision results are written up separately and more completely in
+> [`NUMERICAL_PRECISION_REPORT.md`](NUMERICAL_PRECISION_REPORT.md)** — the `dx` and time-step
+> convergence study, the benchmark-table correction, the sampling-consistency test, and the
+> production recommendations. This plan remains the record of the design-point sweep itself.
+> Where the two overlap, the report is authoritative.
+
 Status: **Phase 0 complete** (branch `NME`, remote `mluzum`, container pinning, sampler ownership
 D1). Phases A–F not started. This file is the authoritative plan; it supersedes nothing but should be
 read before touching the code paths listed below.
