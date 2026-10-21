@@ -491,3 +491,71 @@ away as 1/√N for ensemble observables but is an irreducible label noise for ev
 predictions. That is the trade to make, and it is a physics decision rather than a numerical
 one. The intermediate setting (`number_of_particles_needed` = 1e6, ~10× sampling) would cut
 that by √10 = 3.2 for roughly 3× the per-event cost.
+
+---
+
+## 12. The time step and the freeze-out averaging: cost and accuracy
+
+Measured at dx = 0.15 (the production candidate), w = 0.50, 100× sampling, against the
+production setting `Delta_Tau` = 0.005 fm/c with a 10-step freeze-out average. The % is the
+shift from the production setting as a percentage of `|v_n|`, with z in brackets.
+
+| point | dt | avg | window | MUSIC s/ev | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|---|---|
+| **reference** | 0.005 | 10 | 0.050 | 537 | — | — | — | — |
+| dt/2, avg=20 | 0.0025 | 20 | 0.050 | 911 | −0.01% (0.1) | −0.53% (1.3) | +0.51% (0.5) | −0.31% (1.0) |
+| dt/4, avg=40 | 0.00125 | 40 | 0.050 | 2394 | −0.12% (0.1) | +1.67% (1.3) | +0.35% (0.6) | −0.15% (1.0) |
+| avg=5 | 0.005 | 5 | 0.025 | **392** | 0.00% (0.1) | −0.80% (1.2) | −0.32% (0.4) | −0.18% (1.0) |
+| avg=20 | 0.005 | 20 | 0.100 | **664** | +0.04% (0.1) | +0.43% (1.2) | −0.85% (0.5) | −0.15% (1.1) |
+| dt×2, avg=5 | 0.01 | 5 | 0.050 | **152** | +0.04% (0.3) | **−5.97% (2.8)** | −2.04% (0.4) | −2.56% (1.5) |
+| dt×2, avg=10 | 0.01 | 10 | 0.100 | **170** | +0.16% (0.1) | −2.34% (1.9) | −1.52% (0.6) | −0.15% (1.5) |
+| dt×4, avg=3 | 0.02 | 3 | 0.060 | **102** | +0.22% (0.1) | −1.78% (1.9) | −1.46% (0.5) | −3.59% (1.3) |
+
+### 12.1 The largest accurate time step: 0.005 fm/c
+
+**`Delta_Tau` = 0.01 is already 6% off in n = 3** (z = 2.8), and 0.02 is 1.8–3.6% off across
+n = 3–5. Finer is free of accuracy cost: dt = 0.0025 and 0.00125 change nothing measurable
+(≤1.7 %, all consistent with zero). So **0.005 fm/c is the largest step that keeps the error
+under ~1 %**, and it is the recommendation.
+
+The cost pressure is real, though: coarser dt is much cheaper in the hydro — 537 s/event at
+dt = 0.005, 152 at 0.01, 102 at 0.02, i.e. **3.5× and 5.3× cheaper on the MUSIC part**. If a
+6 % error in n = 3 were acceptable, dt = 0.01 would be the better trade. It is not, for the
+reason above.
+
+### 12.2 The freeze-out averaging: coarser is *more* expensive, not less
+
+This inverts the premise. The cost of the averaging count, at fixed dx and dt:
+
+| avg | 5 | 10 | 20 |
+|---|---|---|---|
+| MUSIC s/event | 392 | 537 | 664 |
+
+**Averaging more time steps costs more**, because the freeze-out surface has to be
+reconstructed and written more often — and a *finer* average (fewer steps averaged) is
+**27 % cheaper** than the production value of 10 at dx = 0.15.
+
+And the accuracy is insensitive to it at dx = 0.15: 5, 10 and 20 agree to ≤ 0.85 % in every
+harmonic, all consistent with zero. **So at dx = 0.15 there is no accuracy reason to keep the
+averaging coarse, and a small computational reason to make it finer** — `avg` = 5 would save
+~27 % of the MUSIC time for no measurable cost.
+
+**But this does not carry over to dx = 0.20.** There, changing the averaging from 10 to 20 at
+the same window moved n = 3, 4, 5 by 4–6 % (§4.1) — the surface is less well resolved at the
+coarser grid and its time dependence is less smooth, so the averaging count becomes
+load-bearing. **Any recommendation about the averaging count is therefore conditional on
+dx = 0.15.**
+
+The one thing not yet settled is the *fluctuation* side: averaging exists to smooth the
+surface in time, and a coarser average (fewer points) leaves more surface jitter, which would
+show up as extra event-to-event scatter in v_n rather than as a shift in its mean. The `avg` = 1
+and `avg` = 2 points are still running; they will settle whether the jitter is material.
+
+### 12.3 Summary of the recommended settings
+
+| knob | value | cost | accuracy |
+|---|---|---|---|
+| dx | 0.15 (0.20 if v₂ only) | — | ≤2 % for n ≤ 5 (§3) |
+| `Delta_Tau` | 0.005 fm/c | 537 s/event MUSIC | ≤1 % for n ≥ 2 |
+| freeze-out averaging | 10 (5 saves 27 %, pending the jitter check) | 537 s/event | ≤0.9 % at dx = 0.15 |
+| oversampling | 1× for n ≥ 2; consider 10× if per-event predictions matter | 7× cheaper | scatter inflated only for n = 1 (§11.4) |
