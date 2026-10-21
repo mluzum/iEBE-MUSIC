@@ -497,6 +497,51 @@ of the event, and would make the single-event statistics worse. It is not worth 
 The 100× setting was an **instrument** for this convergence study, chosen so that the
 per-event difference could be resolved at all (§5). It is not a production setting.
 
+### 11.6 The sampling is already a target particle number — and the 100× setting broke it
+
+`sample_upto_desired_particle_number` = 1 is **on**, so iSS samples until it reaches
+`number_of_particles_needed` rather than taking a fixed number of samples. The intended
+behaviour — equal statistics for peripheral and central events — is visible directly in the
+per-event record at 1× and 10× (w = 0.50, dx = 0.20, sorted by multiplicity):
+
+| multiplicity | resamplings (1×) | total particles (1×) | particles per resampling |
+|---|---|---|---|
+| 402 | 2 180 | 665 242 | 305 |
+| 583 | 1 380 | 662 704 | 480 |
+| 750 | 1 100 | 661 185 | 601 |
+| 830 | 1 030 | 672 087 | 653 |
+
+**The total particle count per event is constant to 1.0× across a 2.1× spread in
+multiplicity**, and the resampling count is inversely correlated with multiplicity
+(r = −0.96): a peripheral event needs twice as many surface samplings to reach the same
+target. That is exactly the desired behaviour, and it is already implemented.
+
+**But at 100× the mechanism breaks.** The per-invocation cap
+`iss_dict['maximum_sampling_events']` = 10 000 (× 10 subevents = 100 000) binds, and then:
+
+| multiplicity | resamplings (100×) | total particles (100×) |
+|---|---|---|
+| 402 | 100 000 (capped) | 30 637 316 |
+| 750 | 100 000 (capped) | 60 249 856 |
+
+Total particles now scale with multiplicity (2.0× spread, r = +0.99) and the peripheral
+events are handed **half** the particles of the central ones, i.e. √2 worse per-event
+statistics. So the 100× setting used for this convergence study is exactly the regime where
+the target mechanism stops working — another reason the grid errors reported here are upper
+bounds (the median event is close to the middle of the multiplicity range, so the effect on
+the median is only ~7 %, but the peripheral tail is handicapped).
+
+**The rule this gives:** the per-subevent resampling requirement must stay below
+`maximum_sampling_events`. At 10× the most peripheral event needs 2 188 per subevent against
+a cap of 10 000 — 4.5× of headroom — so the mechanism is safe. At 100× the most peripheral
+event needs >10 000 and the cap binds.
+
+**Production recommendation:** `number_of_particles_needed` = 1e6 (10×) with
+`maximum_sampling_events` raised to 100 000 so the cap can never bind and the target
+mechanism keeps equalising the statistics at any sampling level. The probe (`osx10`) showed
+the cap is settable and does take effect (130 955 resamplings against 100 000, and 1.25× the
+particles), so this is a one-line parameter change, not a code change.
+
 ### 11.5 How much oversampling production needs
 
 The event-to-event scatter of the single-event `v_n` is what the emulator has to reproduce, and
