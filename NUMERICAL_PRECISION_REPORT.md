@@ -385,3 +385,109 @@ python3 config/parameters_dict_master.py -par <param>.py -path <out>
 The output data dictionary is in [`analysisKit/FLOW_OUTPUT_FORMAT.md`](analysisKit/FLOW_OUTPUT_FORMAT.md).
 The campaign history, including every correction above and the reasoning behind it, is in
 [`EMULATOR_SWEEP_PLAN.md`](EMULATOR_SWEEP_PLAN.md).
+
+---
+
+## 11. Resource budget for the production settings
+
+All numbers measured from the OSG job logs (peak `ResidentSetSize`, and wall time from the
+`006` running to the `005` terminated stamps). Note that the **submit node runs on Central
+Time, 2 h behind the local clock** — reading a log timestamp as local time makes a 15-minute
+job look like a 2-hour stall.
+
+### 11.1 Measured cost per batch
+
+**1× sampling** (the master default, `number_of_particles_needed` = 1e5), w = 0.50, 8 events/job:
+
+| dx | job wall | per event | peak RSS |
+|---|---|---|---|
+| 0.10 | 169.9 min | 21.2 min | 267 MB |
+| 0.15 | 74.4 min | 9.3 min | 259 MB |
+| 0.20 | 22.8 min | 2.85 min | 242 MB |
+| 0.25 | 23.4 min | 2.93 min | 246 MB |
+
+**100× sampling**, 4 or 8 events/job:
+
+| dx | w | job wall | per event | peak RSS |
+|---|---|---|---|---|
+| 0.10 | 1.0 | 97.5 min | 24.4 min | 625 MB |
+| 0.10 | 1.5 | 199.8 min | 50.0 min | **1109 MB** |
+| 0.15 | 1.0 | 83.2 min | 20.8 min | 780 MB |
+| 0.15 | 1.5 | 59.0 min | 14.8 min | 717 MB |
+| 0.20 | 0.5 | 81.4 min | 20.4 min | 351 MB |
+| 0.20 | 1.0 | 69.3 min | 17.3 min | 878 MB |
+| 0.30 | 0.5 | 197.1 min (8 ev) | 24.6 min | 768 MB |
+| 0.40 | 0.5 | 180.4 min (8 ev) | 22.6 min | 976 MB |
+| 0.50 | 0.5 | 94.2 min (8 ev) | 11.8 min | 733 MB |
+| 0.75 | 0.5 | 53.3 min (8 ev) | 6.7 min | 429 MB |
+
+Two cautions on these. First, **single-job wall times scatter by a factor ~4** between jobs of
+the same nominal configuration (w = 1.5 at dx = 0.20 gave 55.7 min/event while dx = 0.40 at the
+same w gave 13.7), so the table brackets a range rather than predicting a number. Second,
+`music_seconds` in the grid-extent diagnostic is **not** wall time — it exceeds the measured job
+wall time — so it cannot be used to size a batch.
+
+### 11.2 What to request
+
+**RAM.** The peak RSS is set by the freeze-out/afterburner stage, not the lattice, and it does
+**not** fall with dx at coarse spacing (measured 0.6–0.9 GB at dx ≥ 0.25, 171 + 3.87/dx² MB
+only for dx ≤ 0.10). At the production candidates the measured peaks are 259–780 MB, so:
+
+| setting | request | rationale |
+|---|---|---|
+| dx = 0.15, any w in the prior | **1 GB** | measured peak 780 MB → 31 % headroom |
+| dx = 0.20 | **1 GB** | measured peak 351–878 MB |
+| dx ≤ 0.10, w = 1.5 | **2 GB** | measured peak 1109 MB — the one case that needs it |
+
+**Disk.** `request_disk` refers to the **worker's local scratch**, not the data disk: the
+submission directory only ever receives `spvn_results` via `transfer_output_files`, and the
+whole campaign directory is 1.9 GB on the data disk. The scratch holds the per-subevent iSS
+particle lists, which at 100× sampling is ~54 M particles × 13 B ≈ 700 MB per subevent and there
+are 10 subevents, plus the concatenated copy. The peak was never measured directly, so the
+honest statement is that 60 GB has always been comfortable and the requirement is dominated by
+100× sampling; at 1× it is a small fraction of that. **Recommendation: 20 GB at 1× sampling,
+60 GB at 100×** — and note the peak local scratch is the one quantity here that has not been
+measured, so it is the one to watch on the first production batch.
+
+### 11.3 Batch size
+
+The requirement is a **minimum** of ~1 h per batch, so the fastest batch still amortises the
+per-job overhead (image staging, `generate_jobs.py` setup, output transfer).
+
+At dx = 0.15 the per-event cost is dominated by centrality, and the measured spread is large:
+MUSIC time per event runs 162 s (most peripheral) to 834 s (most central) at dx = 0.15, and the
+measured job mean is 9.3 min/event at 1× sampling. Taking the fastest event as the floor
+(≈ 4 min/event wall) and the slowest as the ceiling (≈ 15 min/event):
+
+| sampling | dx | events/job | min job | max job |
+|---|---|---|---|---|
+| 1× | 0.15 | 16 | ~1.1 h | ~4 h |
+| 1× | 0.20 | 24 | ~1.6 h | ~6 h |
+| 100× | 0.15 | 4 | ~0.3 h | ~1 h |
+
+**16 events per job at dx = 0.15 with 1× sampling** is the setting that satisfies the ≥1 h
+minimum in the worst case (fastest events) while keeping the slowest batch bounded. The
+100× rows are already close to the floor at 4 events/job, which is why the convergence
+campaign used 4.
+
+### 11.4 How much oversampling production needs
+
+The event-to-event scatter of the single-event `v_n` is what the emulator has to reproduce, and
+it is **almost unaffected by the sampling level** — same events, w = 0.50:
+
+| n | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| scatter(1×)/scatter(100×) at dx = 0.15 | 1.11 | **0.99** | 1.12 | **0.99** | 1.14 |
+| at dx = 0.20 | 1.29 | 1.01 | 1.06 | 1.04 | 1.16 |
+
+For n ≥ 2 the ratio is 0.99–1.06, i.e. **1× sampling does not inflate the physical
+fluctuation structure** — the per-event thermal noise (scatter 0.0012) is 20× smaller than the
+event-to-event scatter for v₂ and only becomes comparable for n = 1, where the inflation is
+11–29 %.
+
+**So 1× sampling is adequate for n ≥ 2** and marginal for n = 1. What 1× does cost is
+per-event *label* noise: the two levels differ by 0.0012 per event (5 % of v₂), which averages
+away as 1/√N for ensemble observables but is an irreducible label noise for event-by-event
+predictions. That is the trade to make, and it is a physics decision rather than a numerical
+one. The intermediate setting (`number_of_particles_needed` = 1e6, ~10× sampling) would cut
+that by √10 = 3.2 for roughly 3× the per-event cost.
