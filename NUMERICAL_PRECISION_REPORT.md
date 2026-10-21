@@ -847,3 +847,60 @@ only occurrences are `adaptive_fixed_cells: 0` in a few early `c4dx*` files), an
 implemented it holds the cell count fixed while leaving `dx_used = grid_step` — which is not
 what its own docstring describes. It would need a driver change to do the latter, and hence a
 new image.
+
+---
+
+## 16. FINAL SETTINGS, batch sizing and resource requests
+
+### 16.1 The numerical settings
+
+| knob | value | evidence |
+|---|---|---|
+| `dx` (TRENTo `grid-step`, MUSIC lattice) | **0.15 fm** | ≤2 % for n ≤ 5 across the prior at w = 0.5, 1.0, 1.5 (§13); 0.20 is *not* adequate for n ≥ 3 (5–6 % resolved) |
+| per-event `dx` scaling | **none** | no measurable system-size dependence (§17) |
+| `Delta_Tau` | **0.005 fm/c** | 0.02 resolved-wrong (5.1σ in n = 4); 0.01 marginal (|z| ≈ 2) at 2.7× the MUSIC cost; finer changes nothing (§12.1) |
+| `average_surface_over_this_many_time_steps` | **1** | inert at dx = 0.15 — values ≤1.5 %, scatter 0.97–1.02×, and 35 % cheaper than 10 (§12.2) |
+| `number_of_particles_needed` (TRENTo normalization) | **15.0** | from the user's Bayesian fit including 2.76 TeV LHC data; at 5.73 the multiplicity was ~3× too low |
+| oversampling (`number_of_particles_needed` in `iss_dict`) | **1e6** (10×) | +7 % wall time over the default for 3.2× better σ; 100× costs 2.2× the wall and 3.4× the RAM for 2.8× more (§11.4) |
+| `maximum_sampling_events` | **100 000** | must not bind, or the target-particle mechanism stops equalising the statistics across centrality (§11.6) |
+| `adaptive_grid` | **True** | validated on the current nucleus, ≥0.94 fm headroom (§15) |
+
+### 16.2 The one open numerical item
+
+At w = 1.0, `dx` = 0.15 shows an n = 3 shift of **+5.21 % (z = +3.18)** against dx = 0.10, while w = 0.5 (−0.22 %, z = 0.1) and w = 1.5 (−1.38 %, z = −0.8) are clean. That is a 3σ effect in one of many comparisons, and it is non-monotonic in w, so it is not obviously a systematic. If the emulator's observable set includes n = 3, **`dx` = 0.10 is the safe choice** at ~1.4× the total cost of 0.15; if v₂ and n ≥ 4 carry the weight, dx = 0.15 is fine.
+
+### 16.3 Batch sizing
+
+Per-event cost is centrality-dominated (4 min fastest → 15 min slowest at dx = 0.15), so the
+requirement is a *minimum* batch time of ~1 h, not an average.
+
+| sampling | dx | events/job | min job | max job |
+|---|---|---|---|---|
+| 10× (production) | 0.15 | **16** | ~1.1 h | ~4 h |
+| 10× (production) | 0.10 | **12** | ~1.3 h | ~5 h |
+
+### 16.4 Resource requests
+
+Measured at the production configuration (10× sampling, cap lifted, dx = 0.15, w = 0.50):
+**11.0 min/event, peak RSS 225–300 MB.**
+
+| request | value | basis |
+|---|---|---|
+| `request_memory` | **512 MB** | measured peak 300 MB → 70 % headroom |
+| `request_disk` | **20 GB** | worker scratch: ~7 GB of iSS particle lists at 10× sampling (13k resamplings × 34–650 particles × 13 B), plus the surface and IC files. The peak local scratch has **not** been measured directly — the one quantity here to watch on the first production batch |
+| `request_cpus` | 1 | MUSIC single-threaded; `OMP_NUM_THREADS=1` is set in the job script |
+
+The 100× convergence runs peaked at 833 MB and would need 1 GB; the 1× default peaked at
+242–290 MB. Those are the settings behind the numbers above.
+
+### 16.5 What the production configuration buys
+
+| | particles/event | spread across centrality | σ(v₂) | min/event | peak RSS |
+|---|---|---|---|---|---|
+| 1× default | 666 304 | 1.00× | 0.00122 | 2.85 | 242 MB |
+| **10×, cap lifted** | **6 694 925** | **1.009×** | **0.00039** | **11.0** | **225–300 MB** |
+| 100×, cap bound | 53 659 472 | 2.124× | 0.00014 | — | 833 MB |
+
+The 100× row shows the defect the cap caused: peripheral events received **half** the
+particles of central ones. At 10× with the cap lifted the spread is 1.009×, i.e. every event
+gets the same per-event statistics.
