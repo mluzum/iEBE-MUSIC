@@ -784,3 +784,66 @@ multiplicity, that pair will say whether the grid error tracks the overlap size.
 and the trend is sharp, the cheapest remedy is the box rule (a parameter change, since the box
 only has to contain the freeze-out surface, which lives in the overlap); per-event `dx` is the
 last resort, not the first.
+
+---
+
+## 15. The dynamic box sizing rule, as implemented
+
+Yes, it is implemented and active: `control_dict['adaptive_grid']` is `True` in every
+production and convergence parameter file.
+
+**The rule** (`plan_adaptive_half_width`, `codes/hydro_plus_UrQMD_driver.py:414`; called from
+`apply_adaptive_grid:452`; invoked at `driver:156` when `adaptive_grid` is set):
+
+1. TRENTo is run on the nominal grid, and the **energy-weighted RMS radius of the IC** is
+   measured from the gridded energy density (`ic_rms_from_flat`).
+2. A predicted radius is formed from it and the run parameters:
+   `r_rms_pred = c0 + c1*R_rms_IC + c2*ln(e_fo) + c3*ln(normalization) + c4*tau`,
+   with `e_fo` interpolated from a measured table of `e_fo(T_freeze)`.
+3. The **required half-width** is `need = k_tail * (r_rms_pred + n_sigma*sigma)`.
+4. `n_cells = 2*ceil(need/dx)`, `half = n_cells*dx/2`, and **`dx` is left unchanged** — the
+   cell count absorbs the size, the cell size does not.
+5. TRENTo is rerun on the chosen grid; the surface is free-streamed; MUSIC runs on it.
+6. **Guard:** the rule only acts if it *saves* — if `need` exceeds the current grid-max, or the
+   cell count would not decrease, the existing box is kept. It never grows the box.
+
+The active coefficients come from `config/adaptive_grid.json` (which overrides the driver's
+built-in defaults):
+
+| c0 | c1 | c2 | c3 | c4 | sigma | k_tail | n_sigma |
+|---|---|---|---|---|---|---|---|
+| 0.273 | 1.009 | -0.110 | 0.131 | -0.943 | 0.193 | 1.9 | 7 |
+
+so the margin is `7*0.193 = 1.354 fm` **absolute**, and the rule reduces in practice to
+
+```
+L ~ 1.9 * (R_rms_IC + 1.354 fm)
+```
+
+**Validation on the current nucleus** (R = 5.08 fm; the coefficients were fitted with the old
+lead-sized nucleus, but the rule is expressed in terms of the *measured* IC, so it is
+largely R-independent — and the fitted range for `R_rms_IC` is 1.66–4.6 fm, which brackets
+everything measured here):
+
+| | box L | r_p999 (IC tail) | max_r (surface) | worst max_r/L | min headroom |
+|---|---|---|---|---|---|
+| b-max = 4, w = 0.50 | 7.65–9.45 fm | 5.11–7.50 | 5.18–7.66 | **0.885** | 0.94 fm |
+| b-max = 12, w = 0.50 | 5.00–5.70 fm | 2.53–3.60 | 2.54–3.63 | **0.636** | 2.07 fm |
+
+So the box always contains both the IC tail and the freeze-out surface, with at least 0.94 fm
+to spare, and the rule is *validated on the current nucleus* rather than inherited.
+
+**One consequence worth recording, because it is the mechanism behind the system-size
+question.** The absolute 1.354 fm margin is a fixed cost that a small system cannot amortise:
+the freeze-out surface fills **88.5 %** of the box half-width for the most central event but
+only **63.6 %** for the most peripheral one. The physics region of a peripheral event is
+therefore covered by roughly half the cells of a central event's (2*max_r/dx = 102 against 48
+at dx = 0.15). That is the measured version of "peripheral events are relatively less
+resolved" — and it is a property of the *margin*, not of the rule's size dependence, which is
+already ~1:1 in `R_rms_IC`.
+
+The `fixed_cells` mode exists in the driver but is **not exposed by any parameter file** (the
+only occurrences are `adaptive_fixed_cells: 0` in a few early `c4dx*` files), and as
+implemented it holds the cell count fixed while leaving `dx_used = grid_step` — which is not
+what its own docstring describes. It would need a driver change to do the latter, and hence a
+new image.
