@@ -722,7 +722,17 @@ taking the mean signed parallel component of `dv_n` in each half:
 
 **The smaller (more peripheral) systems carry a larger relative grid error**, consistently in
 sign and magnitude across three harmonics, and resolved at |z| = 3.6–4.6 for n = 2 and n = 4.
-The hypothesis that the required dx scales with the system size has support.
+
+> **WITHDRAWN — this was over-read, and on the wrong variable.** Two problems.
+> (i) Comparing each half against zero is not the test the claim needs; the halves must be
+> compared *with each other*, and that gives z = +1.7 (n = 2), +1.0 (n = 3), +0.9 (n = 4) —
+> **not significant**. A ratio of two noisy means is not a measurement of a trend.
+> (ii) **Multiplicity is the wrong variable.** The resolution-relevant size is the *overlap*
+> radius R900, and over the whole campaign it varies by only **1.33×** (the IC rms radius by
+> 1.36×, the box by 1.24×) while multiplicity varies 2.07×. The campaign is essentially blind
+> to the system-size question, so it could not have answered it either way.
+> The correct comparison is by R900, and it needs a wider centrality range than b-max = 4
+> provides — see below.
 
 **But the adaptive box already does most of that.** Measured over the same events, the box
 half-width goes 7.65 → 8.40 fm while multiplicity goes 402 → 830, so `dx/L` is already nearly
@@ -747,9 +757,30 @@ predicted `r_rms` that barely changes.
 b-max = 12 (clusters 16049491, 16049492) span a much wider range and will show whether the
 1.3–2.4× trend continues, flattens, or reverses.
 
-**Interim answer: do not adopt per-event dx yet.** The effect is real but is currently a ~2×
-variation in the error between the peripheral and central halves of a *narrow* centrality range.
-Two things must be settled first: whether the trend is sharp when the centrality range is wide,
-and whether the 7σ absolute margin in the sizing rule is what leaves it exposed. Adopting a
-per-event dx before that is a change to the core of the generator, and the simpler explanation
-— that the box should track the overlap — has not been excluded.
+**Where the data actually points.** The error is governed by `w`, not by system size. At
+dx = 0.25 the n = 2 drift is **−8.3 % at w = 0.25 and +0.25 % at w = 1.5**, while the overlap
+size varies by only 1.3× across that same comparison. The strong dependence is on `w`, and it
+lives *below* w = 0.5, outside the prior.
+
+**Interim answer, and the proposal: keep dx fixed.** Specifically `dx` = 0.15 fm, with no
+per-event and no per-design-point variation, because:
+
+1. Over the prior w ∈ [0.5, 1.5] the error at dx = 0.15 is ≤ 2 % for n ≤ 5 (§13), and the
+   system size barely varies over the event set, so there is nothing to scale with.
+2. `w` is a *design parameter*, constant within a design point. If the design space is ever
+   widened towards small `w`, the right response is to reduce `dx` **for those design points**,
+   which is a per-design-point constant and breaks nothing. Per-event scaling would only be
+   needed to exploit size *within* a centrality bin, and the data says that is not where the
+   error lives.
+3. Per-event `dx` is a driver change (the `fixed_cells` branch would have to be made to do
+   what its own docstring describes) and therefore a new image, for an effect that the campaign
+   is not even able to measure.
+
+**More simulations: yes, one specific test.** The b-max = 12 pair (clusters 16049491,
+16049492) is the right one. At b-max = 12 the multiplicity spans 5–830 (10×) and the overlap
+radius 2.08–4.9 fm (≈2.4×, against 1.33× at b-max = 4), and the box *does* shrink for
+peripheral events (L = 5.0–5.7 fm, against 7.65–8.40 at b-max = 4). Binned by **R900**, not
+multiplicity, that pair will say whether the grid error tracks the overlap size. If it does
+and the trend is sharp, the cheapest remedy is the box rule (a parameter change, since the box
+only has to contain the freeze-out surface, which lives in the overlap); per-event `dx` is the
+last resort, not the first.
