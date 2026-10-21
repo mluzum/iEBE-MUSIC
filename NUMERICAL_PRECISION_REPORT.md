@@ -705,3 +705,51 @@ for n = 3 specifically, where the present 31 events give |z| ≈ 2.4.
 The trend that does make sense: a larger `w` means a larger nucleus (multiplicity 667 at
 w = 0.5 against 844 at w = 1.5), hence a larger system to resolve, hence a slightly finer grid
 needed. **The required dx is set by the system size, not by `w` as such.**
+
+---
+
+## 14. Does dx need to scale with the system size? — the data says yes
+
+The question was raised early and left open; it can now be answered from data already in hand.
+Splitting the 31 events of the w = 0.50, dx = 0.20-vs-0.10 comparison by multiplicity, and
+taking the mean signed parallel component of `dv_n` in each half:
+
+| n | smallest half (mult 402–650, mean 562) | largest half (mult 667–830, mean 737) | ratio |
+|---|---|---|---|
+| 2 | **+0.99%** (z = +3.7) | +0.44% (z = +1.1) | 2.3× |
+| 3 | **+4.11%** (z = +1.6) | +1.71% (z = +0.4) | 2.4× |
+| 4 | **+6.23%** (z = +3.6) | +4.64% (z = +4.6) | 1.3× |
+
+**The smaller (more peripheral) systems carry a larger relative grid error**, consistently in
+sign and magnitude across three harmonics, and resolved at |z| = 3.6–4.6 for n = 2 and n = 4.
+The hypothesis that the required dx scales with the system size has support.
+
+**But the adaptive box already does most of that.** Measured over the same events, the box
+half-width goes 7.65 → 8.40 fm while multiplicity goes 402 → 830, so `dx/L` is already nearly
+constant (0.0177–0.0194, within 10 %). The box does not shrink much for peripheral events
+because the sizing rule's margin is a large *absolute* one (7σ = 1.35 fm) on top of a
+predicted `r_rms` that barely changes.
+
+**So the mechanism is not obvious and the fix is not obvious either.** Two candidate levers:
+
+* **Per-event dx** (dx ∝ system size). The driver already has a `fixed_cells` mode and a
+  `dx_used` return value, so the plumbing exists — but as implemented the `fixed_cells` branch
+  holds `n_cells` fixed and leaves `dx_used = grid_step`; its docstring describes varying
+  `dx = 2L/N` with the system, which the code does not do. Making it do so is a driver change
+  and therefore a new image.
+* **A sizing rule that tracks the overlap rather than the whole IC.** The box only has to
+  contain the freeze-out surface, which lives in the overlap, not in the spectator lobes. A
+  rule with a *relative* margin would shrink the box for peripheral events and concentrate the
+  cells on the overlap.
+
+**The decisive measurement is the leverage, not the idea.** The b-max = 4 runs span multiplicity
+402–830 — a factor of 2.1 — which is too narrow to characterise the dependence. Two runs at
+b-max = 12 (clusters 16049491, 16049492) span a much wider range and will show whether the
+1.3–2.4× trend continues, flattens, or reverses.
+
+**Interim answer: do not adopt per-event dx yet.** The effect is real but is currently a ~2×
+variation in the error between the peripheral and central halves of a *narrow* centrality range.
+Two things must be settled first: whether the trend is sharp when the centrality range is wide,
+and whether the 7σ absolute margin in the sizing rule is what leaves it exposed. Adopting a
+per-event dx before that is a change to the core of the generator, and the simpler explanation
+— that the box should track the overlap — has not been excluded.
