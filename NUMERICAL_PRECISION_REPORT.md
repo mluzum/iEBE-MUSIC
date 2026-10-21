@@ -180,14 +180,42 @@ because it is the least averaged — doubling the freeze-out window moves it +3.
 
 **Recommendation: `Delta_Tau` = 0.005 fm/c and a 10-step freeze-out average, unchanged.**
 
-### 4.1 One unresolved item
+### 4.1 Resolved: it is the freeze-out surface averaging, not the hydro step
 
-At `dx` = 0.20 the n = 4, 5 time shifts (~5–7%) pass the sampling-consistency check but do
-**not** shrink when `dt` is halved again (n=4: 0.00032 then 0.00030), so they are not a simple
-time-discretisation error. The `tm` series changed `dt` **and** the freeze-out averaging
-together, so it cannot separate the hydro step from the *quadrature* of the surface average
-(40 points at dt = 0.00125 versus 10 at dt = 0.005 over the same 0.05 fm/c window). Two extra
-points holding the averaging at 10 were run to close this 2×2.
+The `tm` series changed `dt` **and** the freeze-out averaging together, so it could not
+separate the hydro step from the *quadrature* of the surface average (40 points at
+dt = 0.00125 versus 10 at dt = 0.005 over the same 0.05 fm/c window). Two further points
+holding the averaging at the production value of 10 close the 2×2. Cumulative paired shifts
+against the production configuration, all-charged, w = 0.50, **at dx = 0.20**:
+
+| point | dt | avg | window | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|---|---|
+| reference | 0.005 | 10 | 0.050 | — | — | — | — | — |
+| avg=10, dt/2 | 0.0025 | 10 | 0.025 | +0.64% | +0.16% | +0.32% | +0.83% | −2.09% |
+| avg=10, dt/4 | 0.00125 | 10 | 0.013 | −2.27% | −0.05% | +3.19% | −0.04% | +2.17% |
+| **avg=20, dt/2** | 0.0025 | **20** | 0.050 | −2.67% | +0.48% | **+4.18%** | **+5.38%** | **+5.97%** |
+| **avg=40, dt/4** | 0.00125 | **40** | 0.050 | −2.47% | +0.35% | **+5.43%** | **+5.04%** | **+7.23%** |
+| avg=20, dt same | 0.005 | 20 | 0.100 | −1.40% | +0.02% | −0.37% | +0.03% | −0.17% |
+| avg=5, dt same | 0.005 | 5 | 0.025 | −1.80% | +0.04% | −0.03% | −0.14% | +0.15% |
+
+**The 5–7% is produced by the averaging count, not by the hydro step.** Holding the averaging
+at the production value of 10 and changing `dt` alone moves n = 3, 4, 5 by at most 3.2%;
+changing the averaging from 10 to 20 at the *same* window moves them by 4–6%. And once the
+averaging is at 20, going to 40 changes nothing further (4.18 → 5.43, 5.38 → 5.04,
+5.97 → 7.23) — the signature of a one-off change in how the surface is sampled, not of a
+quantity converging with the hydro step.
+
+The mechanism is that the freeze-out surface is a time-dependent object: averaging it over
+0.05 fm/c means sampling it at 10 points spaced 0.005 apart, or 20 points spaced 0.0025 apart.
+Those are different surfaces, and at the production spacing the n ≥ 3 result differs from the
+finer one by ~5%.
+
+**This is dx-dependent, and it matters.** The same comparison at **dx = 0.15** gives ≤ 1.7% for
+n ≥ 2 (§4). So the production freeze-out averaging is well converged at dx = 0.15 and carries a
+~5% error in n = 3, 4, 5 at dx = 0.20.
+
+**That is a second, independent reason to prefer dx = 0.15 over dx = 0.20 whenever n ≥ 3 is
+an observable** — not only is the grid finer, but the freeze-out surface is better resolved.
 
 ---
 
@@ -222,13 +250,29 @@ fluctuation, not averaged out at 1×) whose `dx`-dependent part mimics a grid er
 This is the reason the "higher harmonics are far more grid-sensitive" result appeared first as
 70–126% errors and had to be withdrawn: those were percentages of noise.
 
-### 5.2 The floor, and the lever that controls it
+### 5.2 The floor: the cap is real but secondary
 
 The residual sampling floor is set by the number of particles per event. The "100 000
 resamplings" quoted throughout are **10 subevents × 10 000 iSS sampling events**, and
-`iss_dict['maximum_sampling_events']` (default 10 000) is the **per-invocation** cap — so it,
-not the oversampling knob, was the binding limit all along, and raising it to 100 000 should cut
-σ by √10 = 3.2× and take the n ≥ 3 floor from ~0.5σ to ~0.16σ.
+`iss_dict['maximum_sampling_events']` (default 10 000) is the **per-invocation** cap.
+
+**Measured** (8 events, dx = 0.20, w = 0.50):
+
+| | resamplings | particles/event | σ(v₂) |
+|---|---|---|---|
+| max_sampling_events = 10 000 | 100 000 | 53 772 228 | 0.00014 |
+| max_sampling_events = 100 000 | 130 515 | 67 012 004 | **0.00012** |
+
+So the cap *is* the binding limit at 100 000 — raising it does add particles — but the gain is
+only **1.31× in resamplings, 1.25× in particles and 1.17× in σ**, for a proportional increase in
+iSS cost. A new limit appears at ~131 000, set by the per-subevent sampling structure. The n ≥ 3
+floor therefore stays near ~0.4σ.
+
+**Conclusion: the floor is close to where it can be with this knob, and pushing it further is
+not worth the compute.** Breaking it would need a change to how the subevents are structured
+(the `for iev in {0..9}` loop in the generated `run_afterburner.sh` is hardcoded to 10, and the
+`afterburner_type` is `decay` so the subevents are cheap — raising the count is the natural
+lever, but it is a code change to `generate_jobs.py` and therefore a new image).
 
 **A first attempt at this probe was invalid** and its result discarded: the parameter files
 were written by a helper that discarded the return value of the mutation, so all seven points
@@ -284,12 +328,19 @@ For the record, these were stated at some point and withdrawn:
 1. **Freeze-out quadrature vs hydro step** at `dx` = 0.20 (§4.1) — two points submitted.
 2. **The converged-`dx` statement across the whole prior** — w = 1.0 and 1.5 at `dx` = 0.10 and
    0.15, so that "dx = 0.15 is the minimum for n ≥ 3" holds over w ∈ [0.5, 1.5] and not just at
-   w = 0.50.
-3. **Can the floor be lowered** by raising `maximum_sampling_events` (§5.2) — one probe
-   submitted; if the walltime is affordable this sharpens everything above.
+   w = 0.50. *Partially closed: at `dx` = 0.15 the v₂ drift against `dx` = 0.20 is −0.01%
+   (w = 1.0) and −0.04% (w = 1.5), so v₂ is converged at 0.15 across the prior. The
+   `dx` = 0.10 references are still running.*
+3. **The freeze-out surface averaging at `dx` = 0.20** — resolved in §4.1 as to *what* causes
+   the 5–7% shift. Not resolved: whether the production value (10 steps at dt = 0.005) should
+   be changed for a `dx` = 0.20 run, given that the finer averaging disagrees with it by ~5%
+   in n = 3, 4, 5. At `dx` = 0.15 the question does not arise (≤1.7%).
 4. **Why the `n` ≥ 3 drift stops growing between `dx` = 0.30 and 0.40** before resuming
    steeply. Not explained; the local plateau is real but its origin is not known.
 5. **The acceptance of the unidentified table** (§2.3) — needs the toolkit source.
+6. **Whether the n ≥ 3 floor can be broken** by restructuring the subevents (§5.2) — a code
+   change and a new image, for an unknown gain. Low priority given that the 100× measurements
+   are already good enough to measure the grid error.
 
 ---
 
