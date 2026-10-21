@@ -470,7 +470,34 @@ minimum in the worst case (fastest events) while keeping the slowest batch bound
 100× rows are already close to the floor at 4 events/job, which is why the convergence
 campaign used 4.
 
-### 11.4 How much oversampling production needs
+### 11.4 The oversampling setting, and what it actually costs
+
+The table in §11.1 mixes two sampling settings, which should have been flagged. The
+`lhc*` and `fin*` batches differ **only** in the oversampling parameter (same w, dx, dt,
+normalisation), and `lhc50dx20`, `os10x` and `os100x` differ **only** in that parameter too.
+That gives a clean cost/precision scaling at dx = 0.20, w = 0.50, dt = 0.005:
+
+| setting | `number_of_particles_needed` | resamplings | all-charged particles/ev | σ(v₂) | wall min/ev | peak RSS |
+|---|---|---|---|---|---|---|
+| 1× | 1e5 | 1 285 | 666 304 | 0.00122 | **2.85** | **242 MB** |
+| **10×** | 1e6 | 13 095 | 6 693 291 | **0.00039** (3.2× better) | **3.05** (+7 %) | **200 MB** |
+| 100× | 1e7 | 100 000 | 51 353 584 | 0.00014 (8.8× better) | 6.79 (+138 %) | 674 MB |
+
+**Going from 1× to 10× costs 7 % of the wall time and no measurable RAM** — the sampling is
+not where the time goes, because there is a large fixed per-event cost (freeze-out surface,
+iSS setup, afterburner). Only beyond that does the cost bite: 10× → 100× is 2.2× the wall
+time and 3.4× the RAM.
+
+**So the right production setting is 10×, not 1× and not 100×.** It is essentially free over
+the default and buys 3.2× in σ. Dialling *back* further — `number_of_particles_needed` = 50 000
+would give ~640 resamplings, ~332 000 all-charged particles and σ ≈ 0.0017, i.e. 1.4× *worse*
+than the default — would save a few per cent of the sampling work, which is a small fraction
+of the event, and would make the single-event statistics worse. It is not worth doing.
+
+The 100× setting was an **instrument** for this convergence study, chosen so that the
+per-event difference could be resolved at all (§5). It is not a production setting.
+
+### 11.5 How much oversampling production needs
 
 The event-to-event scatter of the single-event `v_n` is what the emulator has to reproduce, and
 it is **almost unaffected by the sampling level** — same events, w = 0.50:
@@ -488,9 +515,12 @@ event-to-event scatter for v₂ and only becomes comparable for n = 1, where the
 **So 1× sampling is adequate for n ≥ 2** and marginal for n = 1. What 1× does cost is
 per-event *label* noise: the two levels differ by 0.0012 per event (5 % of v₂), which averages
 away as 1/√N for ensemble observables but is an irreducible label noise for event-by-event
-predictions. That is the trade to make, and it is a physics decision rather than a numerical
-one. The intermediate setting (`number_of_particles_needed` = 1e6, ~10× sampling) would cut
-that by √10 = 3.2 for roughly 3× the per-event cost.
+predictions.
+
+Since 10× is essentially free (§11.4), it is the recommended production setting regardless:
+it reduces that label noise by 3.2× for 7 % of the wall time. Ensemble precision is then
+negligible for any plausible event count — σ = 0.00039 on v₂ = 0.022 is 1.8 % per event, and
+0.06 % over 1000 events.
 
 ---
 
@@ -558,4 +588,4 @@ and `avg` = 2 points are still running; they will settle whether the jitter is m
 | dx | 0.15 (0.20 if v₂ only) | — | ≤2 % for n ≤ 5 (§3) |
 | `Delta_Tau` | 0.005 fm/c | 537 s/event MUSIC | ≤1 % for n ≥ 2 |
 | freeze-out averaging | 10 (5 saves 27 %, pending the jitter check) | 537 s/event | ≤0.9 % at dx = 0.15 |
-| oversampling | 1× for n ≥ 2; consider 10× if per-event predictions matter | 7× cheaper | scatter inflated only for n = 1 (§11.4) |
+| oversampling | **10×** (`number_of_particles_needed` = 1e6) | +7 % over the default | σ = 0.00039; scatter inflated only for n = 1 (§11.5) |
