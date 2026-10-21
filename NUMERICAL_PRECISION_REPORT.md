@@ -588,10 +588,27 @@ shift from the production setting as a percentage of `|v_n|`, with z in brackets
 
 ### 12.1 The largest accurate time step: 0.005 fm/c
 
-**`Delta_Tau` = 0.01 is already 6% off in n = 3** (z = 2.8), and 0.02 is 1.8–3.6% off across
-n = 3–5. Finer is free of accuracy cost: dt = 0.0025 and 0.00125 change nothing measurable
-(≤1.7 %, all consistent with zero). So **0.005 fm/c is the largest step that keeps the error
-under ~1 %**, and it is the recommendation.
+With the full 31 events per point (an earlier 8-event read gave −5.97 % for dt = 0.01 in
+n = 3, which was a fluctuation — the full sample gives −2.63 % at z = −1.9):
+
+| point | dt | avg | MUSIC s/ev | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|---|---|
+| reference | 0.005 | 10 | 537 | — | — | — | — | — |
+| dt/2, avg=20 | 0.0025 | 20 | 911 | +1.07% (0.7) | −0.01% (−0.1) | −0.53% (−0.4) | +0.51% (1.1) | −0.31% (−0.3) |
+| dt/4, avg=40 | 0.00125 | 40 | 2394 | +1.53% (0.9) | −0.12% (−1.2) | +1.67% (1.2) | +0.35% (0.6) | −0.15% (−0.1) |
+| **dt×2, avg=5** | **0.01** | 5 | **198** | +0.08% (0.1) | +0.02% (0.2) | −2.63% (−1.9) | −0.89% (−1.9) | −1.59% (−2.2) |
+| dt×2, avg=10 | 0.01 | 10 | 175 | −0.37% (−0.2) | +0.11% (1.0) | −2.12% (−1.7) | −1.15% (−2.1) | −0.84% (−0.9) |
+| **dt×4, avg=3** | **0.02** | 3 | **147** | −0.90% (−0.6) | +0.21% (2.2) | **−3.51% (−2.6)** | **−1.96% (−5.1)** | **−3.25% (−3.8)** |
+
+Finer is free of accuracy cost (dt = 0.0025 and 0.00125 change nothing measurable).
+**dt = 0.02 is definitively not accurate** — resolved at 5.1σ in n = 4 and 3.8σ in n = 5.
+**dt = 0.01 is marginal**: 1.6–2.6 % in n = 3–5 at |z| ≈ 2, i.e. at the edge of significance,
+and it buys a 2.7× reduction in the MUSIC time (537 → 198 s/event). So:
+
+* **Recommendation: `Delta_Tau` = 0.005 fm/c.** It is the largest step that is unambiguously
+  accurate, and it costs 2.7× the MUSIC time of dt = 0.01.
+* dt = 0.01 is a legitimate ~2.7× cheaper option *if* a ~2 % error in n = 3–5 is acceptable.
+  That is a physics trade, not a numerical one, and it should be taken deliberately.
 
 The cost pressure is real, though: coarser dt is much cheaper in the hydro — 537 s/event at
 dt = 0.005, 152 at 0.01, 102 at 0.02, i.e. **3.5× and 5.3× cheaper on the MUSIC part**. If a
@@ -606,14 +623,34 @@ This inverts the premise. The cost of the averaging count, at fixed dx and dt:
 |---|---|---|---|
 | MUSIC s/event | 392 | 537 | 664 |
 
-**Averaging more time steps costs more**, because the freeze-out surface has to be
-reconstructed and written more often — and a *finer* average (fewer steps averaged) is
-**27 % cheaper** than the production value of 10 at dx = 0.15.
+The cost of the averaging count, at fixed dx = 0.15 and dt = 0.005:
 
-And the accuracy is insensitive to it at dx = 0.15: 5, 10 and 20 agree to ≤ 0.85 % in every
-harmonic, all consistent with zero. **So at dx = 0.15 there is no accuracy reason to keep the
-averaging coarse, and a small computational reason to make it finer** — `avg` = 5 would save
-~27 % of the MUSIC time for no measurable cost.
+| avg | 1 | 5 | 10 | 20 |
+|---|---|---|---|---|
+| MUSIC s/event | **347** | 392 | 537 | 664 |
+
+**Averaging more time steps costs more**, because the freeze-out surface has to be
+reconstructed and written more often. A *finer* average is up to **35 % cheaper** than the
+production value of 10.
+
+And the accuracy is completely insensitive to it at dx = 0.15 — values shift by ≤ 1.5 % (all
+|z| ≤ 1.9) across avg = 1, 2, 5, 10, 20:
+
+| avg | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|
+| 1 | −0.09% (−0.7) | −0.68% (−0.5) | −0.56% (−1.2) | −1.52% (−1.7) |
+| 2 | −0.02% (−0.2) | −0.11% (−0.1) | −0.36% (−0.9) | −0.82% (−0.9) |
+| 5 | 0.00% (0.0) | −0.80% (−0.7) | −0.32% (−0.8) | −0.18% (−0.2) |
+| 20 | +0.04% (0.3) | +0.43% (0.3) | −0.85% (−1.9) | −0.15% (−0.1) |
+
+Nor does it affect the **event-to-event scatter**, which is what the emulator has to
+reproduce: the ratio of the scatter to the reference is 0.97–1.02 for every harmonic from
+avg = 1 to avg = 20. There is no measurable surface-jitter penalty.
+
+**Recommendation: `average_surface_over_this_many_time_steps` = 1 at dx = 0.15**, which is
+the cheapest and costs nothing measurable. **But this is conditional on dx = 0.15**: at
+dx = 0.20 the averaging count *is* load-bearing (10 → 20 moves n = 3, 4, 5 by 4–6 %, §4.1),
+because the surface is less well resolved there and its time dependence is less smooth.
 
 **But this does not carry over to dx = 0.20.** There, changing the averaging from 10 to 20 at
 the same window moved n = 3, 4, 5 by 4–6 % (§4.1) — the surface is less well resolved at the
@@ -631,6 +668,40 @@ and `avg` = 2 points are still running; they will settle whether the jitter is m
 | knob | value | cost | accuracy |
 |---|---|---|---|
 | dx | 0.15 (0.20 if v₂ only) | — | ≤2 % for n ≤ 5 (§3) |
-| `Delta_Tau` | 0.005 fm/c | 537 s/event MUSIC | ≤1 % for n ≥ 2 |
-| freeze-out averaging | 10 (5 saves 27 %, pending the jitter check) | 537 s/event | ≤0.9 % at dx = 0.15 |
+| `Delta_Tau` | 0.005 fm/c | 537 s/event MUSIC | ≤1 % for n ≥ 2; 0.02 is resolved-wrong |
+| freeze-out averaging | **1** | 347 s/event MUSIC | inert at dx = 0.15, load-bearing at 0.20 |
 | oversampling | **10×** (`number_of_particles_needed` = 1e6) | +7 % over the default | σ = 0.00039; scatter inflated only for n = 1 (§11.5) |
+
+---
+
+## 13. The converged-dx statement across the whole prior
+
+Cumulative paired drift from dx = 0.10, all-charged, with significance. **dx = 0.10 is a
+converged reference** (§3.1), so these are the errors at each dx.
+
+| w | dx | n=1 | n=2 | n=3 | n=4 | n=5 |
+|---|---|---|---|---|---|---|
+| 0.50 | 0.15 | −2.00% (0.9) | −0.27% (1.6) | −0.22% (0.1) | −0.80% (1.0) | +0.03% (0.0) |
+| 0.50 | 0.20 | −3.10% | **−0.76% (3.3)** | **−4.89% (2.3)** | **−5.51% (6.0)** | **−6.23% (3.9)** |
+| 1.00 | 0.15 | −1.63% (0.9) | −0.18% (1.7) | **+5.02% (2.5)** | +1.03% (1.2) | −0.44% (0.3) |
+| 1.00 | 0.20 | +2.85% | −0.18% (1.7) | +5.14% (1.9) | +1.53% (1.6) | **+3.15% (2.2)** |
+| 1.50 | 0.15 | −0.51% (0.3) | −0.24% (1.4) | **+4.65% (2.4)** | −1.28% (0.7) | +5.35% (1.3) |
+| 1.50 | 0.20 | −0.68% | −0.28% (1.9) | +0.98% (0.5) | −0.40% (0.3) | **−7.78% (2.0)** |
+
+**At w = 0.50, dx = 0.15 is converged for every harmonic** (all |z| ≤ 1.6) and dx = 0.20 is
+not (5–6 % in n = 3, 4, 5, resolved at 2.3–6.0σ).
+
+**At w = 1.0 and 1.5 there is a ~5 % shift in n = 3 at dx = 0.15 (|z| ≈ 2.4), which is at the
+edge of significance and is not monotonic in dx** — at w = 1.5, dx = 0.20 agrees with
+dx = 0.10 to 1.0 % while dx = 0.15 is 4.7 % away, which is not how a discretisation error
+behaves. With 15 harmonic×dx×w combinations, two at 2.4–2.5σ is close to what chance alone
+gives. **The likely reading is a fluctuation, but the prior-wide claim "dx = 0.15 is converged
+for n ≤ 5" is not established at w ≥ 1.0 for n = 3.**
+
+Two things follow. Either accept dx = 0.15 and treat n = 3 at large w as bounded to ~5 %, or
+use dx = 0.10. The cheapest way to settle it is more events at w = 1.0 and w = 1.5, dx = 0.15
+for n = 3 specifically, where the present 31 events give |z| ≈ 2.4.
+
+The trend that does make sense: a larger `w` means a larger nucleus (multiplicity 667 at
+w = 0.5 against 844 at w = 1.5), hence a larger system to resolve, hence a slightly finer grid
+needed. **The required dx is set by the system size, not by `w` as such.**
