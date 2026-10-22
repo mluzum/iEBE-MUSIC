@@ -306,18 +306,24 @@ def bmax_from_design(row: dict[str, str]) -> float:
 
     This follows the exact design expression:
 
-        b_max = 1.789 * sqrt{ R^2 * [1 + (7*pi/4) * (beta_2^2 + beta_3^2)]
+        b_max = 1.789 * sqrt{ R^2 * [1 + (7/(4*pi)) * (beta_2^2 + beta_3^2)]
         + (7*pi^2/3) * a^2 } + w + 0.5
 
-    where R is WS_radius, a is WS_diffusiveness, and w is nucleon-width.
+    where R is WS_radius, a is WS_diffusiveness, and w is nucleon-width. Note the
+    deformation coefficient is 7/(4*pi) = 0.557, not 7*pi/4 = 5.50: the harmonic
+    mean-square of the deformation enters the radius squared, so the coefficient has
+    to be much less than one. 7*pi/4 (which an earlier draft of this docstring
+    carried) would give b_max = 23 fm at the all-max corner and roughly double the
+    cost of every batch.
 
     The deformation entering the formula is the *largest* one the design point will
     actually realise, not the mean: the plane-form fluctuation and the beta_3
     width are per-configuration draws, and at the all-max corner the realised
-    beta reaches 0.79 against a design beta_2 of 0.5. Using the mean alone makes
-    b_max short there, which biases the most peripheral events of exactly the
-    design points where deformation matters most. Each width is added at 2 sigma;
-    the tails beyond that are covered by the 0.5 fm additive constant.
+    beta_2 reaches 0.66 against a design value of 0.5 (0.68 if both components of
+    the plane draw sit at +2 sigma, which the 0.5 fm constant below absorbs).
+    Using the mean alone makes b_max short there, which biases the most peripheral
+    events of exactly the design points where deformation matters most. Each width
+    is added at 2 sigma.
     """
     R = float(row["WS_radius"])
     a = float(row["WS_diffusiveness"])

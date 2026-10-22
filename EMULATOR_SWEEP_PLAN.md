@@ -2502,3 +2502,54 @@ Validation on one 76Ge-like event, 80 samples: `±30` window counts 12884 π⁺ 
 against 1283 in the `±0.5` window (`16.038`); K⁺ 33.60 vs 2.975 and p 15.48 vs 1.41, both
 consistent within their (much larger) windowed errors. The gain is statistics: the `±0.5` window
 sees 238 K⁺ in 80 samples, the no-cut analysis 2688.
+
+### 18.10 The design is frozen: the corner test
+
+The prior is the box in §18.3 and nothing else. `config/design_points/design_corners_ge76.csv`
+holds the three points that sit on its faces — `nominal`, `minimum`, `maximum` — and it is checked
+in so the corner test is a reproducible artefact rather than a file in `/tmp`. All 20 axes move
+between the three rows (only `shear_relax_time_factor`, `bulk_viscosity_3_lambda_asymm`,
+`shape_distribution` and `number_nucleons` are held), and every axis reaches both of its §18.3
+bounds:
+
+| axis (`MakeDictionaries.py` column) | minimum | nominal | maximum | prior |
+|---|---|---|---|---|
+| `normalization` | 10.0 | 15.0 | 20.0 | [10, 20] |
+| `reduced-thickness` (p) | -0.7 | 0.0 | 0.7 | [-0.7, 0.7] |
+| `nucleon-width` (w) | 0.5 | 1.0 | 1.5 | [0.5, 1.5] |
+| `sigma_k` | 0.3 | 1.0 | 2.0 | [0.3, 2.0] |
+| `tau` | 0.3 | 1.0 | 2.0 | [0.3, 2.0] |
+| `..._eta_over_s_at_kink` | 0.01 | 0.12 | 0.20 | [0.01, 0.2] |
+| `..._eta_over_s_low_T_slope_in_GeV` (a_low) | -2.0 | -1.0 | 0.0 | [-2, 0] |
+| `..._eta_over_s_high_T_slope_in_GeV` (a_high) | 0.0 | 0.0 | 2.0 | [0, 2] |
+| `..._eta_over_s_T_kink_in_GeV` (T_eta) | 0.13 | 0.18 | 0.30 | [0.13, 0.3] |
+| `bulk_viscosity_3_max` | 0.01 | 0.10 | 0.25 | [0.01, 0.25] |
+| `bulk_viscosity_3_T_peak_in_GeV` | 0.12 | 0.18 | 0.30 | [0.12, 0.3] |
+| `bulk_viscosity_3_width_in_GeV` | 0.025 | 0.05 | 0.15 | [0.025, 0.15] |
+| `T_freeze` | 0.135 | 0.15 | 0.165 | [0.135, 0.165] |
+| `WS_radius` | 4.9 | 5.08 | 5.3 | [4.9, 5.3] |
+| `WS_diffusiveness` | 0.45 | 0.52 | 0.60 | [0.45, 0.60] |
+| `beta_2` | 0.0 | 0.2 | 0.5 | [0.0, 0.5] |
+| `gamma` | 0 | 0 | 60 | [0, 60] deg |
+| `beta_3` | 0.0 | 0.05 | 0.2 | [0.0, 0.2] |
+| `sigma_plane` | 0.0 | 0.03 | 0.08 | [0, 0.08] |
+| `sigma_beta_3` | 0.0 | 0.02 | 0.05 | [0, 0.05] |
+
+Fixed everywhere: K = 5.0, `lambda_zeta` = 0, `plane_anisotropy` = 0, A = 76, `plane` shape.
+
+**`b_max` at the corners** is 10.580 (minimum), 11.796 (nominal) and 13.948 (maximum) fm, against
+half-density diameters 2R of 9.80, 10.16 and 10.60 fm. The `maximum` corner is the widest because
+the deformation enters at 2 sigma: beta_2 0.5 + 2*0.08 = 0.66 and beta_3 0.2 + 2*0.05 = 0.30 inflate
+the radius by sqrt(1 + (7/4pi)(0.66^2 + 0.30^2)) = 1.14. The coefficient is 7/(4pi) = 0.557 and not
+7*pi/4 = 5.50; the docstring used to print the latter while the code computed the former, which
+would have put `b_max` at 23 fm and doubled the cost of every batch.
+
+**The corners lose O(10%) of their events, by design.** A uniform draw over [0, b_max] sends some
+configurations outside the overlap of two deformed nuclei of random orientation. In the first
+6-event corner test, event 3 (b = 10.45 fm, the *same* draw at all three corners because the seeds
+are shared) returned `mult 0.0` in every corner and never reached MUSIC: at `nominal` and `minimum`
+b exceeds 2R outright, and at `maximum` that particular relative orientation simply missed. The
+driver drops such an event and carries on, so the merged file holds fewer events than were
+requested. That is the correct trigger semantics — the sample is conditioned on having at least one
+collision — but the campaign has to budget roughly 10-20% extra wall time and events to land a
+fixed number of *usable* events per design point.

@@ -1,0 +1,4 @@
+label,WS_radius,WS_diffusiveness,beta_2,gamma,beta_3,sigma_k,nucleon-width,normalization,reduced-thickness,tau,shear_viscosity_3_eta_over_s_T_kink_in_GeV,shear_viscosity_3_eta_over_s_low_T_slope_in_GeV,shear_viscosity_3_eta_over_s_high_T_slope_in_GeV,shear_viscosity_3_eta_over_s_at_kink,shear_relax_time_factor,bulk_viscosity_3_max,bulk_viscosity_3_T_peak_in_GeV,bulk_viscosity_3_width_in_GeV,bulk_viscosity_3_lambda_asymm,T_freeze,sigma_plane,sigma_beta_3,shape_distribution,number_nucleons
+nominal,5.08,0.52,0.2,0,0.05,1.0,1.0,15.0,0.0,1.0,0.18,-1.0,0.0,0.12,5.0,0.10,0.18,0.05,0.0,0.15,0.03,0.02,plane,76
+minimum,4.9,0.45,0.0,0,0.0,0.3,0.5,10.0,-0.7,0.3,0.13,-2.0,0.0,0.01,5.0,0.01,0.12,0.025,0.0,0.135,0.0,0.0,plane,76
+maximum,5.3,0.60,0.5,60,0.2,2.0,1.5,20.0,0.7,2.0,0.30,0.0,2.0,0.20,5.0,0.25,0.30,0.15,0.0,0.165,0.08,0.05,plane,76
