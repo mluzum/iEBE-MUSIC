@@ -2075,6 +2075,12 @@ Isobar-Sampler, which has no `d_min`. The sampler's equivalent machinery is
 
 ### 17.2 The nuclear block (to add), grounded in 76Ge data
 
+> **Superseded in part by §18.3.** The fluctuation rows below (`sigma_beta_2`,
+> `sigma_gamma`, and the narrow `sigma_beta_3`) predate the decision to use a single
+> isotropic width in the full deformation disk. The final ranges are `sigma_plane` [0, 0.08]
+> and `sigma_beta_3` [0, 0.05], and `beta_3` is [0, 0.2] on the magnitude only. §18.3 is the
+> authoritative table; the rows are kept for the experimental grounding.
+
 Experimental inputs: r_c(76Ge) = 4.080 / 4.127 fm (two extractions, Angeli; Stone; Raman),
 beta_2 = 0.10 / 0.26 (two Q_p extractions), beta_eff ~ 0.28 from the Coulomb-excitation
 invariant sum rules, and **gamma ~ 30 deg with rigid triaxiality** -- 76Ge is a rare rigid
@@ -2262,71 +2268,118 @@ design column straight into `trento["fluctuation"]`, which means the paper's `si
 `MakeDictionaries.py` now takes a `sigma_k` column and performs the conversion, printing what it
 did. A `fluctuation` column (k directly) is still accepted and used only when `sigma_k` is absent.
 
-### 18.3 The design: 17 axes, plus two optional
+### 18.3 The design: 20 axes
 
-**Hydro and initial state (12):**
-
-| # | parameter | prior | note |
-|---|---|---|---|
-| 1 | TRENTo normalization | [10, 20] | our value 15 |
-| 2 | nucleon width w | [0.5, 1.5] fm | the paper's range |
-| 3 | sigma_k | [0.3, 2.0] | -> k = 1/sigma_k^2 in [0.25, 11.1] |
-| 4 | free-streaming time tau_R | [0.3, 2.0] fm/c | |
-| 5 | (eta/s)_kink | [0.01, 0.2] | |
-| 6 | a_low | [-2, 1] GeV^-1 | |
-| 7 | a_high | [-1, 2] GeV^-1 | |
-| 8 | T_eta | [0.13, 0.3] GeV | |
-| 9 | (zeta/s)_max | [0.01, 0.25] | |
-| 10 | T_zeta | [0.12, 0.3] GeV | |
-| 11 | w_zeta | [0.025, 0.15] GeV | |
-| 12 | T_freeze | [0.135, 0.165] GeV | the paper's T_sw |
-
-**Nuclear (5):**
+**TRENTo and the initial state (5):**
 
 | # | parameter | prior | note |
 |---|---|---|---|
-| 13 | Woods-Saxon radius R | [4.9, 5.3] fm | feeds b_max |
-| 14 | Woods-Saxon diffusiveness a | [0.45, 0.60] fm | feeds b_max |
-| 15 | beta_2 | [0.0, 0.5] | feeds b_max; needs the plane form to reach 0 |
-| 16 | gamma (lit) | [0, 60] deg | the sampler's fundamental domain |
-| 17 | beta_3 | [0.0, 0.2] | magnitude only; the sign is a rotation |
+| 1 | normalization | [10, 20] | our value 15 |
+| 2 | generalized mean p (`reduced-thickness`) | [-0.7, 0.7] | see the note below; a strong axis |
+| 3 | nucleon width w | [0.5, 1.5] fm | the paper's range |
+| 4 | sigma_k | [0.3, 2.0] | -> k = 1/sigma_k^2 in [0.25, 11.1] |
+| 5 | free-streaming time tau_R | [0.3, 2.0] fm/c | |
 
-**Optional (not counted above):** `sigma_plane` [0, 0.08] (the single isotropic shape-fluctuation
-width), and `sigma_beta_3` [0, 0.03].
+**Hydrodynamics (7):**
 
-**Dropped from the paper's table, deliberately:** `b_pi` (fixed at MUSIC's 5.0), `lambda_zeta`
-(fixed at 0, symmetric peak), `alpha` (not implementable; `free_stream_tau` is a scalar), `d_min^3`
-(a TRENTo sampling parameter; the isobar sampler's step-function SRC stands in, fixed), and the
-second normalization (one collision system, so the paper's two merge into one).
+| # | parameter | prior | note |
+|---|---|---|---|
+| 6 | (eta/s)_kink | [0.01, 0.2] | |
+| 7 | a_low | [-2, 0] GeV^-1 | restricted so the kink is a minimum |
+| 8 | a_high | [0, 2] GeV^-1 | restricted so the kink is a minimum |
+| 9 | T_eta | [0.13, 0.3] GeV | |
+| 10 | (zeta/s)_max | [0.01, 0.25] | |
+| 11 | T_zeta | [0.12, 0.3] GeV | |
+| 12 | w_zeta | [0.025, 0.15] GeV | |
+| 13 | T_freeze | [0.135, 0.165] GeV | the paper's T_sw |
+
+**Nuclear shape (5):**
+
+| # | parameter | prior | note |
+|---|---|---|---|
+| 14 | Woods-Saxon radius R | [4.9, 5.3] fm | feeds b_max |
+| 15 | Woods-Saxon diffusiveness a | [0.45, 0.60] fm | feeds b_max |
+| 16 | beta_2 | [0.0, 0.5] | feeds b_max; needs the plane form to reach 0 |
+| 17 | gamma (lit) | [0, 60] deg | the sampler's fundamental domain |
+| 18 | beta_3 | [0.0, 0.2] | magnitude only; the sign is a rotation |
+
+**Shape fluctuations (2):**
+
+| # | parameter | prior | note |
+|---|---|---|---|
+| 19 | sigma_plane | [0, 0.08] | the single isotropic width, full deformation disk |
+| 20 | sigma_beta_3 | [0, 0.05] | beta_3 fluctuates independently of the quadrupole |
+
+**Dropped from the paper's table, deliberately:** `b_pi` (fixed at MUSIC's 5.0),
+`lambda_zeta` (fixed at 0, symmetric peak), `alpha` (not implementable; `free_stream_tau`
+is a scalar), `d_min^3` (a TRENTo sampling parameter; the isobar sampler's
+step-function SRC stands in, fixed), and the second normalization (one collision
+system, so the paper's two merge into one).
 
 **Fixed:** `Delta_Tau` 0.005, `average_surface_over_this_many_time_steps` 1,
-`use_eps_for_freeze_out` 0, `EOS_to_use` 9, `cross-section` 6.4, `reduced-thickness` 0,
-`correlation_length` 0.8 fm, `correlation_strength` -1.0, `plane_anisotropy` 0, `kappa_coefficient`
-0.4, `resumTransCoeffAlpha` 1.5, and the numerical settings (dx 0.15, oversampling 1e6,
-`maximum_sampling_events` 1e5).
+`use_eps_for_freeze_out` 0, `EOS_to_use` 9, `cross-section` 6.4,
+`correlation_length` 0.8 fm, `correlation_strength` -1.0, `plane_anisotropy` 0,
+`kappa_coefficient` 0.4, `resumTransCoeffAlpha` 1.5, and the numerical settings
+(dx 0.15, oversampling 1e6, `maximum_sampling_events` 1e5).
 
-### 18.4 Three flags before this is locked
+### 18.4 The generalized mean p, and why it must not be forgotten
 
-* **The master's default viscosity changed on 2026-10-22.** Every earlier ge76 run inherited the
-  master's constant `eta/s = 0.12` and `T_dependent_zeta_over_s = 7`; none of the ~130
-  `parameters_dict_user_TRENTo_ge76_*.py` files overrides the viscosity block. Re-running any of
-  them now gives different physics. Their *relative* numerical conclusions are unaffected
-  (they compared like with like), but to reproduce the old absolute numbers set
-  `T_dependent_Shear_to_S_ratio = 0`, `Shear_to_S_ratio = 0.12`, `T_dependent_zeta_over_s = 7`.
-* **`a_low > 0` drives eta/s negative below the kink.** With `T_eta = 0.3` and `a_low = 1`, eta/s at
-  T = 0.10 GeV is 0.01 + 1*(0.10-0.30) = -0.19, which MUSIC clamps to 1e-3. The paper's prior
-  allows this and clamps the same way, so it is kept for comparability; restricting `a_low` to
-  <= 0 is the alternative if an effectively inviscid low-T fluid is unwanted.
-* **`T_freeze` above 0.15 GeV is outside the adaptive-box fit.** `ADAPTIVE_EFO_TABLE` stops at
-  0.15 and `e_fo_from_t_freeze` clamps, and the sizing fit's `_fitted_range.T_freeze_GeV` is
-  [0.10, 0.15]. The clamp is conservative (c2 < 0, so an under-estimated e_fo over-predicts the
-  box), but the table should be extended to 0.165 before production.
+`reduced-thickness` **is** `p`: TRENTo registers it as `("reduced-thickness,p", ...)` and
+builds the entropy deposition as the generalized mean of the two participant nuclear
+thicknesses, with the geometric mean at p = 0, the arithmetic mean at p = 1 and the
+harmonic mean at p = -1. It is the single most influential of the initial-state axes.
+Measured on one event at dx = 0.30, T_freeze = 0.15, 2000 particles, everything else held
+fixed:
 
-### 18.5 What this costs the emulator
+| p | `<N>` (all charged) |
+|---|---|
+| -0.7 | 58.94 |
+| 0.0 | 69.14 |
+| +0.7 | 86.43 |
 
-17 axes is a large space, and the paper handles the same dimension with PCA before the Gaussian
-processes. Two consequences: with no data, the first milestone is a closure test against synthetic
-data at a known truth, run at several points in the prior rather than only the centre, because
-deliberately wide priors leave the posterior prior-dominated wherever the data constrains least.
-And the design is now dimensioned by the physics rather than by the pipeline, which was the
-point of fixing the master.
+That is +/-25% across the prior - larger than most of the hydrodynamic axes - so leaving it
+out (as an earlier draft of this section did) would have left a large, unmodelled source of
+multiplicity variance in the training set. The plumbing was already there: the master
+forwards `reduced-thickness` and `MakeDictionaries.py` reads it from the design matrix. Only
+the prior entry was missing.
+
+### 18.5 a_low and a_high must be restricted to make T_eta a minimum
+
+The kinked-linear form is
+
+```
+eta/s = (eta/s)_kink + a_low *(T - T_eta)   for T < T_eta
+eta/s = (eta/s)_kink + a_high*(T - T_eta)   for T > T_eta
+```
+
+Because `T - T_eta` is negative below the kink and positive above it, a **minimum** at
+`T_eta` needs the slopes to have the same sign convention in reverse: `a_low < 0` and
+`a_high > 0`. With `a_low = +1, a_high = -1` the kink is a *maximum* instead. Concretely, at
+`(eta/s)_kink = 0.10`, `T_eta = 0.20`:
+
+| T [GeV] | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 |
+|---|---|---|---|---|---|
+| a_low = -1, a_high = +1 (minimum) | 0.200 | 0.150 | 0.100 | 0.150 | 0.200 |
+| a_low = +1, a_high = -1 (maximum) | 0.000 | 0.050 | 0.100 | 0.050 | 0.000 |
+
+The priors are therefore `a_low` in [-2, 0] and `a_high` in [0, 2], which is the physical half
+of the paper's [-2, 1] and [-1, 2] and matches its posterior (a_low ~ -0.7, a_high ~ +0.4).
+The restriction also removes an edge case: with `a_low <= 0` and `a_high >= 0`, eta/s can
+never fall below `(eta/s)_kink`, so MUSIC's 1e-3 clamp is unreachable and the fluid is never
+effectively inviscid at low T.
+
+### 18.6 The master default change is the one remaining reproducibility break
+
+Every earlier ge76 run inherited the master's constant `eta/s = 0.12` and
+`T_dependent_zeta_over_s = 7`; none of the ~130 `parameters_dict_user_TRENTo_ge76_*.py`
+files overrides the viscosity block, so re-running any of them now gives different physics.
+Their *relative* numerical conclusions are unaffected -- they compared like with like -- but
+to reproduce the old absolute numbers set `T_dependent_Shear_to_S_ratio = 0`,
+`Shear_to_S_ratio = 0.12`, `T_dependent_zeta_over_s = 7`.
+
+`T_freeze` above 0.15 GeV is **not** a concern despite sitting outside
+`ADAPTIVE_EFO_TABLE`'s range and the sizing fit's `_fitted_range`: a higher freeze-out
+temperature freezes out *earlier*, so the surface is smaller. Any box that contains the
+surface at T_freeze = 0.15 contains it at 0.165 as well. The clamp in `e_fo_from_t_freeze`
+is in any case the conservative direction (c2 < 0, so an under-estimated e_fo over-predicts
+the box).
