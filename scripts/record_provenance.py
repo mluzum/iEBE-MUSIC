@@ -147,6 +147,16 @@ def main():
         manifest["sif_md5"] = md5_file(args.image)
         manifest["sif_bytes"] = os.path.getsize(args.image)
 
+    # Copy the design in so this directory is self-contained: a reader who finds
+    # provenance/ alone should not have to go looking for the CSV, and the copy
+    # is verified against the hash recorded above.
+    design_copy = os.path.join(outdir, os.path.basename(design_path))
+    subprocess.run(["cp", design_path, design_copy], check=True)
+    manifest["design_copy"] = os.path.join(args.outdir, os.path.basename(design_path))
+    if sha256_file(design_copy) != manifest["design_sha256"]:
+        raise SystemExit("design copy does not hash to the original")
+    print("wrote", design_copy)
+
     with tempfile.TemporaryDirectory() as tmp:
         param_file = generate_parameter_file(design_path, args.design_point, tmp)
         resolved = resolve_parameters(param_file, 0)
