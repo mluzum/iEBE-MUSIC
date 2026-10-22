@@ -6,6 +6,7 @@ from subprocess import call
 from os import path, mkdir, remove, makedirs, stat
 import tarfile
 from glob import glob
+from fnmatch import fnmatch
 import sys
 import time
 import shutil
@@ -979,8 +980,27 @@ def prune_spvn_output(spvn_folder, keep_rapidity_windows=1):
     if not path.isdir(spvn_folder):
         return
     dropped = kept = 0
-    for fname in glob(path.join(spvn_folder, '*.dat')):
+    files = glob(path.join(spvn_folder, '*.dat'))
+    # Boost-invariant runs produce exactly one analysis we want: the identified
+    # species with every particle kept and the yield normalised by the sampled
+    # rapidity width. Those files carry a _boostinv tag, and everything else the
+    # toolkit writes - the fixed experimental acceptances, the charged-hadron
+    # per-pseudorapidity references, the space-time diagnostics - is noise for
+    # this campaign, so keep only the tagged files.
+    has_boostinv = any('_boostinv.dat' in f for f in files)
+    for fname in files:
         base = path.basename(fname)
+        if has_boostinv:
+            drop = '_boostinv.dat' not in base or not base.endswith('.dat')
+            if drop:
+                try:
+                    remove(fname)
+                    dropped += 1
+                except OSError:
+                    pass
+            else:
+                kept += 1
+            continue
         drop = ('pTeta_distribution' in base
                 or '_evo_' in base
                 or 'inverse_Reynolds' in base
@@ -1256,18 +1276,16 @@ def check_an_event_is_good(event_folder):
     """This function checks the given event contains all required files"""
     # Only require files that survive pruning: the identified-species v_n vs pT
     # arrays and the unidentified reference.
-    required_files_list = [
-        'particle_9999_vndata_eta_-0.5_0.5.dat',
-        'particle_211_vndata_diff_y_-0.5_0.5.dat',
-        'particle_321_vndata_diff_y_-0.5_0.5.dat',
-        'particle_2212_vndata_diff_y_-0.5_0.5.dat',
+    required_patterns = [
+        'particle_211_vndata_diff_y_*_boostinv.dat',
+        'particle_321_vndata_diff_y_*_boostinv.dat',
+        'particle_2212_vndata_diff_y_*_boostinv.dat',
     ]
-    event_file_list = glob(path.join(event_folder, "*"))
-    for ifile in required_files_list:
-        filename = path.join(event_folder, ifile)
-        if filename not in event_file_list:
+    event_file_list = [path.basename(f) for f in glob(path.join(event_folder, "*"))]
+    for pattern in required_patterns:
+        if not any(fnmatch(name, pattern) for name in event_file_list):
             print("event {} is bad, missing {} ...".format(
-                event_folder, filename),
+                event_folder, pattern),
                   flush=True)
             return False
     return True

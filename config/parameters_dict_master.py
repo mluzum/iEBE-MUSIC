@@ -1040,9 +1040,15 @@ def update_parameters_dict(par_dict_path, ran_seed):
     hadronic_afterburner_toolkit_dict['randomSeed'] = ran_seed
     # Boost-invariant (2+1)-d runs: the toolkit adds a dedicated no-cut dN/dy
     # analysis that keeps every particle and divides by the rapidity width iSS
-    # sampled the parents from. In (3+1)-d the density is not flat in y, so the
-    # width stays 0 and that analysis is not produced at all.
-    if music_dict['boost_invariant'] == 1:
+    # sampled the parents from.
+    #
+    # This is only valid for the decays-only path. iSS is (2+1)-d and draws its
+    # parents uniformly over [y_LB, y_RB], so the total number of daughters is
+    # exactly dN/dy times that width. UrQMD and SMASH are 3+1-d cascades: they
+    # transport particles in rapidity and change particle number, so the
+    # window-to-plateau argument no longer holds and the width stays 0.
+    if (music_dict['boost_invariant'] == 1
+            and afterburner_type_str in ("decay", "pdg_decay")):
         hadronic_afterburner_toolkit_dict['dNdy_normalization_width'] = (
             float(iss_dict['y_RB']) - float(iss_dict['y_LB']))
     else:

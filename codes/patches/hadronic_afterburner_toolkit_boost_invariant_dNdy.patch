@@ -56,7 +56,7 @@ index c3c9d9f..cae5fe3 100644
      // the same UrQMD events
      if (compute_correlation == 1) {
 diff --git a/src/single_particleSpectra.cpp b/src/single_particleSpectra.cpp
-index 2258653..e8a4d7f 100644
+index 2258653..b923348 100644
 --- a/src/single_particleSpectra.cpp
 +++ b/src/single_particleSpectra.cpp
 @@ -77,6 +77,17 @@ singleParticleSpectra::singleParticleSpectra(
@@ -96,6 +96,14 @@ index 2258653..e8a4d7f 100644
      if (bWeakFeedDown_) filename << "_weakFD";
      filename << ".dat";
      ofstream output(filename.str().c_str());
+@@ -769,6 +783,7 @@ void singleParticleSpectra::output_Qn_vectors() {
+         filename_diff << "_y_";
+     }
+     filename_diff << rap_min << "_" << rap_max;
++    if (dNdy_normalization_width > 0.) filename_diff << "_boostinv";
+     if (bWeakFeedDown_) filename_diff << "_weakFD";
+     filename_diff << ".dat";
+ 
 diff --git a/src/single_particleSpectra.h b/src/single_particleSpectra.h
 index 33e55d5..4b9d071 100644
 --- a/src/single_particleSpectra.h
