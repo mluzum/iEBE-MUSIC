@@ -320,7 +320,7 @@ printf "Working directory: ${SCRATCH_DIR}\\n"
               ).replace("__OUTPUT_MODE__", para_dict_.get("output_mode", "quiet")))
     if seed_file:
         script.write("""
-seedfile="${6:-}"
+seedfile="${7:-}"
 seed_base=$(basename "${seedfile:-${parafile}}")
 mkdir -p shared_seeds
 seed_source=""
@@ -400,7 +400,7 @@ fi
 """)
     else:
         script.write("""
-seedfile="${6:-}"
+seedfile="${7:-}"
 seed_name=$(basename "${seedfile:-}")
 if [ -n "${seed_name}" ] && [ -f "${seed_name}" ] && [ ! -f "shared_seeds/${seed_name}" ]; then
     mkdir -p shared_seeds
