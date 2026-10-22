@@ -1,0 +1,735 @@
+{
+  "control_dict": {
+    "EOSFileName": "EoS.pkl",
+    "EOSId": 0,
+    "EOSType": 0,
+    "PosteriorChainFilePath": "config/arXiv_2408.00537",
+    "PosteriorParamSet": 0,
+    "PosteriorParamSetFlag": 0,
+    "afterburner_type": "SMASH",
+    "compute_photon_emission": false,
+    "compute_polarization": false,
+    "debugFlag": false,
+    "initial_state_type": "TRENTo",
+    "save_UrQMD_files": true,
+    "save_hydro_surfaces": false,
+    "save_ipglasma_results": false,
+    "save_kompost_results": false,
+    "usePosteriorParameters": false,
+    "walltime": "10:00:00"
+  },
+  "free_streaming_dict": {
+    "grid_max": 15.0,
+    "grid_step": 0.2,
+    "tau": 1.818706871
+  },
+  "hadronic_afterburner_toolkit_dict": {
+    "Bnpts": 21,
+    "BpT_max": 3.0,
+    "BpT_min": 0.2,
+    "Brap_max": 2.0,
+    "HBTrap_max": 0.5,
+    "HBTrap_min": -0.5,
+    "KT_max": 0.55,
+    "KT_min": 0.15,
+    "analyze_HBT": 0,
+    "analyze_balance_function": 0,
+    "analyze_ebe_yield": 0,
+    "analyze_flow": 1,
+    "azimuthal_flag": 0,
+    "check_spatial_dis": 0,
+    "compute_corr_rap_dep": 0,
+    "compute_correlation": 0,
+    "dNdy_normalization_width": 10.0,
+    "distinguish_isospin": 1,
+    "echo_level": 9,
+    "ecoOutput": 1,
+    "event_buffer_size": 100000,
+    "flag_charge_dependence": 0,
+    "intrinsic_detas": 0.1,
+    "intrinsic_dtau": 0.01,
+    "intrinsic_dx": 0.1,
+    "invariant_radius_flag": 0,
+    "kT_differenitial_flag": 1,
+    "long_comoving_boost": 1,
+    "n_KT": 5,
+    "n_Kphi": 48,
+    "n_rap": 141,
+    "needed_number_of_pairs": 30000000,
+    "net_particle_flag": 0,
+    "npT": 41,
+    "number_of_mixed_events": 50,
+    "number_of_oversample_events": 100,
+    "order_max": 10,
+    "pT_max": 2.0,
+    "pT_min": 0.2,
+    "particle_alpha": 9998,
+    "particle_beta": -9998,
+    "particle_monval": 211,
+    "pidwithPseudoRapCuts": 0,
+    "pidwithRapidityPTDistribution": 0,
+    "q_max": 0.15,
+    "q_min": -0.15,
+    "qnpts": 31,
+    "randomSeed": 0,
+    "rap_max": 1.0,
+    "rap_min": -1.0,
+    "rap_type": 1,
+    "rapidityPTDistributionFlag": 0,
+    "rapidity_dis_max": 7.0,
+    "rapidity_dis_min": -7.0,
+    "rapidity_distribution": 1,
+    "rapidity_shift": 0.0,
+    "readRapidityShiftFromFile": 0,
+    "read_in_mode": 9,
+    "read_in_real_mixed_events": 0,
+    "reject_decay_flag": 0,
+    "resonance_feed_down_flag": 0,
+    "resonance_weak_feed_down_Sigma_to_Lambda_flag": 0,
+    "resonance_weak_feed_down_flag": 1,
+    "select_resonances_flag": 0,
+    "tau_reject": 10.0,
+    "vn_rapidity_dis_pT_max": 2.0,
+    "vn_rapidity_dis_pT_min": 0.2
+  },
+  "ipglasma_dict": {
+    "BG": 4.0,
+    "BGq": 0.3,
+    "BGqVar": 0.0,
+    "Ds_jimwlk": 0.005,
+    "Jacobianm": 0.35,
+    "L": 30.0,
+    "LOutput": 30,
+    "Lambda_QCD_jimwlk": 0.04,
+    "Nc": 3,
+    "NqFluc": 0.0,
+    "NucleusQsTableFileName": "qs2Adj_vs_Tp_vs_Y_200.in",
+    "Ny": 50,
+    "Projectile": "Au",
+    "QsmuRatio": 0.8,
+    "R_WS": 6.6,
+    "Rapidity": 0.0,
+    "SigmaNN": 42.0,
+    "SubNucleonParamSet": -1,
+    "SubNucleonParamType": 0,
+    "Target": "Au",
+    "UVdamp": 0.0,
+    "a_WS": 0.52,
+    "alphas_jimwlk": 0,
+    "averageOverThisManyNuclei": 1,
+    "beta2": 0.0,
+    "beta3": 0.0,
+    "beta4": 0.0,
+    "bmax": 20.0,
+    "bmin": 0.0,
+    "c": 0.2,
+    "computeGluonMultiplicity": 0,
+    "dR_np": 0.0,
+    "d_min": 0.9,
+    "da_np": 0.0,
+    "database_name_pattern": "IPGlasma_database/AuAu_C{0:s}.h5",
+    "detaOutput": 0,
+    "dqMin": 0.0,
+    "dtau": 0.1,
+    "etaSizeOutput": 1,
+    "force_dmin_flag": 1,
+    "g": 1.0,
+    "g2mu": 0.1,
+    "gamma": 0.0,
+    "gaussianWounding": 1,
+    "inverseQsForMaxTime": 0,
+    "jimwlk_ic_x": 0.01,
+    "lightNucleusOption": 1,
+    "m": 0.2,
+    "m_jimwlk": 0.4,
+    "maxtime": 0.4,
+    "minimumQs2ST": 0.0,
+    "mode": 1,
+    "mu0_jimwlk": 0.28,
+    "muZero": 0.3,
+    "nucleonPositionsFromFile": 0,
+    "omega": 1.0,
+    "protonAnisotropy": 0,
+    "readInitialWilsonLines": 0,
+    "readMultFromFile": 0,
+    "rmax": 100.0,
+    "roots": 200.0,
+    "rotateReactionPlane": 0,
+    "runWith0Min1Avg2MaxQs": 2,
+    "runWithLocalQs": 0,
+    "runWithThisFactorTimesQs": 0.5,
+    "runWithkt": 0,
+    "runningCoupling": 0,
+    "samplebFromLinearDistribution": 1,
+    "saveSnapshots": 0,
+    "seed": 3,
+    "setWSDeformParams": 0,
+    "shiftConstituentQuarkProtonOrigin": 1,
+    "simpleLangevin": 1,
+    "size": 800,
+    "sizeOutput": 512,
+    "smearQs": 1,
+    "smearingWidth": 0.6,
+    "tDistNu": 3,
+    "type": "self",
+    "useConstituentQuarkProton": 0,
+    "useFatTails": 0,
+    "useFixedNpart": 0,
+    "useFluctuatingx": 1,
+    "useGaussian": 0,
+    "useJIMWLK": 0,
+    "useNucleus": 1,
+    "usePseudoRapidity": 0,
+    "useSeedList": 0,
+    "useSmoothNucleus": 0,
+    "useTimeForSeed": 0,
+    "writeEvolution": 0,
+    "writeOutputs": 1,
+    "writeOutputsToHDF5": 0,
+    "writeWilsonLines": 0,
+    "xFromThisFactorTimesQs": 1,
+    "xSnapshotList": [
+      0.005,
+      0.002,
+      0.0001,
+      5e-05,
+      1e-05
+    ],
+    "x_projectile_jimwlk": 0.001,
+    "x_target_jimwlk": 0.001
+  },
+  "isobars_conf_dict_projectile": {
+    "isobar_properties": {
+      "description": "Nuclear properties of isobars to be sampled.",
+      "isobar1": {
+        "WS_diffusiveness": {
+          "description": "Woods-Saxon diffusiveness parameter a",
+          "value": 0.5236991352
+        },
+        "WS_radius": {
+          "description": "Woods-Saxon radius parameter R",
+          "value": 5.16810362
+        },
+        "beta_2": {
+          "description": "Quadrupolar deformation",
+          "value": 0.201316308
+        },
+        "beta_3": {
+          "description": "Octupolar deformation",
+          "value": 0.1187837519
+        },
+        "beta_max": {
+          "description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)",
+          "value": 0.5
+        },
+        "correlation_length": {
+          "description": "Short-range correlation length (fm)",
+          "value": 0.4
+        },
+        "correlation_strength": {
+          "description": "Short-range correlation strength",
+          "value": 0.0
+        },
+        "gamma": {
+          "description": "Quadrupolar deformation angle (rad); design matrix supplies degrees",
+          "value": 0.3114156925978459
+        },
+        "isobar_name": "projectile",
+        "plane_anisotropy": {
+          "description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate, negative favours triaxial",
+          "value": 0.0
+        },
+        "shape_distribution": {
+          "description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)",
+          "value": "plane"
+        },
+        "sigma_beta_2": {
+          "description": "Event-by-event width of beta_2; 0 fixes the shape",
+          "value": 0.0
+        },
+        "sigma_beta_3": {
+          "description": "Event-by-event width of beta_3; 0 fixes the shape",
+          "value": 0.02372910348
+        },
+        "sigma_gamma": {
+          "description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma",
+          "value": 0.0
+        },
+        "sigma_plane": {
+          "description": "Width of the plane-form Gaussian; 0 is rigid, and works at beta_2 = 0",
+          "value": 0.02464673449
+        }
+      }
+    },
+    "isobar_samples": {
+      "description": "Options for the isobar nucleon-position samples",
+      "master_seed": {
+        "description": "Master seed for the philox source. Must never change once events exist; recorded in EMULATOR_SWEEP_PLAN.md.",
+        "value": 8675309
+      },
+      "number_configs": {
+        "description": "Number of configurations to be sampled.",
+        "value": 1
+      },
+      "number_nucleons": {
+        "description": "Mass number A of the nuclei.",
+        "value": 76
+      },
+      "number_of_parallel_processes": {
+        "description": "Number of processes to compute in parallel.",
+        "value": -1
+      },
+      "output_path": {
+        "description": "Output directory where to save",
+        "dirname": "nuclei_projectile"
+      },
+      "pool_modulus": {
+        "description": "Size of the virtual nucleus pool, 2**32. Event g maps to addresses (2g)*2654435761 and (2g+1)*2654435761 mod this.",
+        "value": 4294967296
+      },
+      "seed_source": {
+        "description": "Nucleon seeds: philox (deterministic from master_seed and pool address) or file (HDF5 pool).",
+        "value": "philox"
+      }
+    }
+  },
+  "isobars_conf_dict_target": {
+    "isobar_properties": {
+      "description": "Nuclear properties of isobars to be sampled.",
+      "isobar1": {
+        "WS_diffusiveness": {
+          "description": "Woods-Saxon diffusiveness parameter a",
+          "value": 0.5236991352
+        },
+        "WS_radius": {
+          "description": "Woods-Saxon radius parameter R",
+          "value": 5.16810362
+        },
+        "beta_2": {
+          "description": "Quadrupolar deformation",
+          "value": 0.201316308
+        },
+        "beta_3": {
+          "description": "Octupolar deformation",
+          "value": 0.1187837519
+        },
+        "beta_max": {
+          "description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)",
+          "value": 0.5
+        },
+        "correlation_length": {
+          "description": "Short-range correlation length (fm)",
+          "value": 0.4
+        },
+        "correlation_strength": {
+          "description": "Short-range correlation strength",
+          "value": 0.0
+        },
+        "gamma": {
+          "description": "Quadrupolar deformation angle (rad); design matrix supplies degrees",
+          "value": 0.3114156925978459
+        },
+        "isobar_name": "target",
+        "plane_anisotropy": {
+          "description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate, negative favours triaxial",
+          "value": 0.0
+        },
+        "shape_distribution": {
+          "description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)",
+          "value": "plane"
+        },
+        "sigma_beta_2": {
+          "description": "Event-by-event width of beta_2; 0 fixes the shape",
+          "value": 0.0
+        },
+        "sigma_beta_3": {
+          "description": "Event-by-event width of beta_3; 0 fixes the shape",
+          "value": 0.02372910348
+        },
+        "sigma_gamma": {
+          "description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma",
+          "value": 0.0
+        },
+        "sigma_plane": {
+          "description": "Width of the plane-form Gaussian; 0 is rigid, and works at beta_2 = 0",
+          "value": 0.02464673449
+        }
+      }
+    },
+    "isobar_samples": {
+      "description": "Options for the isobar nucleon-position samples",
+      "master_seed": {
+        "description": "Master seed for the philox source. Must never change once events exist; recorded in EMULATOR_SWEEP_PLAN.md.",
+        "value": 8675309
+      },
+      "number_configs": {
+        "description": "Number of configurations to be sampled.",
+        "value": 1
+      },
+      "number_nucleons": {
+        "description": "Mass number A of the nuclei.",
+        "value": 76
+      },
+      "number_of_parallel_processes": {
+        "description": "Number of processes to compute in parallel.",
+        "value": -1
+      },
+      "output_path": {
+        "description": "Output directory where to save",
+        "dirname": "nuclei_target"
+      },
+      "pool_modulus": {
+        "description": "Size of the virtual nucleus pool, 2**32. Event g maps to addresses (2g)*2654435761 and (2g+1)*2654435761 mod this.",
+        "value": 4294967296
+      },
+      "seed_source": {
+        "description": "Nucleon seeds: philox (deterministic from master_seed and pool address) or file (HDF5 pool).",
+        "value": "philox"
+      }
+    }
+  },
+  "iss_dict": {
+    "MC_sampling": 4,
+    "adjust_maximum_after": 100000,
+    "adjust_maximum_to": 1.2,
+    "afterburner_type": 1,
+    "bin_dtau": 0.2,
+    "bin_dx": 0.5,
+    "bin_tau0": 0.6,
+    "bin_tau_max": 17.0,
+    "bin_x_max": 10.0,
+    "bin_x_min": -10.0,
+    "bulk_deltaf_kind": 21,
+    "calculate_dN_deta": 1,
+    "calculate_dN_dphi": 0,
+    "calculate_dN_dtau": 0,
+    "calculate_dN_dx": 0,
+    "calculate_dN_dxt": 1,
+    "calculate_polarization": 0,
+    "calculate_vn": 0,
+    "calculate_vn_to_order": 9,
+    "dN_dy_sampling_model": 30,
+    "dN_dy_sampling_para1": 0.16,
+    "deltaf_max_ratio": 1.0,
+    "eta_s_LB": -0.5,
+    "eta_s_RB": 0.5,
+    "global_momentum_conservation": 0,
+    "grouping_particles": 1,
+    "grouping_tolerance": 0.01,
+    "hydro_mode": 1,
+    "include_deltaf_bulk": 1,
+    "include_deltaf_diffusion": 0,
+    "include_deltaf_shear": 1,
+    "include_spectators": 0,
+    "local_charge_conservation": 0,
+    "maximum_sampling_events": 10000,
+    "minimum_emission_function_val": 1e-30,
+    "number_of_particles_needed": 10000,
+    "number_of_repeated_sampling": 10,
+    "output_dN_dxtdy_4all": 0,
+    "output_samples_into_files": 0,
+    "perform_checks": 0,
+    "perform_decays": 1,
+    "polarizationRapType": 1,
+    "quantum_statistics": 1,
+    "randomSeed": 0,
+    "regulateEOS": 1,
+    "restrict_deltaf": 0,
+    "sample_pT_up_to": -1,
+    "sample_upto_desired_particle_number": 1,
+    "sample_y_minus_eta_s_range": 4,
+    "store_samples_in_memory": 1,
+    "turn_on_bulk": 0,
+    "turn_on_diff": 0,
+    "turn_on_rhob": 0,
+    "use_OSCAR2013": 0,
+    "use_OSCAR_format": 0,
+    "use_binary_format": 1,
+    "use_dynamic_maximum": 0,
+    "use_gzip_format": 0,
+    "use_historic_flow_output_format": 0,
+    "use_pos_dN_only": 0,
+    "y_LB": -5.0,
+    "y_RB": 5.0
+  },
+  "kompost_dict": {
+    "EventInput": {
+      "Ns": 512,
+      "afm": 0.0664062,
+      "normFactor": 0.287,
+      "xEND": 511,
+      "xSTART": 0,
+      "yEND": 511,
+      "ySTART": 0
+    },
+    "KoMPoSTInputs": {
+      "InputFile": "Tmunu.dat",
+      "OutputFileTag": "ekt_tIn01_tOut08",
+      "tIn": 0.1,
+      "tOut": 0.8
+    },
+    "KoMPoSTParameters": {
+      "DECOMPOSITION_METHOD": 1,
+      "ENERGY_PERTURBATIONS": 1,
+      "EVOLUTION_MODE": 1,
+      "EtaOverS": 0.12,
+      "EtaOverSTemperatureScale": 0.1,
+      "MOMENTUM_PERTURBATIONS": 1
+    }
+  },
+  "mcglauber_dict": {
+    "BG": 4.0,
+    "N_sea_partons": 1,
+    "Projectile": "Pb",
+    "Q2": 1.0,
+    "QCD_string_production_mode": 1,
+    "Target": "Pb",
+    "b_max": 20.0,
+    "b_min": 0.0,
+    "baryonInStringProb": 1.0,
+    "baryon_junctions": 0,
+    "batch_density_output": 0,
+    "cache_tables": 1,
+    "cenMax": 100,
+    "cenMin": 0,
+    "database_name": "self",
+    "evolve_QCD_string_mode": 2,
+    "fluct_Nstrings_per_NN_collision": 1,
+    "lambdaB": 0.2,
+    "lambdaBs": 1.0,
+    "light_nucleus_option": 0,
+    "nucleon_configuration_from_file": 0,
+    "only_event_statistics": 0,
+    "outputInitialEst": 1,
+    "rapidity_loss_method": 2,
+    "remnant_energy_loss_fraction": 0.5,
+    "roots": 17.3,
+    "seed": -1,
+    "shadowing_factor": 1.0,
+    "tau_form_fluct_gamma_beta": 1.0,
+    "tau_form_mean": 0.5,
+    "useQuarks": 1,
+    "ylossParam4At10": 2.95,
+    "ylossParam4At2": 1.6,
+    "ylossParam4At4": 2.15,
+    "ylossParam4At6": 2.45,
+    "ylossParam4var": 0.6,
+    "yloss_param_alpha1": 2.5,
+    "yloss_param_alpha2": 0.25,
+    "yloss_param_fluct_var_LHC": 0.8,
+    "yloss_param_fluct_var_RHIC": 0.6,
+    "yloss_param_slope": 1.5
+  },
+  "music_dict": {
+    "Delta_Tau": 0.005,
+    "Do_FreezeOut_Yes_1_No_0": 1,
+    "Do_FreezeOut_lowtemp": 1,
+    "EOS_to_use": 9,
+    "Eta_fall_off": 0.3,
+    "Eta_grid_size": 14.0,
+    "Eta_plateau_size": 5.4,
+    "FlagResetCausality": 0,
+    "FlagResumTransportCoeff": 0,
+    "Grid_size_in_eta": 1,
+    "Grid_size_in_x": 150,
+    "Grid_size_in_y": 150,
+    "Include_Bulk_Visc_Yes_1_No_0": 1,
+    "Include_Rhob_Yes_1_No_0": 0,
+    "Include_Shear_Visc_Yes_1_No_0": 1,
+    "Include_second_order_terms": 1,
+    "Include_vorticity_terms": 0,
+    "Initial_Distribution_input_filename": "initial/e.dat",
+    "Initial_participantList_Filename": "initial/participants_event.dat",
+    "Initial_profile": 92,
+    "Initial_time_tau_0": 1.818706871,
+    "N_freeze_out": 1,
+    "Shear_to_S_ratio": 0.12,
+    "T_dependent_Shear_to_S_ratio": 3,
+    "T_dependent_zeta_over_s": 3,
+    "T_freeze": 0.1428465318,
+    "Total_evolution_time_tau": 30.0,
+    "Viscosity_Flag_Yes_1_No_0": 1,
+    "X_grid_size_in_fm": 30.0,
+    "Y_grid_size_in_fm": 30.0,
+    "average_surface_over_this_many_time_steps": 10,
+    "beastMode": 2,
+    "boost_invariant": 1,
+    "bulk_relax_time_factor": 0.06872852233676975,
+    "bulk_viscosity_3_zeta_over_s_T_peak_in_GeV": 0.2056088626,
+    "bulk_viscosity_3_zeta_over_s_lambda_asymm": 0.0,
+    "bulk_viscosity_3_zeta_over_s_max": 0.1659511182,
+    "bulk_viscosity_3_zeta_over_s_width_in_GeV": 0.07369171717,
+    "echo_level": 1,
+    "ecm": 200.0,
+    "eps_freeze_max": 0.18,
+    "eps_freeze_min": 0.18,
+    "eps_switch": 0.18,
+    "eta_rhob_0": 1.5,
+    "eta_rhob_width_1": 0.2,
+    "eta_rhob_width_2": 1.0,
+    "freeze_Ncell_eta_step": 1,
+    "freeze_Ncell_x_step": 1,
+    "freeze_eps_flag": 0,
+    "freeze_out_method": 4,
+    "freeze_out_tau_start_max": 2,
+    "freeze_surface_in_binary": 0,
+    "gridPadding": 3,
+    "kappa_coefficient": 0.4,
+    "mode": 2,
+    "muB_dependent_Shear_to_S_ratio": 1,
+    "outputBinaryEvolution": 1,
+    "output_evolution_T_cut": 0.145,
+    "output_evolution_data": 0,
+    "output_evolution_every_N_eta": 1,
+    "output_evolution_every_N_timesteps": 10,
+    "output_evolution_every_N_x": 1,
+    "output_evolution_every_N_y": 1,
+    "output_hydro_debug_info": 0,
+    "output_movie_flag": 0,
+    "preEqVisFactor": 1.0,
+    "quest_revert_strength": 1.0,
+    "resumTransCoeffAlpha": 1.5,
+    "s_factor": 1.0,
+    "shear_muBf0p2": 1.0,
+    "shear_muBf0p4": 1.0,
+    "shear_relax_time_factor": 5.0,
+    "shear_viscosity_3_eta_over_s_T_kink_in_GeV": 0.2395894509,
+    "shear_viscosity_3_eta_over_s_at_kink": 0.156497094,
+    "shear_viscosity_3_eta_over_s_high_T_slope_in_GeV": 1.515381961,
+    "shear_viscosity_3_eta_over_s_low_T_slope_in_GeV": -1.23250306,
+    "stringPreEqFlowFactor": 0.0,
+    "stringTransverseShiftFrac": 0.0,
+    "string_source_sigma_eta": 0.5,
+    "string_source_sigma_x": 0.5,
+    "turn_on_baryon_diffusion": 0,
+    "use_eps_for_freeze_out": 0
+  },
+  "photon_dict": {
+    "HydroinfoBuffersize": 500,
+    "HydroinfoVisflag": 1,
+    "PhotonemRatetableInfo_Emin": 0.05,
+    "PhotonemRatetableInfo_Tmin": 0.1,
+    "PhotonemRatetableInfo_dE": 0.05,
+    "PhotonemRatetableInfo_dT": 0.002,
+    "T_cuthigh": 0.8,
+    "T_cutlow": 0.1,
+    "T_dec": 0.105,
+    "T_sw_high": 0.18,
+    "T_sw_low": 0.1795,
+    "Xmin": -15.0,
+    "Ymin": -15.0,
+    "alpha_s": 0.2,
+    "calHGIdFlag": 0,
+    "dTau": 0.1,
+    "differential_flag": 0,
+    "dileptonType": 0,
+    "dilepton_mass_f": 3.0,
+    "dilepton_mass_i": 1.0,
+    "dilepton_y_f": 0.5,
+    "dilepton_y_i": -0.5,
+    "dx": 0.1,
+    "dy": 0.1,
+    "enable_polyakov_suppression": 0,
+    "eta_f": 3.0,
+    "eta_i": 0.0,
+    "hydro_flag": 2,
+    "hydro_nskip_tau": 1,
+    "nMInv": 11,
+    "nTaucut": 50,
+    "nTcut": 50,
+    "n_xperp_cut": 101,
+    "neta": 10,
+    "norder": 10,
+    "np": 20,
+    "nphi": 40,
+    "nrapidity": 1,
+    "photon_phi_q_f": 6.2831853,
+    "photon_phi_q_i": 0.0,
+    "photon_q_f": 4.0,
+    "photon_q_i": 0.2,
+    "photon_y_f": 0.0,
+    "photon_y_i": 0.0,
+    "tau_end": 30.0,
+    "tau_start": 0.4,
+    "turn_off_transverse_flow": 0,
+    "turn_on_muB": 1,
+    "xperp_cuthigh": 10.0,
+    "xperp_cutlow": -10.0
+  },
+  "seeds_conf_dict": {
+    "number_configs": 10000,
+    "number_of_parallel_processes": 1
+  },
+  "smash_config_dict": {
+    "General": {
+      "Delta_Time": 0.1,
+      "End_Time": 100.0,
+      "Modus": "List",
+      "Nevents": 50,
+      "Randomseed": -1,
+      "Time_Step_Mode": "Fixed"
+    },
+    "Logging": {
+      "default": "INFO"
+    },
+    "Modi": {
+      "List": {
+        "File_Directory": "list",
+        "File_Prefix": "OSCAR.DAT",
+        "Shift_Id": 0
+      }
+    },
+    "Output": {
+      "Output_Interval": 10.0,
+      "Particles": {
+        "Extended": true,
+        "Format": [
+          "Binary"
+        ],
+        "Quantities": [
+          "t",
+          "x",
+          "y",
+          "z",
+          "mass",
+          "p0",
+          "px",
+          "py",
+          "pz",
+          "pdg",
+          "ID",
+          "charge",
+          "ncoll",
+          "form_time",
+          "xsecfac",
+          "proc_id_origin",
+          "proc_type_origin",
+          "time_last_coll",
+          "pdg_mother1",
+          "pdg_mother2",
+          "baryon_number",
+          "strangeness"
+        ]
+      }
+    }
+  },
+  "trento_dict": {
+    "b-max": 11.899271692875168,
+    "b-min": 0,
+    "cross-section": 4.23,
+    "fluctuation": 0.9560357828249757,
+    "grid-max": 15.0,
+    "grid-step": 0.2,
+    "normalization": 14.69558048,
+    "nucleon-width": 0.9109584515,
+    "number-events": 1,
+    "output": "initial_condition",
+    "projectile": [
+      "nuclei_target/target.hdf",
+      "nuclei_projectile/projectile.hdf"
+    ],
+    "quiet": false,
+    "reduced-thickness": 0.2616824191,
+    "type": "self"
+  }
+}

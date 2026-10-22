@@ -1,0 +1,15 @@
+{
+  "campaign_seed_add": 0,
+  "design_file": "design/design_lhs2000.csv",
+  "design_points": 2000,
+  "design_sha256": "2b17ad7aede239d577989d02982e53f8aba49232821818f49e15d9d81137c42f",
+  "dockerfile_pin": "3001ee98df9cbd1916efc2343375871ba1dcd7df",
+  "git_branch": "NME",
+  "git_dirty": true,
+  "git_revision": "311955b8fee26736fab120874713434e18e5018f",
+  "master_seed": 8675309,
+  "parameter_dictionary": "provenance/parameters_design_0001.json",
+  "parameter_dictionary_source": "parameter_dictionary_design_point_1.py",
+  "recorded_design_point": 1,
+  "recorded_utc": "2026-10-22T22:51:59Z"
+}
