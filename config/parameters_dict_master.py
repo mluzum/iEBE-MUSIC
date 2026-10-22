@@ -809,6 +809,9 @@ hadronic_afterburner_toolkit_dict = {
     'rap_max':
         0.5,  # maximum value of rapidity integration range for mid-rapidity observables 
     'rap_type': 1,  # 0: for pseudo-rapidity; 1: for rapidity
+    'dNdy_normalization_width':
+        0.0,  # boost-invariant dN/dy: normalise the no-cut yield by this width
+    # (the sampled y_RB - y_LB); 0 = off, which is what (3+1)-d runs must use
     'rapidity_distribution': 1,  # 1: output particle rapidity distribution 
     'n_rap': 141,  # numpber of points in rapidity distr.
     'rapidity_dis_min': -7.0,  # minimum value of particle rapidity distribution
@@ -1035,6 +1038,15 @@ def update_parameters_dict(par_dict_path, ran_seed):
     hadronic_afterburner_toolkit_dict.update(
         parameters_dict.hadronic_afterburner_toolkit_dict)
     hadronic_afterburner_toolkit_dict['randomSeed'] = ran_seed
+    # Boost-invariant (2+1)-d runs: the toolkit adds a dedicated no-cut dN/dy
+    # analysis that keeps every particle and divides by the rapidity width iSS
+    # sampled the parents from. In (3+1)-d the density is not flat in y, so the
+    # width stays 0 and that analysis is not produced at all.
+    if music_dict['boost_invariant'] == 1:
+        hadronic_afterburner_toolkit_dict['dNdy_normalization_width'] = (
+            float(iss_dict['y_RB']) - float(iss_dict['y_LB']))
+    else:
+        hadronic_afterburner_toolkit_dict['dNdy_normalization_width'] = 0.0
     if afterburner_type_str in ("decay", "pdg_decay"):
         iss_dict['use_OSCAR_format'] = 0
         iss_dict['use_binary_format'] = 1

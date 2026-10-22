@@ -1,0 +1,112 @@
+diff --git a/src/Analysis.cpp b/src/Analysis.cpp
+index c3c9d9f..cae5fe3 100644
+--- a/src/Analysis.cpp
++++ b/src/Analysis.cpp
+@@ -113,6 +113,12 @@ void Analysis::PerformAnalysis() {
+ 
+ void Analysis::FlowAnalysis() {
+     ParameterReader paraRdr = paraRdr_;
++    // The boost-invariant rapidity normalisation (see the dedicated block at
++    // the end of the analysis list) must never apply to the fixed experimental
++    // acceptance windows below; those keep the historical rap_max - rap_min.
++    double boost_invariant_dNdy_width =
++        paraRdr.getVal("dNdy_normalization_width", 0.0);
++    paraRdr.setVal("dNdy_normalization_width", 0.0);
+     int compute_correlation = paraRdr.getVal("compute_correlation");
+     if (compute_correlation == 1) paraRdr.setVal("compute_correlation", 0);
+     int flag_charge_dependence = paraRdr.getVal("flag_charge_dependence");
+@@ -274,6 +280,39 @@ void Analysis::FlowAnalysis() {
+     paraRdr.setVal("particle_monval", -2212);
+     spvn.push_back(new singleParticleSpectra(paraRdr, path_, ran_gen_ptr_));
+ 
++    // Boost-invariant (2+1)-d runs: the rapidity density is flat by
++    // construction, so the cleanest estimator of dN/dy is to keep every
++    // particle -- no rapidity cut at all -- and divide by the width iSS
++    // sampled the parents from (y_RB - y_LB). iSS draws the parents uniformly
++    // over that window and normalises the sampled number by it, so the total
++    // number of daughters equals dN/dy times the width. Cutting at an
++    // acceptance window instead and dividing by the window width loses the
++    // daughters that leaked outside it, which biases the yield low by ~1% for
++    // |y| < 0.5 and by much more as the window approaches the sampled edge.
++    // This is deliberately a *separate* output, produced only when
++    // dNdy_normalization_width > 0, so it cannot leak into (3+1)-d analyses
++    // where the density is not flat in rapidity.
++    double dNdy_width = boost_invariant_dNdy_width;
++    if (dNdy_width > 0.) {
++        paraRdr.setVal("rap_type", 1);
++        paraRdr.setVal("rapidity_distribution", 1);
++        paraRdr.setVal("vn_rapidity_dis_pT_min", 0.2);
++        paraRdr.setVal("vn_rapidity_dis_pT_max", 3.0);
++        // wide enough that no daughter of a parent sampled from
++        // [y_LB, y_RB] can reach the edge
++        paraRdr.setVal("rap_min", -3.0 * dNdy_width);
++        paraRdr.setVal("rap_max", 3.0 * dNdy_width);
++        paraRdr.setVal("dNdy_normalization_width", dNdy_width);
++        const int bi_particles[] = {211,   -211,  321,  -321, 2212,
++                                    -2212, 3122,  -3122, 3312, -3312,
++                                    3334,  -3334, 333};
++        for (int i = 0; i < 13; i++) {
++            paraRdr.setVal("particle_monval", bi_particles[i]);
++            spvn.push_back(
++                new singleParticleSpectra(paraRdr, path_, ran_gen_ptr_));
++        }
++    }
++
+     // lastly, if we want to compute multi-particle correlations within
+     // the same UrQMD events
+     if (compute_correlation == 1) {
+diff --git a/src/single_particleSpectra.cpp b/src/single_particleSpectra.cpp
+index 2258653..e8a4d7f 100644
+--- a/src/single_particleSpectra.cpp
++++ b/src/single_particleSpectra.cpp
+@@ -77,6 +77,17 @@ singleParticleSpectra::singleParticleSpectra(
+     rap_type = paraRdr.getVal("rap_type");
+     rap_min = paraRdr.getVal("rap_min");
+     rap_max = paraRdr.getVal("rap_max");
++    // Boost-invariant runs: normalise the rapidity density by the width iSS
++    // sampled the parents from (y_RB - y_LB) instead of by the analysis cut.
++    // iSS draws the parents uniformly over that window, so the total number of
++    // particles equals dN/dy * (y_RB - y_LB). Daughters then leak outside the
++    // window, so counting only what falls inside a narrower cut and dividing by
++    // the cut width loses the leaked ones and biases the yield low -- the more
++    // so the closer the cut sits to the sampled edge. Keeping every particle
++    // (a wide rap_min/rap_max) and dividing by the sampled width is exact.
++    // Leave this at 0 for (3+1)-d runs, where the density is not flat in y.
++    dNdy_normalization_width =
++        paraRdr.getVal("dNdy_normalization_width", 0.0);
+ 
+     if (particle_monval == 9999)  // use pseudo-rapidity for all charged hadrons
+         rap_type = 0;
+@@ -692,7 +703,9 @@ void singleParticleSpectra::calculate_Qn_vector_negative_charge(
+ //! This function outputs the event averaged particle pT-spectra
+ //! and flow coefficients
+ void singleParticleSpectra::output_Qn_vectors() {
+-    double drapidity = rap_max - rap_min;
++    double drapidity = (dNdy_normalization_width > 0.0)
++                           ? dNdy_normalization_width
++                           : (rap_max - rap_min);
+     // pT-integrated flow
+     ostringstream filename;
+     filename << path_ << "/particle_" << particle_monval << "_vndata";
+@@ -702,6 +715,7 @@ void singleParticleSpectra::output_Qn_vectors() {
+         filename << "_y_";
+     }
+     filename << rap_min << "_" << rap_max;
++    if (dNdy_normalization_width > 0.) filename << "_boostinv";
+     if (bWeakFeedDown_) filename << "_weakFD";
+     filename << ".dat";
+     ofstream output(filename.str().c_str());
+diff --git a/src/single_particleSpectra.h b/src/single_particleSpectra.h
+index 33e55d5..4b9d071 100644
+--- a/src/single_particleSpectra.h
++++ b/src/single_particleSpectra.h
+@@ -35,6 +35,9 @@ class singleParticleSpectra {
+ 
+     int rap_type;
+     double rap_min, rap_max;
++    // Boost-invariant runs only: width used to normalise the rapidity density.
++    // <= 0 keeps the historical behaviour, i.e. normalise by rap_max - rap_min.
++    double dNdy_normalization_width;
+     int rapidity_distribution_flag;
+     int N_rap;
+     double rapidity_dis_min, rapidity_dis_max, drap;

@@ -310,12 +310,20 @@ def bmax_from_design(row: dict[str, str]) -> float:
         + (7*pi^2/3) * a^2 } + w + 0.5
 
     where R is WS_radius, a is WS_diffusiveness, and w is nucleon-width.
+
+    The deformation entering the formula is the *largest* one the design point will
+    actually realise, not the mean: the plane-form fluctuation and the beta_3
+    width are per-configuration draws, and at the all-max corner the realised
+    beta reaches 0.79 against a design beta_2 of 0.5. Using the mean alone makes
+    b_max short there, which biases the most peripheral events of exactly the
+    design points where deformation matters most. Each width is added at 2 sigma;
+    the tails beyond that are covered by the 0.5 fm additive constant.
     """
     R = float(row["WS_radius"])
     a = float(row["WS_diffusiveness"])
     w = float(row["nucleon-width"])
-    beta_2 = float(row["beta_2"])
-    beta_3 = float(row["beta_3"])
+    beta_2 = float(row["beta_2"]) + 2.0 * f_sigma(row, "sigma_plane")
+    beta_3 = float(row["beta_3"]) + 2.0 * f_sigma(row, "sigma_beta_3")
 
     deformation_term = (7.0 / (4.0 * math.pi)) * (beta_2 ** 2 + beta_3 ** 2)
     bmax = 1.789 * math.sqrt(R ** 2 * (1.0 + deformation_term) + (7.0 * math.pi ** 2 / 3.0) * (a ** 2)) + w + 0.5
