@@ -151,8 +151,22 @@ defaults — prefer those over guessing flags.
   `$DATA/singularity_repos/`.
 - `MakeDictionaries.py` defaults to a `./design` CSV that is **not in the repo** — supply your own.
   Columns are strict: `WS_radius`, `WS_diffuseness`, `beta_2`, `gamma`, `beta_3`, `nucleon-width`,
-  `tau`, `reduced-thickness`, `fluctuation`, `shear_viscosity_*`, `bulk_viscosity_*`, `T_freeze`.
-  `number_nucleons` is *not* taken from the CSV; it stays at the template value.
+  `tau`, `reduced-thickness`, `sigma_k`, `shear_viscosity_3_*`, `bulk_viscosity_3_*`, `T_freeze`
+  (plus optional `beta_max`, `number_nucleons`). `sigma_k` is the JETSCAPE axis and is converted
+  to TRENTo's `fluctuation` as `k = 1/sigma_k**2`; a `fluctuation` column (k itself) is only used
+  when `sigma_k` is absent. `number_nucleons` is *not* taken from the CSV — it stays at the
+  template value unless a `number_nucleons` column is supplied.
+- **The master's `music_dict` is the only thing that decides the viscosity.** MUSIC has always
+  supported the JETSCAPE parametrisation (`T_dependent_Shear_to_S_ratio = 3` with
+  `shear_viscosity_3_eta_over_s_{T_kink_in_GeV,low_T_slope_in_GeV,high_T_slope_in_GeV,at_kink}`,
+  and `T_dependent_zeta_over_s = 3` with `bulk_viscosity_3_zeta_over_s_{max,T_peak_in_GeV,
+  width_in_GeV,lambda_asymm}`), but the master only forwarded a constant `Shear_to_S_ratio` and
+  the fixed-shape option 7 until 2026-10-22, and `shear_relax_time_factor` was never forwarded at
+  all (so every run silently used MUSIC's default 5.0). Option 7 has **no** amplitude knob, so
+  `(zeta/s)_max` was not a tunable parameter before the switch. Every ge76 param file inherits
+  this block from the master, so changing the master changes every run that does not override it;
+  set `T_dependent_Shear_to_S_ratio = 0` + `Shear_to_S_ratio = 0.12` + `T_dependent_zeta_over_s = 7`
+  to reproduce anything from before that date.
 - The OSG/HTCondor generator copies the seed HDF5 next to the param file and references it by
   basename. That root-level `nucleon-seeds.hdf` is **not** gitignored — do not commit it.
 - `README.md` references `generate_event_batches.py` / `submit_job_batches.py`; neither exists in

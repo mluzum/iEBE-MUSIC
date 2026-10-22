@@ -443,8 +443,27 @@ music_dict = {
     'resumTransCoeffAlpha': 1.5,    # resummed transport coeff. control parameter
     'Viscosity_Flag_Yes_1_No_0': 1,  # turn on viscosity in the evolution
     'Include_Shear_Visc_Yes_1_No_0': 1,  # include shear viscous effect
-    'Shear_to_S_ratio': 0.12,  # value of \eta/s
-    'T_dependent_Shear_to_S_ratio': 0,  # flag to use temperature dep. \eta/s(T)
+    'Shear_to_S_ratio':
+        0.12,  # constant \eta/s, used only when T_dependent_Shear_to_S_ratio == 0
+    # T_dependent_Shear_to_S_ratio selects the shape of \eta/s(T):
+    #   0: constant \eta/s = Shear_to_S_ratio
+    #   1: MUSIC's original hard-coded T dependence (arXiv:1502.01675)
+    #   2: "duke" form, shear_viscosity_2_{min,slope,curv}, Tc = 0.154 GeV
+    #   3: kinked-linear, the JETSCAPE parametrisation
+    #        eta/s = (eta/s)_kink + low_T_slope *(T - T_kink)  for T < T_kink
+    #        eta/s = (eta/s)_kink + high_T_slope*(T - T_kink)  for T > T_kink
+    #      (clamped at 1e-3). This is what arXiv:2011.01430 Table 1 varies.
+    'T_dependent_Shear_to_S_ratio': 3,
+    'shear_viscosity_3_eta_over_s_T_kink_in_GeV':
+        0.18,  # T_eta, the temperature of the \eta/s kink
+    'shear_viscosity_3_eta_over_s_low_T_slope_in_GeV':
+        -1.0,  # a_low, d(\eta/s)/dT below the kink [GeV^-1]
+    'shear_viscosity_3_eta_over_s_high_T_slope_in_GeV':
+        0.0,  # a_high, d(\eta/s)/dT above the kink [GeV^-1]
+    'shear_viscosity_3_eta_over_s_at_kink':
+        0.12,  # (eta/s)_kink
+    'shear_relax_time_factor':
+        5.0,  # b_pi = T*tau_pi/(\eta/s); MUSIC's default, NOT a design axis
     'muB_dependent_Shear_to_S_ratio':
         1,  # flag to use temperature dep. \eta/s(T, muB)
     'shear_muBf0p2':
@@ -452,7 +471,18 @@ music_dict = {
     'shear_muBf0p4':
         1.,  # piece-wise eta/s(muB) for muB_dependent_Shear_to_S_ratio == 7
     'Include_Bulk_Visc_Yes_1_No_0': 1,  # include bulk viscous effect
-    'T_dependent_zeta_over_s': 7,  # parameterization of \zeta/s(T)
+    # T_dependent_zeta_over_s selects the shape of \zeta/s(T). Option 3 is the
+    # skewed Cauchy of arXiv:2011.01430 Table 1:
+    #   zeta/s = (zeta/s)_max / (1 + ((T - T_zeta)/(w_zeta*(lambda*sign+1)))^2)
+    # with sign = +/-1 above/below the peak. Option 7 (MUSIC's
+    # "bigbroadP") has a fixed amplitude and cannot be tuned at all.
+    'T_dependent_zeta_over_s': 3,
+    'bulk_viscosity_3_zeta_over_s_max': 0.1,  # (zeta/s)_max
+    'bulk_viscosity_3_zeta_over_s_T_peak_in_GeV': 0.18,  # T_zeta
+    'bulk_viscosity_3_zeta_over_s_width_in_GeV': 0.05,  # w_zeta
+    'bulk_viscosity_3_zeta_over_s_lambda_asymm':
+        0.0,  # lambda_zeta, fixed at 0 (symmetric peak), NOT a design axis
+    'bulk_relax_time_factor': 1.0 / 14.55,  # MUSIC's default, recorded
     'Include_second_order_terms':
         1,  # include second order non-linear coupling terms
     'Include_vorticity_terms': 0,  # include vorticity coupling terms

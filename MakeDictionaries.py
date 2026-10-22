@@ -11,6 +11,33 @@ Usage:
     python3 MakeDictionaries.py
     python3 MakeDictionaries.py design
     python3 MakeDictionaries.py --design /path/to/design --start-design-point 1 --end-design-point 250
+
+Design-matrix columns (csv.DictReader; every one is required unless noted):
+
+    WS_radius, WS_diffusiveness, beta_2, gamma, beta_3
+        Woods-Saxon radius [fm], diffusiveness [fm], quadrupole deformation,
+        triaxiality [deg], octupole deformation (magnitude).
+    sigma_k            standard deviation of the gamma-distributed nucleon
+                       weight gamma_i (arXiv:2011.01430's fluctuation axis).
+                       Converted here to TRENTo's `fluctuation` k = 1/sigma_k^2.
+                       A `fluctuation` column (k itself) is still accepted and
+                       used only when `sigma_k` is absent.
+    nucleon-width      w [fm]
+    normalization      optional; TRENTo energy-deposition normalization, defaults
+                       to the template's 5.73
+    reduced-thickness  TRENTo reduced thickness
+    tau                tau_0 and the free-streaming time [fm/c]
+    beta_max           optional; support of the bounded beta_2 draw, defaults to
+                       the template value or 0.5 if the template has none
+    number_nucleons    optional; mass number A, defaults to the template value
+    shear_viscosity_3_eta_over_s_T_kink_in_GeV, ..._low_T_slope_in_GeV,
+    ..._high_T_slope_in_GeV, ..._at_kink
+                       T_eta, a_low, a_high, (eta/s)_kink
+    shear_relax_time_factor    b_pi (fixed in the current design)
+    bulk_viscosity_3_max, bulk_viscosity_3_T_peak_in_GeV,
+    bulk_viscosity_3_width_in_GeV, bulk_viscosity_3_lambda_asymm
+                       (zeta/s)_max, T_zeta, w_zeta, lambda_zeta
+    T_freeze           freeze-out temperature [GeV]
 """
 
 from __future__ import annotations
@@ -97,6 +124,9 @@ def default_template_config() -> dict:
             "quiet": False,
             "output": "initial_condition",
             "reduced-thickness": 0.0,
+            # k, the gamma shape parameter of the nucleon weights. It is derived
+            # from the design matrix's sigma_k as k = 1/sigma_k**2; the value
+            # here is only a placeholder for a bare template run.
             "fluctuation": 1.0,
             "nucleon-width": 0.5,
             "cross-section": 4.23,
@@ -314,8 +344,29 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
 
     # design file values for all TRENTo and hydro parameters
     trento["reduced-thickness"] = float(row["reduced-thickness"])
-    trento["fluctuation"] = float(row["fluctuation"])
+    # TRENTo's `fluctuation` is k, the *shape* parameter of the gamma
+    # distribution that weights each nucleon (gamma_param_unit_mean(k): unit
+    # mean, variance 1/k, so standard deviation 1/sqrt(k)). The JETSCAPE design
+    # axis is sigma_k, the standard deviation of that same gamma, so
+    #     k = 1 / sigma_k**2
+    # exactly. arXiv:2011.01430 varies sigma_k over [0.3, 2.0], which maps to
+    # k in [0.25, 11.1]. Either column is accepted; sigma_k wins if both exist
+    # because it is the parameter with the physical meaning.
+    if "sigma_k" in row:
+        sigma_k = float(row["sigma_k"])
+        if sigma_k <= 0.0:
+            raise ValueError(f"sigma_k must be positive, got {sigma_k}")
+        trento["fluctuation"] = 1.0 / sigma_k**2
+        print(f"  sigma_k = {sigma_k:.4f} -> TRENTo fluctuation k = "
+              f"{trento['fluctuation']:.4f}")
+    else:
+        trento["fluctuation"] = float(row["fluctuation"])
     trento["nucleon-width"] = float(row["nucleon-width"])
+    # TRENTo normalization, the paper's overall multiplicity scale. It used to be
+    # frozen at the template's 5.73, which made the single most important design
+    # axis unreachable from the design matrix.
+    if str(row.get("normalization", "")).strip():
+        trento["normalization"] = float(row["normalization"])
     trento["b-max"] = bmax_from_design(row)
 
     music["shear_viscosity_3_eta_over_s_T_kink_in_GeV"] = float(
@@ -429,7 +480,13 @@ def f_beta_max(row: dict[str, str], samples: dict) -> float:
     """
     if str(row.get("beta_max", "")).strip():
         return float(row["beta_max"])
-    return float(samples["beta_max"]["value"])
+    template_value = samples.get("beta_max", {}).get("value")
+    if template_value is not None:
+        return float(template_value)
+    # The embedded template carries no beta_max, so a design matrix that omits
+    # the column used to die here even though the column is documented optional.
+    # Fall back to the top of the beta_2 prior used for 76Ge/76Se.
+    return 0.5
 
 
 def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) -> str:

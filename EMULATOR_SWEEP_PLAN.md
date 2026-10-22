@@ -2167,7 +2167,7 @@ before the design is frozen, because it changes which b values every design poin
 
 ---
 
-## 18. The design space: every parameter, and what is actually available
+## 18. The design space: every parameter and its prior
 
 **Decision recorded: `b_max` tracks the nucleus**, using the formula already implemented,
 
@@ -2177,80 +2177,156 @@ b_max = 1.789 * sqrt{ R^2 * [1 + (7*pi/4) * (beta_2^2 + beta_3^2)]
 ```
 
 TRENTo samples `b` as a fixed fraction of `b_max` (the same `u` per event id), so every design
-point samples the same *fraction* through the collision -- which is what keeps the collisions
-synchronised across parameter space. The coupling is worth stating explicitly: `R`, `a`,
-`beta_2`, `beta_3` and `w` all feed `b_max`, so those five parameters are entangled with the
-centrality sampling rather than being independent of it. For R = 5.08, a = 0.5, beta_2 = 0.1,
-w = 0.5 this gives `b_max` = 11.28 fm.
+point samples the same *fraction* through the collision, which keeps the collisions synchronised
+across parameter space. The coupling is explicit: `R`, `a`, `beta_2`, `beta_3` and `w` all feed
+`b_max`, so those five are entangled with the centrality sampling. For R = 5.08, a = 0.5,
+beta_2 = 0.1, w = 0.5 this gives `b_max` = 11.28 fm.
 
-### 18.1 The audit that has to come first
+### 18.1 The viscosity parameters were missing from the master, not from MUSIC
 
-The paper's Table 1 is written for the full JETSCAPE stack. **This pipeline is TRENTo + MUSIC +
-iSS, and it exposes a much smaller parameter set.** Auditing the emitted
-`music_input_mode_2`, `TRENTo/input` and `parameters.dat` rather than the paper:
+An earlier draft of this section claimed nine of the paper's Table 1 parameters were unavailable
+in this pipeline. **That was wrong.** The parameters were never removed from MUSIC and had never
+been added to `config/parameters_dict_master.py`, so the master's `music_dict` emitted only a
+constant `Shear_to_S_ratio` and a fixed-shape `T_dependent_zeta_over_s = 7` with no amplitude
+knob at all. The consequence was that the viscosity was untunable: `MakeDictionaries.py` had
+carried the `shear_viscosity_3_*` / `bulk_viscosity_3_*` columns for a long time, but any run
+driven by a hand-written parameter file silently fell back to the master's constant-eta/s
+default.
 
-| paper's Table 1 | available here? |
-|---|---|
-| TRENTo normalization | yes -- `normalization` (one system, so the paper's two merge into one) |
-| nucleon width w | yes -- TRENTo `nucleon-width` |
-| b_pi (shear relaxation) | approximately -- MUSIC `resumTransCoeffAlpha`, a different convention |
-| sigma_k (multiplicity fluctuation) | approximately -- TRENTo `fluctuation` |
-| tau_R (free-streaming time) | yes -- `free_stream_tau`, a **scalar** |
-| T_sw (particlization temperature) | approximately -- `T_freeze`, with a **temperature** freeze-out criterion (`use_eps_for_freeze_out = 0`) |
-| d_min^3 | **no** -- TRENTo-only; replaced by the isobar sampler's step-function SRC, fixed |
-| (eta/s)_kink, a_low, a_high, T_eta | **no** -- only the constant `Shear_to_S_ratio` is exposed |
-| (zeta/s)_max, T_zeta, w_zeta, lambda_zeta | **no** -- `T_dependent_zeta_over_s` selects a *shape*, and no bulk amplitude is exposed in the master |
-| alpha (free-streaming energy dependence) | **no** -- `free_stream_tau` is a scalar, not a function of the deposited energy |
+MUSIC's own parameterisation (verified in `src/read_in_parameters.cpp` and
+`src/transport_coeffs.cpp` at the pinned commit, `cfcc264`):
 
-**So 6 of the paper's 15 usable parameters are available, and 9 are not.** That is the binding
-constraint on the design, and it is a property of the pipeline, not of the physics. Adding the
-missing ones is real work: a T-dependent eta/s with a free kink, a free bulk amplitude, and an
-energy-dependent free-streaming time all require changes to `parameters_dict_master.py` and
-probably to MUSIC's input handling.
+```
+T_dependent_Shear_to_S_ratio = 3:   eta/s = (eta/s)_kink + slope * (T - T_kink)
+                                    slope = low_T_slope  for T < T_kink
+                                    slope = high_T_slope for T > T_kink
+                                    (clamped at 1e-3)
 
-### 18.2 The full list
+T_dependent_zeta_over_s = 3:        zeta/s = (zeta/s)_max /
+                                        (1 + ((T - T_zeta)/(w_zeta*(lambda*sign+1)))^2)
+                                    sign = +/-1 above/below the peak
+```
 
-**Varied (15):**
+which is *exactly* the JETSCAPE parametrisation. The keys are now in the master, and the master
+defaults to option 3 for both.
 
-| # | parameter | lives in | prior | note |
-|---|---|---|---|---|
-| 1 | TRENTo normalization | `trento_dict['normalization']` | [10, 20] | our value 15 |
-| 2 | nucleon width w | `trento_dict['nucleon-width']` | [0.5, 1.5] fm | the paper's own range |
-| 3 | multiplicity fluctuation | `trento_dict['fluctuation']` | [0.3, 2.0] | the paper's sigma_k |
-| 4 | free-streaming time | `free_streaming_dict['tau']` | [0.3, 2.0] fm/c | the paper's tau_R |
-| 5 | eta/s (constant) | `music_dict['Shear_to_S_ratio']` | [0.05, 0.25] | replaces the paper's kink parametrisation |
-| 6 | 2nd-order shear coefficient | `music_dict['resumTransCoeffAlpha']` | [0.5, 3.0] | the paper's b_pi, different convention |
-| 7 | bulk relaxation coefficient | `music_dict['kappa_coefficient']` | [0.1, 1.0] | not in the paper's table |
-| 8 | freeze-out temperature | `music_dict['T_freeze']` | [0.10, 0.17] GeV | the paper's T_sw; with the temperature criterion |
-| 9 | pre-equilibrium viscous factor | `music_dict['preEqVisFactor']` | [0, 1] | not in the paper's table |
-| 10 | Woods-Saxon radius R | `isobars_conf_dict_*.isobar_properties.isobar1.WS_radius` | [4.9, 5.3] fm | feeds `b_max` |
-| 11 | Woods-Saxon diffusiveness a | `...WS_diffusiveness` | [0.45, 0.60] fm | feeds `b_max` |
-| 12 | quadrupole deformation | `...beta_2` | [0.0, 0.5] | feeds `b_max`; needs the plane form to reach 0 |
-| 13 | triaxiality (lit) | `...gamma` | [0, 60] deg | the sampler's fundamental domain |
-| 14 | octupole deformation | `...beta_3` | [0.0, 0.2] | magnitude only; the sign is a rotation |
-| 15 | shape fluctuation width | `...sigma_plane` | [0, 0.08] | optional; the single isotropic width |
+| paper's Table 1 | MUSIC key | master default |
+|---|---|---|
+| (eta/s)_kink | `shear_viscosity_3_eta_over_s_at_kink` | 0.12 |
+| T_eta | `shear_viscosity_3_eta_over_s_T_kink_in_GeV` | 0.18 |
+| a_low | `shear_viscosity_3_eta_over_s_low_T_slope_in_GeV` | -1.0 |
+| a_high | `shear_viscosity_3_eta_over_s_high_T_slope_in_GeV` | 0.0 |
+| b_pi | `shear_relax_time_factor` | 5.0 (fixed, not a design axis) |
+| (zeta/s)_max | `bulk_viscosity_3_zeta_over_s_max` | 0.1 |
+| T_zeta | `bulk_viscosity_3_zeta_over_s_T_peak_in_GeV` | 0.18 |
+| w_zeta | `bulk_viscosity_3_zeta_over_s_width_in_GeV` | 0.05 |
+| lambda_zeta | `bulk_viscosity_3_zeta_over_s_lambda_asymm` | 0.0 (fixed, not a design axis) |
+| T_sw | `T_freeze` (with `use_eps_for_freeze_out = 0`) | 0.12 |
 
-**Optional (2):** `sigma_beta_3` [0, 0.03], and `plane_anisotropy` [-1.4, 1.4] (currently fixed at
-0, isotropic).
+`shear_relax_time_factor` had also never been forwarded, so every run so far has used MUSIC's
+implicit default of 5.0, which happens to be the centre of the paper's [2, 8] prior. It is now
+written explicitly so the value is recorded rather than assumed.
 
-**Fixed (not design axes):** `Delta_Tau` 0.005, `average_surface_over_this_many_time_steps` 1,
+**Still genuinely absent:** the free-streaming energy dependence `alpha`. The driver's
+`free_stream_tau` is a scalar, not the paper's `tau_fs = tau_R (e_bar/e_bar_R)^alpha`. It is
+dropped from the design anyway.
+
+**Verified end-to-end**, not just parsed. One full TRENTo -> free-stream -> MUSIC -> iSS ->
+afterburner event at dx = 0.30, T_freeze = 0.15, 2000 particles, holding everything else fixed:
+
+| run | change | `<N>` (all charged) |
+|---|---|---|
+| A | baseline, (eta/s)_kink = 0.12, (zeta/s)_max = 0.10 | 69.14 |
+| B | (eta/s)_kink -> 0.30 | 72.92 |
+| C | (zeta/s)_max -> 0.30 | 84.28 |
+
+Both respond in the physically expected direction (more viscosity, more entropy production), so
+both paths are live. This also retires option 7, whose amplitude cannot be tuned at all: switching
+to option 3 is what makes `(zeta/s)_max` a real design axis.
+
+### 18.2 sigma_k is not k: the gamma-distribution conversion
+
+The paper's design axis is `sigma_k`, the *standard deviation* of the gamma-distributed nucleon
+weight `gamma_i`. TRENTo's `fluctuation` parameter is `k`, the *shape* parameter, used as
+`gamma_param_unit_mean(k)` (unit mean, variance 1/k), so
+
+```
+k = 1 / sigma_k^2
+```
+
+exactly rather than approximately. This was **not** implemented: `MakeDictionaries.py` wrote the
+design column straight into `trento["fluctuation"]`, which means the paper's `sigma_k` prior
+[0.3, 2.0] would have been applied to `k`, i.e. to `1/sigma_k^2` - a completely different range
+(0.3-2.0 in k is 0.71-1.83 in sigma_k, against the intended 0.3-2.0).
+
+`MakeDictionaries.py` now takes a `sigma_k` column and performs the conversion, printing what it
+did. A `fluctuation` column (k directly) is still accepted and used only when `sigma_k` is absent.
+
+### 18.3 The design: 17 axes, plus two optional
+
+**Hydro and initial state (12):**
+
+| # | parameter | prior | note |
+|---|---|---|---|
+| 1 | TRENTo normalization | [10, 20] | our value 15 |
+| 2 | nucleon width w | [0.5, 1.5] fm | the paper's range |
+| 3 | sigma_k | [0.3, 2.0] | -> k = 1/sigma_k^2 in [0.25, 11.1] |
+| 4 | free-streaming time tau_R | [0.3, 2.0] fm/c | |
+| 5 | (eta/s)_kink | [0.01, 0.2] | |
+| 6 | a_low | [-2, 1] GeV^-1 | |
+| 7 | a_high | [-1, 2] GeV^-1 | |
+| 8 | T_eta | [0.13, 0.3] GeV | |
+| 9 | (zeta/s)_max | [0.01, 0.25] | |
+| 10 | T_zeta | [0.12, 0.3] GeV | |
+| 11 | w_zeta | [0.025, 0.15] GeV | |
+| 12 | T_freeze | [0.135, 0.165] GeV | the paper's T_sw |
+
+**Nuclear (5):**
+
+| # | parameter | prior | note |
+|---|---|---|---|
+| 13 | Woods-Saxon radius R | [4.9, 5.3] fm | feeds b_max |
+| 14 | Woods-Saxon diffusiveness a | [0.45, 0.60] fm | feeds b_max |
+| 15 | beta_2 | [0.0, 0.5] | feeds b_max; needs the plane form to reach 0 |
+| 16 | gamma (lit) | [0, 60] deg | the sampler's fundamental domain |
+| 17 | beta_3 | [0.0, 0.2] | magnitude only; the sign is a rotation |
+
+**Optional (not counted above):** `sigma_plane` [0, 0.08] (the single isotropic shape-fluctuation
+width), and `sigma_beta_3` [0, 0.03].
+
+**Dropped from the paper's table, deliberately:** `b_pi` (fixed at MUSIC's 5.0), `lambda_zeta`
+(fixed at 0, symmetric peak), `alpha` (not implementable; `free_stream_tau` is a scalar), `d_min^3`
+(a TRENTo sampling parameter; the isobar sampler's step-function SRC stands in, fixed), and the
+second normalization (one collision system, so the paper's two merge into one).
+
+**Fixed:** `Delta_Tau` 0.005, `average_surface_over_this_many_time_steps` 1,
 `use_eps_for_freeze_out` 0, `EOS_to_use` 9, `cross-section` 6.4, `reduced-thickness` 0,
-`correlation_length` 0.8 fm, `correlation_strength` -1.0, `plane_anisotropy` 0, and the numerical
-settings (dx = 0.15, oversampling 1e6, `maximum_sampling_events` 1e5).
+`correlation_length` 0.8 fm, `correlation_strength` -1.0, `plane_anisotropy` 0, `kappa_coefficient`
+0.4, `resumTransCoeffAlpha` 1.5, and the numerical settings (dx 0.15, oversampling 1e6,
+`maximum_sampling_events` 1e5).
 
-### 18.3 What the design costs
+### 18.4 Three flags before this is locked
 
-15 varied parameters (or 17 with the optional pair) is a large space for an emulator, and the
-paper handles that with PCA before the Gaussian processes. Three practical consequences:
+* **The master's default viscosity changed on 2026-10-22.** Every earlier ge76 run inherited the
+  master's constant `eta/s = 0.12` and `T_dependent_zeta_over_s = 7`; none of the ~130
+  `parameters_dict_user_TRENTo_ge76_*.py` files overrides the viscosity block. Re-running any of
+  them now gives different physics. Their *relative* numerical conclusions are unaffected
+  (they compared like with like), but to reproduce the old absolute numbers set
+  `T_dependent_Shear_to_S_ratio = 0`, `Shear_to_S_ratio = 0.12`, `T_dependent_zeta_over_s = 7`.
+* **`a_low > 0` drives eta/s negative below the kink.** With `T_eta = 0.3` and `a_low = 1`, eta/s at
+  T = 0.10 GeV is 0.01 + 1*(0.10-0.30) = -0.19, which MUSIC clamps to 1e-3. The paper's prior
+  allows this and clamps the same way, so it is kept for comparability; restricting `a_low` to
+  <= 0 is the alternative if an effectively inviscid low-T fluid is unwanted.
+* **`T_freeze` above 0.15 GeV is outside the adaptive-box fit.** `ADAPTIVE_EFO_TABLE` stops at
+  0.15 and `e_fo_from_t_freeze` clamps, and the sizing fit's `_fitted_range.T_freeze_GeV` is
+  [0.10, 0.15]. The clamp is conservative (c2 < 0, so an under-estimated e_fo over-predicts the
+  box), but the table should be extended to 0.165 before production.
 
-* **The dimension is set by what the pipeline exposes, not by what the physics needs.** The nine
-  unavailable parameters are the ones that carry most of the *interesting* physics -- the
-  temperature dependence of eta/s and the bulk viscosity. Without them the emulator is
-  characterising a narrower slice of model space than the paper's.
-* **Closure tests are the only way to find out whether the emulator can resolve any of this.**
-  With no data, the standard approach is to generate synthetic data at a known truth, run the
-  full inference, and check that the posterior recovers it. That is the right first milestone
-  and it is what the design should be validated against before any real data exists.
-* **The priors are wide on purpose** (the exploratory framing), which means the posterior will
-  be prior-dominated in the directions the synthetic data constrains least. Closure tests
-  should therefore be run at several points in the prior, not just the centre.
+### 18.5 What this costs the emulator
+
+17 axes is a large space, and the paper handles the same dimension with PCA before the Gaussian
+processes. Two consequences: with no data, the first milestone is a closure test against synthetic
+data at a known truth, run at several points in the prior rather than only the centre, because
+deliberately wide priors leave the posterior prior-dominated wherever the data constrains least.
+And the design is now dimensioned by the physics rather than by the pipeline, which was the
+point of fixing the master.
