@@ -2164,3 +2164,93 @@ The first is better for an emulator (fixed geometry, CRN across design points, a
 centrality variable is a clean function of the design point); the second is better if the
 emulator is to predict centralities in a *fixed* physical window. **This has to be decided
 before the design is frozen, because it changes which b values every design point sees.**
+
+---
+
+## 18. The design space: every parameter, and what is actually available
+
+**Decision recorded: `b_max` tracks the nucleus**, using the formula already implemented,
+
+```
+b_max = 1.789 * sqrt{ R^2 * [1 + (7*pi/4) * (beta_2^2 + beta_3^2)]
+                     + (7*pi^2/3) * a^2 } + w + 0.5
+```
+
+TRENTo samples `b` as a fixed fraction of `b_max` (the same `u` per event id), so every design
+point samples the same *fraction* through the collision -- which is what keeps the collisions
+synchronised across parameter space. The coupling is worth stating explicitly: `R`, `a`,
+`beta_2`, `beta_3` and `w` all feed `b_max`, so those five parameters are entangled with the
+centrality sampling rather than being independent of it. For R = 5.08, a = 0.5, beta_2 = 0.1,
+w = 0.5 this gives `b_max` = 11.28 fm.
+
+### 18.1 The audit that has to come first
+
+The paper's Table 1 is written for the full JETSCAPE stack. **This pipeline is TRENTo + MUSIC +
+iSS, and it exposes a much smaller parameter set.** Auditing the emitted
+`music_input_mode_2`, `TRENTo/input` and `parameters.dat` rather than the paper:
+
+| paper's Table 1 | available here? |
+|---|---|
+| TRENTo normalization | yes -- `normalization` (one system, so the paper's two merge into one) |
+| nucleon width w | yes -- TRENTo `nucleon-width` |
+| b_pi (shear relaxation) | approximately -- MUSIC `resumTransCoeffAlpha`, a different convention |
+| sigma_k (multiplicity fluctuation) | approximately -- TRENTo `fluctuation` |
+| tau_R (free-streaming time) | yes -- `free_stream_tau`, a **scalar** |
+| T_sw (particlization temperature) | approximately -- `T_freeze`, with a **temperature** freeze-out criterion (`use_eps_for_freeze_out = 0`) |
+| d_min^3 | **no** -- TRENTo-only; replaced by the isobar sampler's step-function SRC, fixed |
+| (eta/s)_kink, a_low, a_high, T_eta | **no** -- only the constant `Shear_to_S_ratio` is exposed |
+| (zeta/s)_max, T_zeta, w_zeta, lambda_zeta | **no** -- `T_dependent_zeta_over_s` selects a *shape*, and no bulk amplitude is exposed in the master |
+| alpha (free-streaming energy dependence) | **no** -- `free_stream_tau` is a scalar, not a function of the deposited energy |
+
+**So 6 of the paper's 15 usable parameters are available, and 9 are not.** That is the binding
+constraint on the design, and it is a property of the pipeline, not of the physics. Adding the
+missing ones is real work: a T-dependent eta/s with a free kink, a free bulk amplitude, and an
+energy-dependent free-streaming time all require changes to `parameters_dict_master.py` and
+probably to MUSIC's input handling.
+
+### 18.2 The full list
+
+**Varied (15):**
+
+| # | parameter | lives in | prior | note |
+|---|---|---|---|---|
+| 1 | TRENTo normalization | `trento_dict['normalization']` | [10, 20] | our value 15 |
+| 2 | nucleon width w | `trento_dict['nucleon-width']` | [0.5, 1.5] fm | the paper's own range |
+| 3 | multiplicity fluctuation | `trento_dict['fluctuation']` | [0.3, 2.0] | the paper's sigma_k |
+| 4 | free-streaming time | `free_streaming_dict['tau']` | [0.3, 2.0] fm/c | the paper's tau_R |
+| 5 | eta/s (constant) | `music_dict['Shear_to_S_ratio']` | [0.05, 0.25] | replaces the paper's kink parametrisation |
+| 6 | 2nd-order shear coefficient | `music_dict['resumTransCoeffAlpha']` | [0.5, 3.0] | the paper's b_pi, different convention |
+| 7 | bulk relaxation coefficient | `music_dict['kappa_coefficient']` | [0.1, 1.0] | not in the paper's table |
+| 8 | freeze-out temperature | `music_dict['T_freeze']` | [0.10, 0.17] GeV | the paper's T_sw; with the temperature criterion |
+| 9 | pre-equilibrium viscous factor | `music_dict['preEqVisFactor']` | [0, 1] | not in the paper's table |
+| 10 | Woods-Saxon radius R | `isobars_conf_dict_*.isobar_properties.isobar1.WS_radius` | [4.9, 5.3] fm | feeds `b_max` |
+| 11 | Woods-Saxon diffusiveness a | `...WS_diffusiveness` | [0.45, 0.60] fm | feeds `b_max` |
+| 12 | quadrupole deformation | `...beta_2` | [0.0, 0.5] | feeds `b_max`; needs the plane form to reach 0 |
+| 13 | triaxiality (lit) | `...gamma` | [0, 60] deg | the sampler's fundamental domain |
+| 14 | octupole deformation | `...beta_3` | [0.0, 0.2] | magnitude only; the sign is a rotation |
+| 15 | shape fluctuation width | `...sigma_plane` | [0, 0.08] | optional; the single isotropic width |
+
+**Optional (2):** `sigma_beta_3` [0, 0.03], and `plane_anisotropy` [-1.4, 1.4] (currently fixed at
+0, isotropic).
+
+**Fixed (not design axes):** `Delta_Tau` 0.005, `average_surface_over_this_many_time_steps` 1,
+`use_eps_for_freeze_out` 0, `EOS_to_use` 9, `cross-section` 6.4, `reduced-thickness` 0,
+`correlation_length` 0.8 fm, `correlation_strength` -1.0, `plane_anisotropy` 0, and the numerical
+settings (dx = 0.15, oversampling 1e6, `maximum_sampling_events` 1e5).
+
+### 18.3 What the design costs
+
+15 varied parameters (or 17 with the optional pair) is a large space for an emulator, and the
+paper handles that with PCA before the Gaussian processes. Three practical consequences:
+
+* **The dimension is set by what the pipeline exposes, not by what the physics needs.** The nine
+  unavailable parameters are the ones that carry most of the *interesting* physics -- the
+  temperature dependence of eta/s and the bulk viscosity. Without them the emulator is
+  characterising a narrower slice of model space than the paper's.
+* **Closure tests are the only way to find out whether the emulator can resolve any of this.**
+  With no data, the standard approach is to generate synthetic data at a known truth, run the
+  full inference, and check that the posterior recovers it. That is the right first milestone
+  and it is what the design should be validated against before any real data exists.
+* **The priors are wide on purpose** (the exploratory framing), which means the posterior will
+  be prior-dominated in the directions the synthetic data constrains least. Closure tests
+  should therefore be run at several points in the prior, not just the centre.
