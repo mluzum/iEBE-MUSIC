@@ -76,7 +76,6 @@ if [ -f "${ISO_BAR_CORR_BACKUP}" ]; then
     rm -f "${ISO_BAR_CORR_BACKUP}"
     echo "Restored in-tree Alvioli correlation file."
 fi
-fi
 
 # download TRENTo (used by TRENTo initial conditions)
 clone_repo_at_commit \
