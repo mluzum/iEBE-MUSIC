@@ -76,6 +76,10 @@ ENV HOME /opt/
 #   9ac1b3b = "Fluctuate beta2, beta3 and gamma event by event"
 #             (also carries the dependency pins, sampler-fork fix, pinned Isobar-Sampler
 #             and the faster isobar sampler)
+#   3001ee9 = "Make the campaign seed a constant, record drawn events, and generate the design"
+#             (seed_add fixed to 0 so events are common across design points;
+#              events_drawn.csv for every drawn event including mult = 0;
+#              scripts/make_design.py + design/design_lhs2000.csv)
 #   5126193 = "Apply the boost-invariant dN/dy patch in the pinned bootstrap"
 #             (the pinned script never applied the toolkit patch, so no image shipped
 #              with _boostinv; also makes decays-only from iSS the default and stops
@@ -84,9 +88,9 @@ RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin b55dc6fb1a496b83b76fecc08dae34264673713a && \
+    git fetch -q --depth=1 origin 3001ee98df9cbd1916efc2343375871ba1dcd7df && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "b55dc6fb1a496b83b76fecc08dae34264673713a" && \
+    test "$(git rev-parse HEAD)" = "3001ee98df9cbd1916efc2343375871ba1dcd7df" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
