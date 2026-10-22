@@ -451,6 +451,18 @@ finalize_job_output() {
         -name 'grid_extent_*.csv' -o \
         -name 'target_nucleus.hdf' \
     \) -exec cp -f {} "${quiet_out_dir}/" \; || true
+    # The driver runs once per event, so each event writes its own
+    # events_drawn.csv with a single row. Concatenate them into one table per
+    # job, keeping the header from the first file only.
+    drawn_csv="${quiet_out_dir}/events_drawn_${processId}.csv"
+    rm -f "${drawn_csv}"
+    for drawn in $(find "${SCRATCH_DIR}/playground" -type f -name 'events_drawn.csv'); do
+        if [ ! -s "${drawn_csv}" ]; then
+            cp -f "${drawn}" "${drawn_csv}"
+        else
+            tail -n +2 "${drawn}" >> "${drawn_csv}"
+        fi
+    done || true
 
     if [ "${output_mode}" != "quiet" ]; then
         job_output_tar="${SCRATCH_DIR}/job_output_${processId}.tar.gz"
