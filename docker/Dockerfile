@@ -76,13 +76,17 @@ ENV HOME /opt/
 #   9ac1b3b = "Fluctuate beta2, beta3 and gamma event by event"
 #             (also carries the dependency pins, sampler-fork fix, pinned Isobar-Sampler
 #             and the faster isobar sampler)
+#   5126193 = "Apply the boost-invariant dN/dy patch in the pinned bootstrap"
+#             (the pinned script never applied the toolkit patch, so no image shipped
+#              with _boostinv; also makes decays-only from iSS the default and stops
+#              quoting container_image)
 RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 05ebd4298477a656fb7584741c266bc3292d72e1 && \
+    git fetch -q --depth=1 origin 5126193051bf1d4b88dda85ca235110151c5c952 && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "05ebd4298477a656fb7584741c266bc3292d72e1" && \
+    test "$(git rev-parse HEAD)" = "5126193051bf1d4b88dda85ca235110151c5c952" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
