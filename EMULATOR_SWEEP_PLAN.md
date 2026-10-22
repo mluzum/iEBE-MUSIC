@@ -2037,3 +2037,94 @@ deterministic names so the X/y join survives merging.
   spans systems other than Zr/Ru.
 - **`beta_3` sign is a rotation, not a degree of freedom** (Phase D). Its magnitude is the real
   parameter; do not spend a design axis on the sign.
+
+---
+
+## 17. Prior design: the paper's Table 1 plus the nuclear block
+
+### 17.1 From the JETSCAPE Bayesian analysis (arXiv:2011.01430, Table 1)
+
+All uniform, as in the paper:
+
+| parameter | prior |
+|---|---|
+| TRENTo normalization, Au-Au 200 GeV | [10, 20] |
+| TRENTo normalization, Pb-Pb 2.76 TeV | [10, 20] |
+| (eta/s) at the kink | [0.01, 0.2] |
+| low-T slope of (eta/s) | [-2, 1] GeV^-1 |
+| high-T slope of (eta/s) | [-1, 2] GeV^-1 |
+| temperature of the (eta/s) kink | [0.13, 0.3] GeV |
+| **nucleon width w** | **[0.5, 1.5] fm** |
+| shear relaxation time factor b_pi | [2, 8] |
+| multiplicity fluctuation sigma_k | [0.3, 2.0] |
+| maximum of (zeta/s) | [0.01, 0.25] |
+| free-streaming time scale tau_R | [0.3, 2.0] fm/c |
+| temperature of the (zeta/s) peak | [0.12, 0.3] GeV |
+| free-streaming energy dependence alpha | [-0.3, 0.3] |
+| width of the (zeta/s) peak | [0.025, 0.15] GeV |
+| particlization temperature T_sw | [0.135, 0.165] GeV |
+| asymmetry of the (zeta/s) peak lambda_zeta | [-0.8, 0.8] |
+
+Our `nucleon-width` prior of [0.5, 1.5] is exactly this paper's `w`, and our TRENTo
+`normalization` = 15 sits in the middle of its [10, 20].
+
+**`d_min` does not carry over.** It is a TRENTo sampling parameter and we use the
+Isobar-Sampler, which has no `d_min`. The sampler's equivalent machinery is
+`realistic_correlation` / `correlation_volume` / `correlation_extremum` (realistic) or
+`correlation_length` / `correlation_strength` (step function).
+
+### 17.2 The nuclear block (to add), grounded in 76Ge data
+
+Experimental inputs: r_c(76Ge) = 4.080 / 4.127 fm (two extractions, Angeli; Stone; Raman),
+beta_2 = 0.10 / 0.26 (two Q_p extractions), beta_eff ~ 0.28 from the Coulomb-excitation
+invariant sum rules, and **gamma ~ 30 deg with rigid triaxiality** -- 76Ge is a rare rigid
+triaxial case, unlike its neighbour 76Se which is gamma-soft (Allmond et al., PRC 107,
+044314, 2023).
+
+| parameter | central | proposed prior | why |
+|---|---|---|---|
+| `WS_radius` R | 5.08 fm | **[4.9, 5.3]** | 1.2*A^(1/3); the same convention reproduces the paper's Au (6.38) and Pb (6.62) and their matter rms to 3 % (5.33 vs 5.47, 5.52 vs 5.50). The measured r_c(76Ge) brackets this once skin and deformation are accounted for |
+| `WS_diffusiveness` a | 0.50 fm | **[0.45, 0.60]** | Au 0.535, Pb 0.546; 0.5 is standard for medium nuclei |
+| `beta_2` | 0.10 | **[0.0, 0.30]** | one of the two experimental extractions is exactly 0.10, the other 0.26, and beta_eff ~ 0.28 from Coulomb excitation. 76Ge is a shape-coexistence nucleus with nearly degenerate oblate and prolate minima and a very shallow energy curve over beta in [-0.2, 0.2], so the prior should be broad |
+| `gamma` (lit) | 0.52 rad (30 deg) | **[0, 60 deg]** | measured ~30 deg with rigid triaxiality. The sampler's wedge parameterisation puts beta >= 0 and encodes prolateness/oblateness in gamma, so gamma in [0, 60 deg] spans prolate, triaxial and oblate |
+| `beta_3` | 0.0 | **[-0.05, 0.05]** | varied, as requested. 76Ge is near mid-shell and not an octupole-deformed nucleus, so |beta_3| is small. **The prior is symmetric**: the sign of beta_3 is a rotation, not a physical degree of freedom |
+| `sigma_beta_2` | 0.02 | **[0, 0.05]** | the shallow oblate/prolate energy curve implies real beta fluctuation, even though the *gamma* fluctuation is suppressed by the rigid-triaxiality finding |
+| `sigma_gamma` | 0.05 rad | **[0, 0.15]** | small: rigid triaxiality in 76Ge argues against large gamma fluctuations |
+| `sigma_beta_3` | 0.005 | **[0, 0.01]** | small: beta_3 is already ~0 with a symmetric prior |
+
+### 17.3 Short-range correlations: use the step function, not the realistic option
+
+`realistic_correlation` = 1 needs `correlation_files/Ru_correlation_Alvioli.npy` (Alvioli's
+Ru correlation function) and that file **is not in the tree**; the interpolation code in
+`build_isobars.py` is commented out. So the realistic branch cannot run as the code stands.
+
+The **step-function** branch (`correlation_length`, `correlation_strength`) is functional.
+Recommendation: enable it with a fixed strength and length rather than none, e.g. a
+`correlation_length` near 0.8 fm and a `correlation_strength` giving a correlation volume of
+order 0.2-0.5 fm^3 (the usual repulsive-core scale for medium nuclei). Do not vary it.
+
+### 17.4 The coupling that has to be handled deliberately: b_max
+
+`b_max = 1.789 * sqrt{ R^2 * [1 + (7*pi/4) * (beta_2^2 + beta_3^2)] + (7*pi^2/3) * a^2 } + w + 0.5`
+
+This was **written for this work** (added 2026-08-31 in `MakeDictionaries.py` by
+J. P. Picchetti, in the same commit that created the file). It is not pre-existing in the
+repository, and its docstring cites no source -- **it needs a provenance check before the
+design is fixed**, because it sets the centrality window.
+
+The coupling is real and easy to miss: TRENTo here samples `b` as a **fixed fraction of
+`b_max`** (verified: `b/b_max` came out identical, 0.366-0.951, for the same event ids at
+`b_max` = 0.75 and 14). So varying R, a, beta_2, beta_3 or w changes `b_max`, and therefore
+shifts the *entire* centrality distribution. Two coherent choices:
+
+* **Hold the physical b range fixed** (b_max as a constant, nuclear parameters varied) --
+  the same impact parameters are simulated for every design point, so the design is a clean
+  scan over nuclear structure at fixed collision geometry.
+* **Let b_max track the nuclear parameters** -- the centrality *window* follows the nucleus, so
+  "10 % centrality" means the same thing for every design point, at the cost of never
+  simulating the same b twice.
+
+The first is better for an emulator (fixed geometry, CRN across design points, and the
+centrality variable is a clean function of the design point); the second is better if the
+emulator is to predict centralities in a *fixed* physical window. **This has to be decided
+before the design is frozen, because it changes which b values every design point sees.**
