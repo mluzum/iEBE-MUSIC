@@ -7,10 +7,13 @@
   "dockerfile_pin": "3001ee98df9cbd1916efc2343375871ba1dcd7df",
   "git_branch": "NME",
   "git_dirty": true,
-  "git_revision": "3a8ad620b1292d11364eecb2c29868db22ada92d",
+  "git_revision": "596bd5b87e652373abcebc58aa307c92a088a9a0",
   "master_seed": 8675309,
   "parameter_dictionary": "provenance/parameters_design_0001.json",
   "parameter_dictionary_source": "parameter_dictionary_design_point_1.py",
   "recorded_design_point": 1,
-  "recorded_utc": "2026-10-22T22:52:25Z"
+  "recorded_utc": "2026-10-22T23:16:35Z",
+  "sif_bytes": 553177088,
+  "sif_md5": "9fbcea51652f74c8b68ec047153deff5",
+  "sif_path": "osdf:///ospool/ap40/data/matthew.luzum/iebe-music_slim_3001ee9_9fbcea51.sif"
 }

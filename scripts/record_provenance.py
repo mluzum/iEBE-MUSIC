@@ -109,7 +109,9 @@ def main():
     parser.add_argument("--design-point", type=int, default=1,
                         help="design point whose resolved dictionary is recorded")
     parser.add_argument("--image", default="",
-                        help="SIF the jobs will run in; its md5 is recorded")
+                        help="local SIF to hash; its md5 is recorded")
+    parser.add_argument("--sif-url", default="",
+                        help="published container URL recorded instead of the local path")
     parser.add_argument("--outdir", default="provenance")
     args = parser.parse_args()
 
@@ -143,7 +145,7 @@ def main():
     if args.image:
         if not os.path.exists(args.image):
             raise SystemExit("no such image: {}".format(args.image))
-        manifest["sif_path"] = os.path.abspath(args.image)
+        manifest["sif_path"] = args.sif_url or os.path.abspath(args.image)
         manifest["sif_md5"] = md5_file(args.image)
         manifest["sif_bytes"] = os.path.getsize(args.image)
 
