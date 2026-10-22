@@ -178,11 +178,22 @@ fi
 
 
 # download hadronic afterburner toolkit
+# (pinned: the boost-invariant dN/dy patch below is generated against this commit,
+# so do not let it float)
 clone_repo_at_commit \
   https://github.com/chunshen1987/hadronic_afterburner_toolkit \
   hadronic_afterburner_toolkit_code \
   2326ba21a76d7bb533aa1d39a50f3dca298ef9c3 \
   main
+
+# Boost-invariant (2+1)-d dN/dy: keep every particle and divide by the rapidity
+# width iSS sampled the parents from, instead of cutting at an acceptance window
+# and dividing by that window. Without this the yield is biased low by the
+# daughters that leak outside the window, and it costs ~10x the statistics.
+(
+  cd hadronic_afterburner_toolkit_code
+  patch -p1 --forward < ../patches/hadronic_afterburner_toolkit_boost_invariant_dNdy.patch
+)
 
 #download deltaf_tables for iSS
 (
