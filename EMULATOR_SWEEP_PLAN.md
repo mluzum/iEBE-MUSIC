@@ -2470,3 +2470,35 @@ ignores `sigma_plane`/`sigma_beta_3`. At the all-max corner the realised deforma
 `beta = 0.79` against a design `beta_2 = 0.5`, which makes `b_max` ~9 % too small there. Either
 the formula should use `beta_2 + 2*sigma_plane` (and likewise for `beta_3`), or the sampling
 range is biased peripheral by a design-dependent amount.
+
+### 18.9 The yield normalisation: keep every particle, divide by the sampled width
+
+The toolkit's windowed yield is `dN_ev_avg = Q0/N_events/(rap_max - rap_min)` and it counts with
+`rap_min < y < rap_max`. That is correct only if the source covers the window completely. In a
+boost-invariant run the parents are sampled uniformly over `[y_LB, y_RB]`, so daughters that decay
+outside a narrower analysis window are lost while nothing enters from outside the sampled range:
+the measured density dips as the window approaches `y_RB`. For `rap = ±4` against `y_LB/y_RB = ±5`
+the loss is 0.7 %; it grows quickly beyond that.
+
+The exact estimator for a (2+1)-d run is `dN/dy = N(all final particles)/(y_RB - y_LB)`: iSS draws
+`(y_RB - y_LB)*dN_dy` parents, so the total number of daughters equals the plateau density times
+the sampled width. Measured on the ±6 table of a wide run:
+`∫(dN/dy)dy / plateau = 164.26/16.648 = 9.87 ≈ 10 = y_RB - y_LB`, confirming the width.
+
+Implementation (`codes/patches/hadronic_afterburner_toolkit_boost_invariant_dNdy.patch`, applied to
+the pinned toolkit `2326ba2` by `codes/get_code_packages.sh`):
+
+- `singleParticleSpectra` takes `dNdy_normalization_width` (default 0 = historical behaviour) and
+  uses it in place of `rap_max - rap_min`; with the width set it also tags the file `_boostinv`.
+- `Analysis.cpp` **hardcodes its own list of experimental rapidity windows** and overwrites
+  `rap_min`/`rap_max` for each of them, so the value in `parameters.dat` is ignored. The patch
+  therefore zeroes the width for all of those and adds one dedicated 13-species block with
+  `rap = ±3*width` and the width applied. The `9999`/`99999` references stay in pseudorapidity
+  (`rap_type = 0`), where the y→η Jacobian makes the no-cut estimator invalid.
+- `parameters_dict_master.py` derives the width from `iss_dict['y_RB'] - y_LB` and sets it to 0
+  unless `music_dict['boost_invariant'] == 1`, so a (3+1)-d run cannot inherit it.
+
+Validation on one 76Ge-like event, 80 samples: `±30` window counts 12884 π⁺ (`dN/dy = 16.105`)
+against 1283 in the `±0.5` window (`16.038`); K⁺ 33.60 vs 2.975 and p 15.48 vs 1.41, both
+consistent within their (much larger) windowed errors. The gain is statistics: the `±0.5` window
+sees 238 K⁺ in 80 samples, the no-cut analysis 2688.

@@ -196,6 +196,20 @@ defaults — prefer those over guessing flags.
 - `hydro_plus_UrQMD_driver.py`'s positional argument order is assembled in
   `generate_full_job_script()` (`generate_jobs.py:266`) — change both sides together.
 
+- **`hadronic_afterburner_toolkit`'s `Analysis.cpp` ignores `rap_min`/`rap_max`.** `FlowAnalysis()`
+  constructs one `singleParticleSpectra` per entry of a hardcoded list of experimental acceptance
+  windows (ALICE ±0.5, STAR ±1, CMS ±2.4, ATLAS ±2.5/±4.9, V0A/V0C, PHENIX BBC, ...) and calls
+  `paraRdr.setVal("rap_min", ...)` before each. Editing `rap_min` in `parameters.dat` changes
+  nothing. The identified-species `_vndata_y_-0.5_0.5` files are ALICE's window, not yours. Any new
+  rapidity analysis has to be added as another entry in that list - see the boost-invariant
+  `_boostinv` block and `codes/patches/hadronic_afterburner_toolkit_boost_invariant_dNdy.patch`.
+- **Boost-invariant dN/dy must not be cut in rapidity.** For (2+1)-d runs the density is flat and
+  `dN/dy = N(all particles)/(y_RB - y_LB)`. The toolkit's `dN_ev_avg = Q0/N_events/(rap_max-rap_min)`
+  computed on a cut window loses the daughters that decayed outside it and is biased low (0.7 % at
+  ±4, worse toward the edge). `dNdy_normalization_width` switches to the no-cut estimator and is
+  derived from `iss_dict` only when `music_dict['boost_invariant'] == 1`; it must stay 0 for
+  (3+1)-d runs. The `9999`/`99999` references use pseudorapidity and never get it.
+
 ## Style
 
 YAPF only, google-based, configured in `.style.yapf` (2-space before comments, split before
