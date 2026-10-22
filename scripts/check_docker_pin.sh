@@ -80,3 +80,33 @@ if [[ "${GOT}" != "${PIN}" ]]; then
 fi
 
 echo "OK: pin ${PIN} is fetchable from ${REMOTE} and checks out exactly."
+
+# 4. every shell script the build executes parses.
+#
+# CI's "Build Test" runs get_code_packages_test.sh and compile_code_packages.sh
+# straight from the branch tip, so one syntax error anywhere in them turns the
+# branch red in about 40 seconds. That is exactly what happened: an edit to the
+# Dockerfile bootstrap path left a stray `fi` in the isobar-restore block of
+# get_code_packages_test.sh, the branch had not been pushed in a while, and three
+# consecutive pushes failed on it before the container build surfaced the same
+# error. `bash -n` catches it in milliseconds, which is the point of running it
+# here instead of waiting for the runner.
+#
+# The tracked *.py sweep below is for the same reason: CI does not exercise the
+# Python entry points, so a typo there only shows up when someone generates jobs.
+mapfile -t SHELL_SCRIPTS < <(git -C "${REPO_ROOT}" ls-files '*.sh')
+[[ ${#SHELL_SCRIPTS[@]} -gt 0 ]] || fail "no tracked *.sh files found"
+for script in "${SHELL_SCRIPTS[@]}"; do
+    bash -n "${REPO_ROOT}/${script}" || fail "${script} does not parse (bash -n)"
+done
+echo "OK: ${#SHELL_SCRIPTS[@]} shell scripts parse."
+
+command -v python3 >/dev/null 2>&1 || fail "python3 not found; cannot check the *.py files"
+PY_FILES="$(git -C "${REPO_ROOT}" ls-files '*.py')"
+[[ -n "${PY_FILES}" ]] || fail "no tracked *.py files found"
+# PYTHONPYCACHEPREFIX keeps the .pyc files out of the working tree.
+(
+    cd "${REPO_ROOT}"
+    PYTHONPYCACHEPREFIX="${SCRATCH}/pycache" python3 -m py_compile ${PY_FILES}
+) || fail "one or more tracked *.py files do not compile"
+echo "OK: $(echo "${PY_FILES}" | wc -w) python files compile."

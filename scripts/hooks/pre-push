@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#
+# Pre-push hook: run the checks that would otherwise fail on the GitHub runner.
+#
+# Why this is versioned rather than living in .git/hooks: .git/hooks is not copied
+# by a clone, so a check that matters has to live in the tree. Enable it once per
+# clone with
+#
+#     git config core.hooksPath scripts/hooks
+#
+# and every `git push` runs scripts/check_docker_pin.sh first. That script covers
+# the two failures that actually reached CI and cost a full cycle each: a
+# Dockerfile pin that no longer points at a fetchable commit, and a syntax error
+# in the shell bootstrap the runner executes.
+#
+# Bypass with `git push --no-verify` when you know why it is failing.
+
+set -euo pipefail
+
+TOPLEVEL="$(git rev-parse --show-toplevel)"
+
+exec "${TOPLEVEL}/scripts/check_docker_pin.sh"
