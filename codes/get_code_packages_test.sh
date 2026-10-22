@@ -36,9 +36,12 @@ clone_repo_at_tag() {
 }
 
 # This repository owns codes/isobar_sampler_code/exec/build_isobars.py as a tracked
-# fork (see EMULATOR_SWEEP_PLAN.md decision D1). The clone below does `rm -fr` on
-# isobar_sampler_code, which would delete the tracked fork, so stash it first and
-# restore it afterwards. Everything else in isobar_sampler_code (notably
+# fork (see EMULATOR_SWEEP_PLAN.md decision D1), and the short-range-correlation data
+# file correlation_files/Ru_correlation_Alvioli.npy, without which the sampler's
+# "realistic" correlation path cannot run at all -- the upstream repository carries the
+# file but the fork commit that introduced build_isobars.py did not, and the clone
+# below does `rm -fr` on isobar_sampler_code, which would delete it anyway. So stash
+# both and restore them afterwards. Everything else in isobar_sampler_code (notably
 # make_seeds.py) still comes from upstream at the pin below.
 ISO_BAR_FORK_BACKUP="$(mktemp)"
 if [ -f isobar_sampler_code/exec/build_isobars.py ]; then
@@ -46,6 +49,14 @@ if [ -f isobar_sampler_code/exec/build_isobars.py ]; then
 else
     rm -f "${ISO_BAR_FORK_BACKUP}"
     echo "WARNING: in-tree Isobar-Sampler fork not found; upstream build_isobars.py will be used." >&2
+fi
+ISO_BAR_CORR_BACKUP="$(mktemp)"
+if [ -f isobar_sampler_code/correlation_files/Ru_correlation_Alvioli.npy ]; then
+    cp isobar_sampler_code/correlation_files/Ru_correlation_Alvioli.npy "${ISO_BAR_CORR_BACKUP}"
+else
+    rm -f "${ISO_BAR_CORR_BACKUP}"
+    echo "WARNING: in-tree Alvioli correlation file not found; the realistic short-range"
+    echo "         correlation path will not be available." >&2
 fi
 
 # download Isobar-Sampler (used by TRENTo initial conditions)
@@ -58,6 +69,13 @@ if [ -f "${ISO_BAR_FORK_BACKUP}" ]; then
     cp "${ISO_BAR_FORK_BACKUP}" isobar_sampler_code/exec/build_isobars.py
     rm -f "${ISO_BAR_FORK_BACKUP}"
     echo "Restored in-tree Isobar-Sampler fork over upstream clone."
+fi
+if [ -f "${ISO_BAR_CORR_BACKUP}" ]; then
+    mkdir -p isobar_sampler_code/correlation_files
+    cp "${ISO_BAR_CORR_BACKUP}" isobar_sampler_code/correlation_files/Ru_correlation_Alvioli.npy
+    rm -f "${ISO_BAR_CORR_BACKUP}"
+    echo "Restored in-tree Alvioli correlation file."
+fi
 fi
 
 # download TRENTo (used by TRENTo initial conditions)

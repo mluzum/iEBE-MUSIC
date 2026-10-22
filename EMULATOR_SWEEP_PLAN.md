@@ -2092,18 +2092,54 @@ triaxial case, unlike its neighbour 76Se which is gamma-soft (Allmond et al., PR
 | `sigma_gamma` | 0.05 rad | **[0, 0.15]** | small: rigid triaxiality in 76Ge argues against large gamma fluctuations |
 | `sigma_beta_3` | 0.005 | **[0, 0.01]** | small: beta_3 is already ~0 with a symmetric prior |
 
-### 17.3 Short-range correlations: use the step function, not the realistic option
+### 17.3 Short-range correlations: the realistic path is re-enabled, but is mis-calibrated
 
-`realistic_correlation` = 1 needs `correlation_files/Ru_correlation_Alvioli.npy` (Alvioli's
-Ru correlation function) and that file **is not in the tree**; the interpolation code in
-`build_isobars.py` is commented out. So the realistic branch cannot run as the code stands.
+The realistic branch was **not broken** -- the fork's `build_isobars.py` carries upstream's code
+verbatim, including the construction of `corr_shift_interp` from the correlation file. The only
+thing missing was the *data file*: `correlation_files/Ru_correlation_Alvioli.npy` is in the
+upstream repository, and the fork commit (ec00603) added `build_isobars.py` but not that
+directory -- and `get_code_packages_test.sh` does `rm -fr isobar_sampler_code`, so it could not
+have survived anyway. The file is now tracked here and the build script preserves it across the
+clone. **The realistic path therefore runs**, and `verify_src.py` checks that it does.
 
-The **step-function** branch (`correlation_length`, `correlation_strength`) is functional.
-Recommendation: enable it with a fixed strength and length rather than none, e.g. a
-`correlation_length` near 0.8 fm and a `correlation_strength` giving a correlation volume of
-order 0.2-0.5 fm^3 (the usual repulsive-core scale for medium nuclei). Do not vary it.
+But it is **not usable as it stands**, and the reason is worth recording:
 
-### 17.4 The coupling that has to be handled deliberately: b_max
+| configuration | rms (fm) | min pair distance | rms change |
+|---|---|---|---|
+| no correlation | 4.2495 | 0.3969 | -- |
+| realistic, `correlation_volume` = -0.213 (upstream's reference) | 5.9455 | 0.7716 | **+39.9 %** |
+| realistic, -0.05 | 4.6891 | 0.5178 | +10.4 % |
+| realistic, -0.01 | 4.3409 | 0.4573 | +2.2 % |
+| **step, `correlation_length` = 0.8, `correlation_strength` = -1.0** | **4.2762** | **0.8421** | **+0.6 %** |
+| step, length 0.8, strength -0.5 | 4.2563 | 0.5190 | +0.2 % |
+
+The "reference" volume is the one for which the correlation's *length scale* is 1, not a statement
+that the nucleus is left unchanged. At that value the realistic path inflates the nucleus by 40 %,
+and it does the same to **Ru, the calibration nucleus itself (+46.5 %)** -- so this is a
+mis-calibration of the expansion term for these nuclei, not an A-scaling artefact, and no
+`correlation_volume` reaches a 0.8 fm exclusion without a double-digit rms change.
+
+**Recommendation: the step function, with `correlation_length` = 0.8 fm and
+`correlation_strength` = -1.0** -- a 0.842 fm exclusion for a 0.6 % rms change, which is the
+textbook repulsive core, and it is well conditioned. Fixed, not varied. If the *shape* of the
+Alvioli C(r) is wanted rather than a step, the upstream calibration has to be re-derived for
+our nuclei; that is a piece of work, not a config flip.
+
+### 17.4 The corners all build (`verify_src.py`)
+
+| design point | realised beta2 | gamma | beta3 | rms |
+|---|---|---|---|---|
+| beta_2 = 0 (wedge apex) | 0.0000 | 0.5236 | 0.0000 | 4.283 |
+| beta_2 = 0.5 (top of the wedge) | 0.5000 | 0.5236 | 0.0000 | 4.332 |
+| beta_3 = 0.2 | 0.1000 | 0.5236 | 0.2000 | 4.286 |
+| beta_2 = 0, plane, sigma_plane = 0.08 | 0.1065 | 0.4183 | 0.0000 | 4.279 |
+| beta_2 = 0.5, plane, sigma_plane = 0.08 | 0.3788 | 0.5080 | 0.2000 | 4.327 |
+
+The rigid cases reproduce the design point exactly, and the plane form with a **spherical mean**
+produces a genuine triaxial fluctuation (beta_2 = 0.107, gamma = 24 deg) -- the case the wedge
+form cannot express, and the reason to use the plane form if fluctuations are kept.
+
+### 17.5 The coupling that has to be handled deliberately: b_max
 
 `b_max = 1.789 * sqrt{ R^2 * [1 + (7*pi/4) * (beta_2^2 + beta_3^2)] + (7*pi^2/3) * a^2 } + w + 0.5`
 
