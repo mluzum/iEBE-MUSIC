@@ -210,6 +210,29 @@ defaults — prefer those over guessing flags.
   derived from `iss_dict` only when `music_dict['boost_invariant'] == 1`; it must stay 0 for
   (3+1)-d runs. The `9999`/`99999` references use pseudorapidity and never get it.
 
+- **An event is identified by `(MASTER_SEED, seed_add, event_id, iev)` — all four, and
+  `seed_add` must never be random.** The freeze-out seed is
+  `np.random.default_rng([seed_add, event_id, iev])`, the TRENTo seed is `event_id + 1`, and the
+  nucleon pool address depends only on `event_id`. The OSG and HTCondor generators used to draw
+  `seed_add` with `random.SystemRandom().randint(0, 1e7)` once per submission, so every design point
+  got its own private event set and the common random numbers the ensemble rests on were silently
+  absent. The 2026-10-22 corner run is the documented case: three corners, seeds 9418965, 4477493
+  and 1182519. It is now `CAMPAIGN_SEED_ADD = 0`, overridable with `IBEM_SEED_ADD` only for
+  deliberately uncorrelated exploratory runs.
+- **`b_max` is per design point on purpose; do not "simplify" it to a campaign constant.** It is
+  computed from `WS_radius`, `WS_diffusiveness`, `nucleon-width` and the 2-sigma deformation, so a
+  larger nucleus draws a proportionally larger `b`. That is what keeps `b/b_max` — not `b` — the
+  synchronised variable between design points: the same event index at a bigger `WS_radius` stays at
+  the same centrality instead of drifting more central. Fixing `b` in fm instead would *reduce* the
+  cancellation of statistical error between design points.
+- **`events_drawn.csv` records every drawn event, including the ones that never collide.** TRENTo
+  returns `mult = 0` when two randomly oriented deformed nuclei miss each other, and such an event
+  produces no `spvn_results`, so without this file it is invisible downstream and the merged HDF5
+  just has fewer rows than were requested. The CSV (`event_id, b, b_max, b_over_bmax, mult, status,
+  seed_add`) is rewritten per event, keyed by event id, so the adaptive-grid rerun cannot duplicate
+  rows. Centrality percentiles need the count of failures, not only the count of survivors.
+
+
 ## Style
 
 YAPF only, google-based, configured in `.style.yapf` (2-space before comments, split before

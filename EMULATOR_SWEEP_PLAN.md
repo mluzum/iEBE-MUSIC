@@ -2553,3 +2553,54 @@ driver drops such an event and carries on, so the merged file holds fewer events
 requested. That is the correct trigger semantics — the sample is conditioned on having at least one
 collision — but the campaign has to budget roughly 10-20% extra wall time and events to land a
 fixed number of *usable* events per design point.
+
+### 18.11 The design file, and the random-number contract
+
+**The design** is `design/design_lhs2000.csv`, produced by `scripts/make_design.py` from the §18.3
+box. It is a 2000-point Latin hypercube re-ordered by greedy maximin (farthest-point insertion from
+the centre), so *every prefix* is usable as a design, not only the full set. The campaign submits
+design points in file order and stops wherever it stops.
+
+The ordering is worth its cost. Minimax separation of the prefix, unit hypercube, measured against
+fresh Latin hypercubes of the same size:
+
+| N | maximin prefix | fresh LHS | gain | prefix marginal KS | fresh LHS KS |
+|---|---|---|---|---|---|
+| 125 | 1.497 | 0.908 | +65 % | 0.117 | 0.008 |
+| 250 | 1.369 | 0.826 | +66 % | 0.083 | 0.004 |
+| 500 | 1.246 | 0.773 | +61 % | 0.058 | 0.002 |
+| 1000 | 1.111 | 0.665 | **+67 %** | 0.036 | 0.001 |
+| 2000 | 0.581 | 0.592 | −2 % | 0.001 | 0.001 |
+
+A fresh Latin hypercube is *not* well separated in 20 dimensions — its points are stratified in each
+marginal but nothing stops two of them from landing next to each other, and with 2000 points in 20
+dimensions that happens constantly. The prefix loses marginal stratification (it degrades to the
+i.i.d. rate instead of 1/N) and gains two thirds on the property that governs how well the box is
+filled. For a 20-dimensional emulator that is the right trade.
+
+**The random-number contract.** An event is identified by
+`(MASTER_SEED, seed_add, event_id, iev)`:
+
+- `MASTER_SEED = 8675309` fixes the nucleon pool rows, addressed by the global event id alone.
+- `seed_add` fixes the freeze-out seed `default_rng([seed_add, event_id, iev])`. It is a **campaign
+  constant** (`CAMPAIGN_SEED_ADD = 0`). It used to be `random.SystemRandom().randint(0, 1e7)` per
+  submission, which gave each design point a different event set: the three corner runs used
+  9418965, 4477493 and 1182519, so they tested the chain but not the common random numbers.
+- `event_id` is global and contiguous. Batch *k* owns `[k·B, (k+1)·B − 1]`, so a later batch draws
+  *new* ids — new seeds, never reused — while the same id in any other design point is the identical
+  event. Augmenting a campaign is therefore just another id range; nothing else changes.
+
+**`b_max` stays per design point.** It scales with `WS_radius`, `WS_diffusiveness` and the
+deformation, so a larger nucleus draws a proportionally larger `b`. The synchronised variable is
+therefore `b/b_max`, and that is the right one: at fixed `b` a bigger nucleus would sit at a
+different centrality, so its event would be less like its partner at the other design points and
+*less* of the statistical error would cancel. `events_drawn.csv` records both `b` and `b_max` for
+every drawn event so the scaled variable is always recoverable.
+
+**Drawn versus colliding.** TRENTo returns `mult = 0` when two randomly oriented deformed nuclei miss
+at large `b`; at the three corners that was 1 of 12 events each, always just inside `b_max` and
+always below the largest b that did collide (10.06, 11.21, 13.26 fm). So `b_max` is correctly placed
+— cutting it would delete real peripheral collisions — and the loss is the physical no-collision
+population, which centrality percentiles must count explicitly. `events_drawn.csv` carries
+`event_id, b, b_max, b_over_bmax, mult, status` plus `seed_add`, is keyed by event id so the
+adaptive-grid rerun cannot duplicate a row, and is transferred with `spvn_results/`.

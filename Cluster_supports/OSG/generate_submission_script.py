@@ -5,6 +5,7 @@
 import re
 import sys
 import shutil
+import os
 from os import path, makedirs, getcwd, chmod
 import argparse
 import random
@@ -35,6 +36,34 @@ def detect_afterburner(param_file):
     except Exception:
         pass
     return "UrQMD"
+
+
+# ── Common random numbers: the campaign seed ────────────────────────────────
+#
+# Every event's freeze-out seed is np.random.default_rng([seed_add, event_id,
+# iev]) in hydro_plus_UrQMD_driver.py, and the nucleon pool address depends only
+# on the global event id. So an event is fully identified by
+# (MASTER_SEED, seed_add, event_id, iev), and "event 37 means the same thing at
+# every design point" holds if and only if seed_add is the same everywhere.
+#
+# This used to be random.SystemRandom().randint(0, 10000000) drawn once per
+# submission, which gave each design point its own private set of events and
+# silently destroyed the common random numbers the whole ensemble rests on: the
+# 2026-10-22 corner runs used 9418965, 4477493 and 1182519. Fix it to a
+# campaign constant instead, and let IBEM_SEED_ADD override it only for
+# deliberately uncorrelated exploratory runs.
+CAMPAIGN_SEED_ADD = 0
+
+
+def campaign_seed_add():
+    """Return the seed_add shared by every design point and every batch."""
+    override = os.environ.get("IBEM_SEED_ADD")
+    if override is None or override.strip() == "":
+        return CAMPAIGN_SEED_ADD
+    value = int(override)
+    if value < 0:
+        raise SystemExit("IBEM_SEED_ADD must be non-negative, got {}".format(value))
+    return value
 
 
 def detect_initial_state_type(param_file):
@@ -126,7 +155,7 @@ def build_transfer_output_tarball_name():
 
 def write_submission_script_urqmd(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
-    random_seed = random.SystemRandom().randint(0, 10000000)
+    random_seed = campaign_seed_add()
     seed_file = None
     if declared_seed_source(para_dict_["param_file"]) != "philox":
         seed_file = detect_seed_file(para_dict_["param_file"])
@@ -469,7 +498,7 @@ fi
 
 def write_submission_script_smash(para_dict_):
     jobName = "iEBEMUSIC_{}".format(para_dict_["job_name"])
-    random_seed = random.SystemRandom().randint(0, 10000000)
+    random_seed = campaign_seed_add()
     imagePathHeader = "osdf://"
     seed_file = None
     if declared_seed_source(para_dict_["param_file"]) != "philox":

@@ -4,6 +4,8 @@
 from multiprocessing import Pool
 from subprocess import call
 from os import path, mkdir, remove, makedirs, stat
+import os
+import csv
 import tarfile
 from glob import glob
 from fnmatch import fnmatch
@@ -149,7 +151,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             print("TRENTo event exists ...")
             print("No need to rerun ...")
 
-        write_trento_event_summary(res_path, final_results_folder, event_id)
+        write_trento_event_summary(res_path, final_results_folder, event_id,
+                                   seed_add)
 
         grid_max = para_dict['free_stream_grid_max']
         grid_step = para_dict['free_stream_grid_step']
@@ -163,7 +166,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                     run_trento(event_id)
                     collect_trento_event(res_path)
                     write_trento_event_summary(res_path,
-                                               final_results_folder, event_id)
+                                               final_results_folder, event_id,
+                                               seed_add)
                     grid_max = new_L
                 # keep the diagnostic honest about which grid was actually used
                 para_dict['free_stream_grid_max'] = grid_max
@@ -562,7 +566,7 @@ def collect_trento_event(final_results_folder):
 
 
 def write_trento_event_summary(trento_results_folder, final_results_folder,
-                               event_id):
+                               event_id, seed_add=None):
     """Write a compact text summary for quiet-mode output transfer."""
     impact_parameter = None
     mult = None
@@ -617,6 +621,76 @@ def write_trento_event_summary(trento_results_folder, final_results_folder,
         f.write("impact_parameter {}\n".format(
             "nan" if impact_parameter is None else impact_parameter))
         f.write("mult {}\n".format("nan" if mult is None else mult))
+
+    record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
+                       seed_add)
+
+
+def record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
+                       seed_add=None):
+    """Append every DRAWN event, including the ones that never collide.
+
+    Centrality percentiles need to know how many events were thrown away, not
+    just how many survived. TRENTo returns mult = 0 for a configuration with no
+    overlap -- that happens at large b when the two deformed, randomly oriented
+    nuclei happen to miss -- and such an event produces no spvn results, so
+    without this file it is invisible downstream: the merged HDF5 simply has
+    fewer rows than events were requested and nothing records that the missing
+    ones were failures rather than a truncated run.
+
+    b_max is recorded alongside b because the b draw is uniform on
+    [0, b_max] and b_max is computed per design point from the shape
+    parameters. b/b_max is therefore the quantity that is comparable across
+    design points, and it is the variable events stay synchronised in.
+
+    Rewrites the file each call, keyed by event id, so the adaptive-grid rerun
+    (which calls write_trento_event_summary twice for one event) cannot leave
+    duplicate rows. Events run as one driver process per event, so there is no
+    state to carry between calls.
+    """
+    csv_path = path.join(final_results_folder, "events_drawn.csv")
+    columns = ["event_id", "b", "b_max", "b_over_bmax", "mult", "status",
+               "seed_add"]
+    rows = {}
+    try:
+        with open(csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rows[int(row["event_id"])] = row
+    except (OSError, KeyError, ValueError):
+        rows = {}
+
+    b_max = read_input_value(path.join("TRENTo", "input"), "b-max")
+    try:
+        b_max = float(b_max) if b_max is not None else None
+    except ValueError:
+        b_max = None
+
+    if mult is None:
+        status = "no_trento"
+    elif mult <= 0.0:
+        status = "no_collision"
+    else:
+        status = "ok"
+
+    rows[int(event_id)] = {
+        "event_id": int(event_id),
+        "b": "" if impact_parameter is None else "{:.10g}".format(impact_parameter),
+        "b_max": "" if b_max is None else "{:.10g}".format(b_max),
+        "b_over_bmax": "" if (b_max in (None, 0.0) or impact_parameter is None)
+                        else "{:.10g}".format(impact_parameter / b_max),
+        "mult": "" if mult is None else "{:.10g}".format(mult),
+        "status": status,
+        "seed_add": "" if seed_add is None else int(seed_add),
+    }
+
+    tmp_path = csv_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=columns)
+        writer.writeheader()
+        for key in sorted(rows):
+            writer.writerow(rows[key])
+    os.replace(tmp_path, csv_path)
     
     
 def connect_trento_event(res_path, initial_type, filename,
