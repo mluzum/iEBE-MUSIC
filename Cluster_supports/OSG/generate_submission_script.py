@@ -174,9 +174,10 @@ def write_submission_script_urqmd(para_dict_):
 
     param_basename = path.basename(para_dict_["param_file"])
     if para_dict_["bayesFlag"]:
-        args = "{0} $(Process) {1} {2} {3} {4}".format(
+        args = "{0} $(Process) {1} {2} {3} {4} {5}".format(
             param_basename, para_dict_["n_events_per_job"],
-            para_dict_["n_threads"], random_seed, para_dict_["bayes_file"])
+            para_dict_["n_threads"], random_seed, para_dict_["bayes_file"],
+            para_dict_["event_start_id"])
         if seed_file:
             args += " {}".format(path.basename(seed_file))
         script.write("""universe = vanilla
@@ -184,9 +185,9 @@ executable = run_singularity.sh
 arguments = {0}
 """.format(args))
     else:
-        args = "{0} $(Process) {1} {2} {3}".format(
+        args = "{0} $(Process) {1} {2} {3} {4}".format(
             param_basename, para_dict_["n_events_per_job"],
-            para_dict_["n_threads"], random_seed)
+            para_dict_["n_threads"], random_seed, para_dict_["event_start_id"])
         if seed_file:
             args += " {}".format(path.basename(seed_file))
         script.write("""universe = vanilla
@@ -270,6 +271,10 @@ nHydroEvents=$3
 nthreads=$4
 nUrqmdSamples=__NURQMD_SAMPLES__
 seed=$5
+# Global event-id offset of this batch: batch k uses ids [k*B, k*B+B-1] so a
+# later batch draws events no earlier batch used, while the same id at another
+# design point is the identical event (seed_add is a campaign constant).
+eventOffset=${6:-0}
 output_mode="__OUTPUT_MODE__"
 
 export PYTHONIOENCODING=utf-8
@@ -383,7 +388,7 @@ if [ -n "${seed_name}" ] && [ ! -f "shared_seeds/${seed_name}" ]; then
     exit 1
 fi
 
-event_start_id=$(( processId * nHydroEvents ))
+event_start_id=$(( eventOffset + processId * nHydroEvents ))
 event_end_id=${event_start_id}
 
 /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} --event_start_id ${event_start_id} --event_end_id ${event_end_id} --nocopy --continueFlag -b ${bayesFile}
@@ -406,7 +411,7 @@ if [ -n "${seed_name}" ] && [ ! -f "shared_seeds/${seed_name}" ]; then
     exit 1
 fi
 
-event_start_id=$(( processId * nHydroEvents ))
+event_start_id=$(( eventOffset + processId * nHydroEvents ))
 event_end_id=${event_start_id}
 
 /opt/iEBE-MUSIC/generate_jobs.py -w playground -c OSG -par ${parafile} -id ${processId} -n_th ${nthreads} -n_urqmd ${nUrqmdSamples} -n_hydro ${nHydroEvents} -seed ${seed} --event_start_id ${event_start_id} --event_end_id ${event_end_id} --nocopy --continueFlag
@@ -523,11 +528,12 @@ def write_submission_script_smash(para_dict_):
     if para_dict_["bayesFlag"]:
         args_str = "{0} $(Process) {1} {2} {3} {4}".format(
             para_dict_["param_file"], para_dict_["n_events_per_job"],
-            para_dict_["n_threads"], random_seed, para_dict_["bayes_file"])
+            para_dict_["n_threads"], random_seed, para_dict_["bayes_file"],
+            para_dict_["event_start_id"])
     else:
         args_str = "{0} $(Process) {1} {2} {3}".format(
             para_dict_["param_file"], para_dict_["n_events_per_job"],
-            para_dict_["n_threads"], random_seed)
+            para_dict_["n_threads"], random_seed, para_dict_["event_start_id"])
     if seed_file:
         args_str += " {}".format(seed_file)
 
@@ -762,6 +768,10 @@ if __name__ == "__main__":
     parser.add_argument('-nurqmd', '--n_urqmd_per_hydro', metavar='', type=int,
                         default=None,
                         help='number of UrQMD samples per hydro event')
+    parser.add_argument('-event_start_id', '--event_start_id', metavar='', type=int,
+                        default=0,
+                        help='global id of this batch\'s first event; batch k uses '
+                        '[k*B, k*B+B-1] so no batch reuses a seed')
     parser.add_argument('-singularity', '--singularity_image_path', metavar='',
                         type=str, default="", help='singularity image path')
     parser.add_argument('-param', '--param_file', metavar='', type=str,
