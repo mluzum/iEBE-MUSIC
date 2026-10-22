@@ -171,9 +171,8 @@ JobBatchName = {0}
 should_transfer_files = YES
 WhenToTransferOutput = ON_EXIT
 
-container_image = "{1}"
-+SingularityImage = "{1}"
-Requirements = (TARGET.HasSingularity || SINGULARITY_CAN_USE_SIF) && StringListIMember("stash", HasFileTransferPluginMethods)
+container_image = {1}
+Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransferPluginMethods)
 """.format(jobName, singularity_image_url))
 
     input_files = [para_dict_['param_file']]
@@ -502,9 +501,8 @@ JobBatchName = {0}
 should_transfer_files = YES
 WhenToTransferOutput = ON_EXIT
 
-container_image = "{1}"
-+SingularityImage = "{1}"
-Requirements = (TARGET.HasSingularity || SINGULARITY_CAN_USE_SIF) && StringListIMember("stash", HasFileTransferPluginMethods)
+container_image = {1}
+Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransferPluginMethods)
 """.format(jobName, imagePathHeader + para_dict_["singularity_image_path"]))
 
     input_files = [para_dict_['param_file']]

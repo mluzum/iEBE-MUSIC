@@ -7,7 +7,7 @@ Design point 0 for TRENTo + free-streaming + MUSIC + UrQMD test batch.
 control_dict = {
     'initial_state_type': "TRENTo",
     'walltime': "10:00:00",
-    'afterburner_type': "UrQMD",
+    'afterburner_type': "decay",
     'save_hydro_surfaces': False,
     'save_UrQMD_files': False,
 }

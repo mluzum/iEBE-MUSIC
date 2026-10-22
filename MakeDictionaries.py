@@ -68,7 +68,7 @@ def default_template_config() -> dict:
         "control_dict": {
             "initial_state_type": "TRENTo",
             "walltime": "20:00:00",
-            "afterburner_type": "UrQMD",
+            "afterburner_type": "decay",
             "save_hydro_surfaces": False,
             "save_UrQMD_files": False,
         },
