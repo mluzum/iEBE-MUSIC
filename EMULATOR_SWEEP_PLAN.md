@@ -2383,3 +2383,90 @@ temperature freezes out *earlier*, so the surface is smaller. Any box that conta
 surface at T_freeze = 0.15 contains it at 0.165 as well. The clamp in `e_fo_from_t_freeze`
 is in any case the conservative direction (c2 < 0, so an under-estimated e_fo over-predicts
 the box).
+
+### 18.7 How the yield is normalised (verified against the toolkit source and data)
+
+The toolkit computes, in `single_particleSpectra::output_Qn_vectors()`,
+
+```
+drapidity = rap_max - rap_min
+dN_ev_avg = Qn_vector_real[0] / total_number_of_events / drapidity
+```
+
+and it fills `Qn_vector_real[0]` only for particles passing
+`rap_min < rap_local < rap_max` (`single_particleSpectra.cpp:503/588/662`). **The count
+window and the normalisation window are the same window**, so the yield is
+`N(in window) / (width of window)`. It is not normalised by the sampled parent range and
+not by the final range after decays.
+
+That is the correct estimator, but only because the density is flat across the window.
+Two things had to be checked:
+
+1. **The parents are sampled uniformly in y over `y_LB..y_RB = +-5`** (iSS
+   `emissionfunction.cpp:3397-3401`, `dN = (y_RB-y_LB)*dN_dy`), and each surface cell
+   samples `y - eta_s` uniformly over `sample_y_minus_eta_s_range = 4`. Daughters therefore
+   spill outside the parent window, and the analysis window has to sit far enough inside it
+   that the spill is symmetric. It does: `rap_min/rap_max = +-4` leaves 1 unit of margin.
+2. **The density is flat in rapidity, but not in pseudorapidity.** A window scan on one
+   event (only `rap_min/rap_max` changed, identical particles) gave, for the all-charged
+   reference,
+
+   | window | 2 | 3 | 4 | 4.5 | 4.9 |
+   |---|---|---|---|---|---|
+   | dN/dy | 63.87 | 67.24 | 69.22 | 69.71 | 69.37 |
+
+   which is *not* flat. The reason is that `particle_monval == 9999` (and, in the compiled
+   toolkit, `99999`) forces `rap_type = 0`, i.e. **pseudorapidity**: the y -> eta Jacobian is
+   largest at low pT, so dN/deta dips at midrapidity and rises toward the edges. The
+   identified species keep `rap_type = 1` (rapidity) and are flat: for pi+ the density is
+   16.78 / 16.65 / 16.65 / 16.53 for |y| < 1 / 2 / 3 / 4, i.e. constant to 0.7 %, and only
+   drops beyond |y| ~ 4.2 where the parent window ends.
+
+   **Consequence: use identified particles, in rapidity, for the yield.** The all-charged
+   `dNdeta` table is fine for a v_n cross-check but must not be used as a dN/dy yield.
+
+3. The `+-4` window sits at the edge of the parent distribution and is **0.7 % low** relative
+   to the |y| < 3 plateau. That is a constant normalisation offset, absorbed by any emulator
+   that models log(yield); it is not a design-dependent distortion. If it ever matters,
+   raise `sample_y_minus_eta_s_range` to 5 (the analysis window is then fully fed) rather
+   than narrowing `rap_max`, which throws away statistics.
+
+The filenames of the differential tables (`..._vndata_diff_y_-0.5_0.5.dat`) are **stale**:
+the compiled toolkit hardcodes that suffix, but the table is filled with the same
+`rap_min/rap_max` cut. Verified by integrating the spectrum,
+`2*pi*int pT dpT EdN/dp^3p = 16.08`, which matches the |y| < 4 yield (16.5) and not the
+|y| < 0.5 one (~2). Do not read the window from the filename.
+
+### 18.8 Three silent mapping bugs in the design pipeline (fixed 2026-10-22)
+
+All three were of the same class as 18.1: the value reached the file but not the physics.
+Found while switching the shipped template to `shape_distribution: plane`.
+
+1. **`(zeta/s)_max`, `T_zeta`, `w_zeta` were never applied.** `MakeDictionaries.py` wrote
+   `bulk_viscosity_3_max` / `..._T_peak_in_GeV` / `..._width_in_GeV`, but the master defines
+   `bulk_viscosity_3_zeta_over_s_*`. `update_parameters_dict` merges with
+   `music_dict.update(...)`, so the misspelt keys were carried along unused and the master
+   default (0.1, 0.18, 0.05) silently won. Three of the twenty axes (10-12) were constants.
+   CSV columns keep their historical short names; the mapping now writes the master's names.
+2. **`gamma` was passed in degrees to a key that is in radians.** The design matrix documents
+   `gamma` in degrees (prior [0, 60]), the sampler treats `isobar_conf['gamma']['value']` as
+   radians everywhere, and nothing converted. A design point at `gamma = 60` was applied as
+   60 rad. Now converted with `math.radians` in both places that write the value. Sanity
+   check: `gamma = 60 deg` now realises `gamma_lit` in [32.6, 70.9] deg at
+   `sigma_plane = 0.08`, versus [14.1, 34.1] before the fix.
+3. **The shipped template defaulted to `wedge`.** `MakeDictionaries.py`'s fallback and
+   `parameters_dict_user_TRENTo_realistic.py` both said `wedge`, so any design CSV without an
+   explicit `shape_distribution` column produced wedge draws. Both now default to `plane`.
+   The wedge form cannot express `beta_2 = 0` with real fluctuations; the plane form can,
+   and the 20-axis design relies on it for axis 19.
+
+A key audit of the whole template against the master
+(`set(user_dict) - set(master_dict)` per dictionary) now returns only `music_dict['T_freeze']`,
+which is intentional: the driver reads it out of the generated MUSIC input
+(`hydro_plus_UrQMD_driver.py:467`), not MUSIC.
+
+**Open item, not fixed:** `bmax_from_design` uses the design-point `beta_2`/`beta_3` only and
+ignores `sigma_plane`/`sigma_beta_3`. At the all-max corner the realised deformation reaches
+`beta = 0.79` against a design `beta_2 = 0.5`, which makes `b_max` ~9 % too small there. Either
+the formula should use `beta_2 + 2*sigma_plane` (and likewise for `beta_3`), or the sampling
+range is biased peripheral by a design-dependent amount.

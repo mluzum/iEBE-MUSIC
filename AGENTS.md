@@ -156,6 +156,26 @@ defaults — prefer those over guessing flags.
   to TRENTo's `fluctuation` as `k = 1/sigma_k**2`; a `fluctuation` column (k itself) is only used
   when `sigma_k` is absent. `number_nucleons` is *not* taken from the CSV — it stays at the
   template value unless a `number_nucleons` column is supplied.
+- **`gamma` is degrees in the CSV and radians in the isobar YAML.** The sampler treats
+  `isobar_conf['gamma']['value']` as radians everywhere (see its own comment at
+  `build_isobars.py:375`), while the design matrix documents `gamma` in degrees (prior
+  [0, 60]). `MakeDictionaries.py` converts; if you write a parameter file by hand, convert
+  there too, or 60 becomes 60 rad.
+- **Every key `MakeDictionaries.py` writes must match `config/parameters_dict_master.py`
+  exactly.** The merge is `dict.update()`, so a misspelt key is silently carried along
+  unused and the master default wins — no error, no warning. This hid the whole `zeta/s`
+  block: `bulk_viscosity_3_max` vs the master's `bulk_viscosity_3_zeta_over_s_max` meant
+  axes 10-12 of the design were constants. Audit with
+  `set(user_dict) - set(master_dict)` per dictionary. (`music_dict['T_freeze']` is the one
+  expected extra: the driver reads it out of the generated MUSIC input.)
+- **The yield normalisation uses the same window it counts in.** The toolkit's
+  `drapidity = rap_max - rap_min` and its particle cut are the same window, so
+  `dN/dy = N(in window)/(window width)`. That is right *only* because the density is flat
+  in rapidity: identified species (`rap_type = 1`) are flat to 0.7 % for |y| < 4, but the
+  all-charged references `9999`/`99999` are forced to `rap_type = 0`, i.e. pseudorapidity,
+  whose y→η Jacobian gives a ~25 % mid-rapidity dip and a window-dependent "yield". Use
+  identified particles in rapidity for the yield. The `_vndata_diff_y_-0.5_0.5` filename
+  suffix is hardcoded and stale — the table is filled over `rap_min..rap_max`.
 - **The master's `music_dict` is the only thing that decides the viscosity.** MUSIC has always
   supported the JETSCAPE parametrisation (`T_dependent_Shear_to_S_ratio = 3` with
   `shear_viscosity_3_eta_over_s_{T_kink_in_GeV,low_T_slope_in_GeV,high_T_slope_in_GeV,at_kink}`,

@@ -70,7 +70,7 @@ isobars_conf_dict_target = {
             "sigma_beta_3": {"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": 0.0},
             "sigma_gamma": {"description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma", "value": 0.0},
             "beta_max": {"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": 0.5},
-            "shape_distribution": {"description": "How the per-event shape is drawn: 'wedge' = Option B bounded Beta on (beta, gamma_lit); 'plane' = Gaussian in the (beta20, beta22) deformation plane about the mean tensor, folded per draw, which can express zero mean deformation with real shape fluctuations", "value": "wedge"},
+            "shape_distribution": {"description": "How the per-event shape is drawn: 'wedge' = Option B bounded Beta on (beta, gamma_lit); 'plane' = Gaussian in the (beta20, beta22) deformation plane about the mean tensor, folded per draw, which can express zero mean deformation with real shape fluctuations", "value": "plane"},
             "sigma_plane": {"description": "Width of the plane-form Gaussian in (beta20, beta22); 0 is exactly rigid, at any mean including beta_2 = 0", "value": 0.0},
             "plane_anisotropy": {"description": "Splits sigma_plane into two plane widths with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate excursions, negative favours triaxial wandering", "value": 0.0},
             "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},
@@ -130,7 +130,7 @@ isobars_conf_dict_projectile = {
             "sigma_beta_3": {"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": 0.0},
             "sigma_gamma": {"description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma", "value": 0.0},
             "beta_max": {"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": 0.5},
-            "shape_distribution": {"description": "How the per-event shape is drawn: 'wedge' = Option B bounded Beta on (beta, gamma_lit); 'plane' = Gaussian in the (beta20, beta22) deformation plane about the mean tensor, folded per draw, which can express zero mean deformation with real shape fluctuations", "value": "wedge"},
+            "shape_distribution": {"description": "How the per-event shape is drawn: 'wedge' = Option B bounded Beta on (beta, gamma_lit); 'plane' = Gaussian in the (beta20, beta22) deformation plane about the mean tensor, folded per draw, which can express zero mean deformation with real shape fluctuations", "value": "plane"},
             "sigma_plane": {"description": "Width of the plane-form Gaussian in (beta20, beta22); 0 is exactly rigid, at any mean including beta_2 = 0", "value": 0.0},
             "plane_anisotropy": {"description": "Splits sigma_plane into two plane widths with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate excursions, negative favours triaxial wandering", "value": 0.0},
             "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},
@@ -191,10 +191,10 @@ music_dict = {
     'shear_relax_time_factor': 5.0,        # b_pi
     'Include_Bulk_Visc_Yes_1_No_0': 1,     # include bulk viscous effect
     'T_dependent_zeta_over_s': 3,          # parameterization of \zeta/s(T)
-    'bulk_viscosity_3_max': 0.1,           # the peak value of \zeta/s(T)
-    'bulk_viscosity_3_T_peak_in_GeV': 0.18,
-    'bulk_viscosity_3_width_in_GeV': 0.05,
-    'bulk_viscosity_3_lambda_asymm': 0.0,
+    'bulk_viscosity_3_zeta_over_s_max': 0.1,           # the peak value of \zeta/s(T)
+    'bulk_viscosity_3_zeta_over_s_T_peak_in_GeV': 0.18,
+    'bulk_viscosity_3_zeta_over_s_width_in_GeV': 0.05,
+    'bulk_viscosity_3_zeta_over_s_lambda_asymm': 0.0,
     'Include_second_order_terms': 1,       # include second order non-linear coupling terms
     'Include_vorticity_terms': 0,          # include vorticity coupling terms
 

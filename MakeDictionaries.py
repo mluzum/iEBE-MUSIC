@@ -36,7 +36,12 @@ Design-matrix columns (csv.DictReader; every one is required unless noted):
     shear_relax_time_factor    b_pi (fixed in the current design)
     bulk_viscosity_3_max, bulk_viscosity_3_T_peak_in_GeV,
     bulk_viscosity_3_width_in_GeV, bulk_viscosity_3_lambda_asymm
-                       (zeta/s)_max, T_zeta, w_zeta, lambda_zeta
+                       (zeta/s)_max, T_zeta, w_zeta, lambda_zeta. These CSV
+                       columns are written to the master as
+                       bulk_viscosity_3_zeta_over_s_*; the names must match
+                       config/parameters_dict_master.py exactly, because the
+                       user dict is merged with dict.update() and a misspelt key
+                       is carried along unused while the master default wins.
     T_freeze           freeze-out temperature [GeV]
 """
 
@@ -164,10 +169,10 @@ def default_template_config() -> dict:
             "shear_relax_time_factor": 5.0,
             "Include_Bulk_Visc_Yes_1_No_0": 1,
             "T_dependent_zeta_over_s": 3,
-            "bulk_viscosity_3_max": 0.1,
-            "bulk_viscosity_3_T_peak_in_GeV": 0.18,
-            "bulk_viscosity_3_width_in_GeV": 0.05,
-            "bulk_viscosity_3_lambda_asymm": 0.0,
+            "bulk_viscosity_3_zeta_over_s_max": 0.1,
+            "bulk_viscosity_3_zeta_over_s_T_peak_in_GeV": 0.18,
+            "bulk_viscosity_3_zeta_over_s_width_in_GeV": 0.05,
+            "bulk_viscosity_3_zeta_over_s_lambda_asymm": 0.0,
             "Include_second_order_terms": 1,
             "Include_vorticity_terms": 0,
             "use_eps_for_freeze_out": 0,
@@ -327,7 +332,11 @@ def set_target_and_projectile_shapes(config: dict, row: dict[str, str]) -> None:
         section["WS_radius"]["value"] = float(row["WS_radius"])
         section["WS_diffusiveness"]["value"] = float(row["WS_diffusiveness"])
         section["beta_2"]["value"] = float(row["beta_2"])
-        section["gamma"]["value"] = float(row["gamma"])
+        # The design matrix documents gamma in degrees (the prior is [0, 60] deg,
+        # the sampler's fundamental domain), but the sampler's `gamma` key is in
+        # radians everywhere. Passing the degrees straight through turns 60 into
+        # 60 rad and silently scrambles the triaxiality axis.
+        section["gamma"]["value"] = math.radians(float(row["gamma"]))
         section["beta_3"]["value"] = float(row["beta_3"])
 
 
@@ -383,10 +392,15 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
     )
     music["shear_relax_time_factor"] = float(row["shear_relax_time_factor"])
 
-    music["bulk_viscosity_3_max"] = float(row["bulk_viscosity_3_max"])
-    music["bulk_viscosity_3_T_peak_in_GeV"] = float(row["bulk_viscosity_3_T_peak_in_GeV"])
-    music["bulk_viscosity_3_width_in_GeV"] = float(row["bulk_viscosity_3_width_in_GeV"])
-    music["bulk_viscosity_3_lambda_asymm"] = float(row["bulk_viscosity_3_lambda_asymm"])
+    # CSV columns keep their historical short names; the master expects the
+    # bulk_viscosity_3_zeta_over_s_* spelling, and a mismatch here is silent.
+    music["bulk_viscosity_3_zeta_over_s_max"] = float(row["bulk_viscosity_3_max"])
+    music["bulk_viscosity_3_zeta_over_s_T_peak_in_GeV"] = float(
+        row["bulk_viscosity_3_T_peak_in_GeV"])
+    music["bulk_viscosity_3_zeta_over_s_width_in_GeV"] = float(
+        row["bulk_viscosity_3_width_in_GeV"])
+    music["bulk_viscosity_3_zeta_over_s_lambda_asymm"] = float(
+        row["bulk_viscosity_3_lambda_asymm"])
 
     music["T_freeze"] = float(row["T_freeze"])
 
@@ -541,7 +555,7 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
         f'            "WS_radius": {{"description": "Woods-Saxon radius parameter R", "value": {float(row["WS_radius"])}}},',
         f'            "WS_diffusiveness": {{"description": "Woods-Saxon diffusiveness parameter a", "value": {float(row["WS_diffusiveness"])}}},',
         f'            "beta_2": {{"description": "Quadrupolar deformation", "value": {float(row["beta_2"])}}},',
-        f'            "gamma": {{"description": "Quadrupolar deformation angle (rad)", "value": {float(row["gamma"])}}},',
+        f'            "gamma": {{"description": "Quadrupolar deformation angle (rad); design matrix supplies degrees", "value": {math.radians(float(row["gamma"]))}}},',
         f'            "beta_3": {{"description": "Octupolar deformation", "value": {float(row["beta_3"])}}},',
         # Event-by-event deformation widths. Optional CSV columns; absent (or 0)
         # keeps the design point at a fixed shape, i.e. the previous behaviour.
@@ -549,7 +563,7 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
         f'            "sigma_beta_3": {{"description": "Event-by-event width of beta_3; 0 fixes the shape", "value": {f_sigma(row, "sigma_beta_3")}}},',
         f'            "sigma_gamma": {{"description": "Event-by-event width of gamma_lit (rad); folded onto [0, pi/3], 0 fixes gamma", "value": {f_sigma(row, "sigma_gamma")}}},',
         f'            "beta_max": {{"description": "Upper bound on quadrupole strength (Option B); uniform wedge prior is beta_max/2 with sd beta_max/sqrt(12)", "value": {f_beta_max(row, samples)}}},',
-        f'            "shape_distribution": {{"description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)", "value": "{f_str(row, "shape_distribution", "wedge")}"}},',
+        f'            "shape_distribution": {{"description": "Per-event shape draw: wedge (Option B) or plane (Gaussian in the deformation plane, folded per draw)", "value": "{f_str(row, "shape_distribution", "plane")}"}},',
         f'            "sigma_plane": {{"description": "Width of the plane-form Gaussian; 0 is rigid, and works at beta_2 = 0", "value": {f_sigma(row, "sigma_plane")}}},',
         f'            "plane_anisotropy": {{"description": "Splits sigma_plane with fixed geometric mean; 0 is isotropic, positive favours prolate/oblate, negative favours triaxial", "value": {f_sigma(row, "plane_anisotropy")}}},',
         '            "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},',
