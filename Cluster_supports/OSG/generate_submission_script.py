@@ -219,7 +219,12 @@ Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransf
             "transfer_checkpoint_files = job_output_$(Process).tar.gz\n")
 
     if quiet_mode:
-        transfer_output = "spvn_results"
+        # One archive per job instead of ~100 loose files. The worker's disk is
+        # local, so packing costs seconds there; doing it on the access point
+        # costs ~90 ms per file of CephFS metadata latency.  It also cuts the
+        # stored footprint ~5x (h5 float32 data compresses well), which is what
+        # keeps 2000 design points inside the 465 GB data-disk quota.
+        transfer_output = "spvn_results_$(Process).tar.gz"
     else:
         transfer_output = build_transfer_output_tarball_name()
 
@@ -492,6 +497,11 @@ finalize_job_output() {
             rm -f "${SCRATCH_DIR}/${placeholder}" || true
         fi
         ls -lh "${job_output_tar}" || true
+    else
+        # quiet mode: ship the collected results as a single archive (the submit
+        # file only lists this file in transfer_output_files)
+        ( cd "${SCRATCH_DIR}" && tar czf "spvn_results_${processId}.tar.gz" spvn_results ) || true
+        ls -lh "${SCRATCH_DIR}/spvn_results_${processId}.tar.gz" || true
     fi
 }
 

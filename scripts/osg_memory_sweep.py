@@ -24,13 +24,18 @@ def run(cmd):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--memory', type=int, default=1600,
-                    help='request_memory to set on held jobs, MB (default 1600)')
+    ap.add_argument(
+        '--memory',
+        type=int,
+        default=1600,
+        help='request_memory to set on held jobs, MB (default 1600)')
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
 
-    out = run(['condor_q', '-af:h', 'ClusterId', 'ProcId', 'JobStatus',
-               'MemoryUsage', 'RequestMemory', 'HoldReason']).stdout.splitlines()
+    out = run([
+        'condor_q', '-af:h', 'ClusterId', 'ProcId', 'JobStatus', 'MemoryUsage',
+        'RequestMemory', 'HoldReason'
+    ]).stdout.splitlines()
     held = []
     for ln in out[1:]:
         parts = ln.split()
@@ -49,18 +54,20 @@ def main():
     for cid, pid, peak in sorted(held):
         want = args.memory
         if peak:
-            want = max(want, int(math.ceil(peak * 1.25 / 100.0)) * 100)
+            want = max(want, int(math.ceil(peak*1.25/100.0))*100)
         job = '%s.%s' % (cid, pid)
         if args.dry_run:
-            print('would set %s request_memory=%d (peak %s MB)' % (job, want, peak))
+            print('would set %s request_memory=%d (peak %s MB)' %
+                  (job, want, peak))
             continue
         e = run(['condor_qedit', job, 'RequestMemory', str(want)])
         r = run(['condor_release', job])
-        print('%s peak=%sMB -> %dMB edit=%s release=%s'
-              % (job, peak, want, 'OK' if e.returncode == 0 else 'FAIL',
-                 'OK' if r.returncode == 0 else 'FAIL'))
+        print('%s peak=%sMB -> %dMB edit=%s release=%s' %
+              (job, peak, want, 'OK' if e.returncode == 0 else 'FAIL',
+               'OK' if r.returncode == 0 else 'FAIL'))
 
-    print('%d job(s) %s' % (len(held), 'would be released' if args.dry_run else 'released'))
+    print('%d job(s) %s' %
+          (len(held), 'would be released' if args.dry_run else 'released'))
 
 
 if __name__ == '__main__':
