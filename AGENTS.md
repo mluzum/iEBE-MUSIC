@@ -166,6 +166,20 @@ defaults — prefer those over guessing flags.
   open. Keep concurrency <= 3, use 1-2 connections per design point, reuse a ControlMaster
   for short control commands, and do not keep retrying during a block — retries can extend
   it. Running OSG jobs are unaffected: they talk to the schedd, not to our ssh.
+- **Result layout changes at dp0461: one archive per job.** In quiet mode the worker now packs
+  `spvn_results/` into `spvn_results_<proc>.tar.gz` on local scratch and the submit file lists
+  that single file instead of the directory (~100 files/job). Packing on the AP instead costs
+  ~90 ms per file of CephFS latency; on the worker it is seconds. It also cuts the stored
+  footprint ~5x, which is what keeps 2000 design points inside the 465 GB quota (620 GB of
+  loose h5 vs ~124 GB of archives). dp0001-0460 keep the directory layout, so tooling must
+  handle both: `scripts/osg_pull_results.sh` pulls either, `scripts/osg_merge_reruns.sh`
+  folds re-run output back in either (renaming `spvn_results_0.tar.gz` to the block it covered,
+  because re-runs are single jobs with ProcessId 0).
+- **Give maintenance jobs `JobPrio 100`.** A single re-run or test job submitted while a
+  tranche is in flight sits behind tens of thousands of idle jobs and can look "lost" (it has
+  no hold reason and no history record because it never started). `condor_qedit <cluster>.0
+  JobPrio 100` gets it scheduled promptly. Note `condor_q <cluster> | tail -2` prints the
+  queue summary, not the job — use `condor_q -af ClusterId ProcId JobStatus | awk '$1==<c>'`.
 - **A job that skips one event must still transfer its other 19.** `prepare_surface_files_for_urqmd`
   returns False when the freeze-out surface is empty (very peripheral / tiny fireball), the
   driver skips that event *silently* (no print), and at the end exits 73. The submit template
