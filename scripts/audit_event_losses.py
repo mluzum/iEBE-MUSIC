@@ -127,23 +127,27 @@ def main():
             print('%s: %d blocks missing -> drawn %d of %d'
                   % (dp, len(lost_blocks), len(drawn), expected_events))
 
-        drawn_ratios[dp] = sorted(e['ratio'] for e in drawn.values())
+        drawn_ratios[dp] = {eid: e['ratio'] for eid, e in drawn.items()}
 
     # Centrality edges must be identical across design points: the draws are a
     # pure function of the global event id, so a percentile cut on the drawn set
     # is the same cut for every design point.
     if drawn_ratios:
-        common = min(len(v) for v in drawn_ratios.values())
+        # compare quantiles on the ids every design point has, so a missing block
+        # cannot masquerade as a percentile shift
+        common_ids = set.intersection(*(set(v) for v in drawn_ratios.values()))
+        common_ids = sorted(common_ids)
         worst = (0.0, None, None)
         for p in (0.1, 0.3, 0.5, 0.6, 0.7, 0.8, 0.9):
-            vals = [v[min(common - 1, int(p * common))] for v in drawn_ratios.values()]
+            idx = min(len(common_ids) - 1, int(p * len(common_ids)))
+            vals = [sorted(drawn_ratios[dp][i] for i in common_ids)[idx]
+                    for dp in drawn_ratios]
             spread = max(vals) - min(vals)
             if spread > worst[0]:
                 worst = (spread, p, (min(vals), max(vals)))
-        print('\ndrawn-set b/bmax percentile edges: max spread across design points '
-              '%.3e (at p=%.1f: %.6f..%.6f)'
-              % (worst[0] if worst[1] is not None else 0.0,
-                 worst[1] or 0.0,
+        print('\nb/bmax percentile edges on the %d event ids common to all design '
+              'points: max spread %.1e (p=%.1f: %.9f..%.9f)'
+              % (len(common_ids), worst[0], worst[1] or 0.0,
                  worst[2][0] if worst[2] else 0.0,
                  worst[2][1] if worst[2] else 0.0))
 
