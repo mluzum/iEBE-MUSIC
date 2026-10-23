@@ -151,6 +151,21 @@ defaults — prefer those over guessing flags.
   Output is ~156 KB per event (`spvn_results_<id>.h5`, measured over 30k files), i.e. ~310 MB
   per design point at 2000 events, so the 465 GB data disk holds ~1500 design points at that
   statistics — the quota binds at 2000 points (~620 GB), not earlier.
+- **Pulling results: bundle on the AP, never walk the tree file by file.** A design point is
+  ~4000 small files (1900 h5 at 156 KB + 2000 trento summaries + 100 drawn CSVs). CephFS
+  metadata latency on the AP is ~90 ms per file, so both rsync and `tar cf - | ssh` crawl at
+  ~0.8 MB/s however fast the link is (16 parallel raw streams measured 48 MB/s). `tar czf`
+  collapses 300 MB to 61 MB (4.9x — float32 h5 data) and the single file moves in ~15 s, so
+  pack per design point on the AP and transfer the archive. The packing step parallelizes;
+  the per-file walk does not.
+- **The AP rate-limits ssh: a connection burst gets port 22 blackholed for ~30 min.** Eight
+  parallel workers opening 4 connections each per design point was enough. The symptoms look
+  like an outage but are not: `ssh` says "Network is unreachable" (the AP resolves to IPv6,
+  which the local host has no route for) or times out, while port 443 on the same host
+  answers "connection refused" and `ap41.uw.osg-htc.org:22` / `ap42.uw.osg-htc.org:22` stay
+  open. Keep concurrency <= 3, use 1-2 connections per design point, reuse a ControlMaster
+  for short control commands, and do not keep retrying during a block — retries can extend
+  it. Running OSG jobs are unaffected: they talk to the schedd, not to our ssh.
 - **A job that skips one event must still transfer its other 19.** `prepare_surface_files_for_urqmd`
   returns False when the freeze-out surface is empty (very peripheral / tiny fireball), the
   driver skips that event *silently* (no print), and at the end exits 73. The submit template
