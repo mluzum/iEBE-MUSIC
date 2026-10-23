@@ -148,6 +148,9 @@ defaults — prefer those over guessing flags.
   1221 MB. Only 2/1990 jobs exceeded 1 GB, both at one design point, so keep 1 GB as the
   default and `condor_qedit ... RequestMemory 1400` + `condor_release` the rare hold. Memory
   is a property of the design point, not of job length: one dp sat at 733 MB median.
+  Output is ~156 KB per event (`spvn_results_<id>.h5`, measured over 30k files), i.e. ~310 MB
+  per design point at 2000 events, so the 465 GB data disk holds ~1500 design points at that
+  statistics — the quota binds at 2000 points (~620 GB), not earlier.
 - **A job that skips one event must still transfer its other 19.** `prepare_surface_files_for_urqmd`
   returns False when the freeze-out surface is empty (very peripheral / tiny fireball), the
   driver skips that event *silently* (no print), and at the end exits 73. The submit template
