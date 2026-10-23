@@ -175,6 +175,18 @@ defaults — prefer those over guessing flags.
   handle both: `scripts/osg_pull_results.sh` pulls either, `scripts/osg_merge_reruns.sh`
   folds re-run output back in either (renaming `spvn_results_0.tar.gz` to the block it covered,
   because re-runs are single jobs with ProcessId 0).
+- **The AP caps in-flight jobs at 50,000 per owner, and excess submissions are deferred, not
+  rejected.** `condor_config_val -schedd MAX_JOBS_PER_OWNER` returns 50000. When the queue is at
+  the cap, `condor_submit` still prints "submitted to cluster N" (the cluster object is created)
+  but the individual jobs are committed only as the owner's total drops; `condor_q` shows the
+  cluster with no jobs, and `job.<cluster>.0.log` contains the 035 "Cluster submitted" line but
+  no 000 job-submission line. Observed directly: cluster 16053576 had 0 queued jobs, then 12
+  ten minutes later, with the owner total steady at ~49,994. **Never resubmit a design point
+  just because its cluster is not in `condor_q`** — wait, and confirm via
+  `~/log/job.<cluster>.0.log` or by watching the count; a duplicate submission runs the same
+  deterministic events again and only wastes core-hours. Practical consequence: the queue
+  self-refills to ~50k from already-submitted work, so a tranche larger than the remaining
+  headroom is safe to submit in one go.
 - **Give maintenance jobs `JobPrio 100`.** A single re-run or test job submitted while a
   tranche is in flight sits behind tens of thousands of idle jobs and can look "lost" (it has
   no hold reason and no history record because it never started). `condor_qedit <cluster>.0
