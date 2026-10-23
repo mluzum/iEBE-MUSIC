@@ -61,7 +61,12 @@ def mapEventIdToCentrality(event_id):
 ##########################################################################################
 # This function converts a matrix file to a table file for freestreaming
 
-def convert_matrix_to_table(infile, outfile, n_grid=None, lower=-10.0, upper=10.0):
+
+def convert_matrix_to_table(infile,
+                            outfile,
+                            n_grid=None,
+                            lower=-10.0,
+                            upper=10.0):
     data = np.loadtxt(infile, comments='#')
 
     if data.ndim == 1:
@@ -79,25 +84,28 @@ def convert_matrix_to_table(infile, outfile, n_grid=None, lower=-10.0, upper=10.
             n_grid = data.shape[0]
         elif data.shape != (n_grid, n_grid):
             raise ValueError(
-                f"Input matrix shape {data.shape} does not match n_grid={n_grid}")
+                f"Input matrix shape {data.shape} does not match n_grid={n_grid}"
+            )
 
-    step = (upper - lower) / n_grid
+    step = (upper - lower)/n_grid
     x = np.linspace(lower + step/2, upper - step/2, n_grid)
     y = x
     X, Y = np.meshgrid(x, y, indexing='xy')
-    
+
     eps_flat = data.ravel()
     table = np.column_stack([
         np.zeros_like(eps_flat),
         X.ravel(),
-        Y.ravel(),
-        eps_flat,
+        Y.ravel(), eps_flat,
         np.ones_like(eps_flat),
         np.zeros((eps_flat.size, 13))
     ])
     header = f"# dummy 1 etamax= 0 xmax= {n_grid} ymax= {n_grid} deta= 0 dx= {step} dy= {step}"
     np.savetxt(outfile, table, fmt="%.6e", header=header, comments='')
+
+
 ############################################################################################
+
 
 def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                           final_results_folder, para_dict):
@@ -143,10 +151,10 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
             run_trento(event_id)
             collect_trento_event(res_path)
             if not path.exists(path.join(res_path, file_name)):
-                    # TRENTo event failed
-                    print("TRENTo event failed ... ")
-                    status = False
-            
+                # TRENTo event failed
+                print("TRENTo event failed ... ")
+                status = False
+
         else:
             print("TRENTo event exists ...")
             print("No need to rerun ...")
@@ -165,9 +173,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                     # rerun TRENTo on the chosen grid, then recollect
                     run_trento(event_id)
                     collect_trento_event(res_path)
-                    write_trento_event_summary(res_path,
-                                               final_results_folder, event_id,
-                                               seed_add)
+                    write_trento_event_summary(res_path, final_results_folder,
+                                               event_id, seed_add)
                     grid_max = new_L
                 # keep the diagnostic honest about which grid was actually used
                 para_dict['free_stream_grid_max'] = grid_max
@@ -221,8 +228,9 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
                 path.join(final_results_folder,
                           "spectators_{}.dat".format(event_id)))
             filePatterns = ["ed_etas", "nB_etas", "ecc_ed"]
-            call("mv 3dMCGlauber/rapidity_shift.dat hadronic_afterburner_toolkit/",
-                 shell=True)
+            call(
+                "mv 3dMCGlauber/rapidity_shift.dat hadronic_afterburner_toolkit/",
+                shell=True)
             call("mv 3dMCGlauber/ed_etas_*.dat {}".format(final_results_folder),
                  shell=True)
             call("mv 3dMCGlauber/nB_etas_*.dat {}".format(final_results_folder),
@@ -272,8 +280,8 @@ def get_initial_condition(database, initial_type, iev, event_id, seed_add,
               + "Do not recognize the initial condition type: {}".format(
                   initial_type))
         sys.exit(1)
-        
-        
+
+
 # --- adaptive transverse grid -------------------------------------------------
 #
 # Measured over 141 events (b = 1.46-13.31 fm) by the grid-extent campaign. The
@@ -329,8 +337,9 @@ def e_fo_from_t_freeze(t_freeze):
         return pts[-1][1]
     for (t0, e0), (t1, e1) in zip(pts, pts[1:]):
         if t0 <= t_freeze <= t1:
-            w = (t_freeze - t0) / (t1 - t0)
-            return float(math.exp(math.log(e0) + w * (math.log(e1) - math.log(e0))))
+            w = (t_freeze - t0)/(t1 - t0)
+            return float(
+                math.exp(math.log(e0) + w*(math.log(e1) - math.log(e0))))
     return pts[-1][1]
 
 
@@ -402,20 +411,25 @@ def patch_input_value(fname, key, value):
 def ic_rms_from_flat(e_flat, grid_max, grid_step):
     """RMS radius of a square gridded energy density, in fm."""
     n = int(round(math.sqrt(e_flat.size)))
-    if n * n != e_flat.size:
+    if n*n != e_flat.size:
         return None
-    step = (2.0 * grid_max) / n
-    x = np.linspace(-grid_max + step / 2.0, grid_max - step / 2.0, n)
+    step = (2.0*grid_max)/n
+    x = np.linspace(-grid_max + step/2.0, grid_max - step/2.0, n)
     X, Y = np.meshgrid(x, x, indexing='xy')
     r = np.hypot(X, Y).ravel()
     total = e_flat.sum()
     if total <= 0:
         return None
-    return float(np.sqrt((e_flat * r**2).sum() / total))
+    return float(np.sqrt((e_flat*r**2).sum()/total))
 
 
-def plan_adaptive_half_width(R_rms_trento, t_freeze, normalization, tau,
-                             coeffs, grid_step, current_grid_max,
+def plan_adaptive_half_width(R_rms_trento,
+                             t_freeze,
+                             normalization,
+                             tau,
+                             coeffs,
+                             grid_step,
+                             current_grid_max,
                              fixed_cells=0):
     """Half-width the box needs, in fm, or None to leave the box alone.
 
@@ -430,26 +444,27 @@ def plan_adaptive_half_width(R_rms_trento, t_freeze, normalization, tau,
     Returns (half_width, n_cells, r_rms_predicted, dx_used).
     """
     e_fo = e_fo_from_t_freeze(t_freeze)
-    r_rms = (coeffs["c0"] + coeffs["c1"] * R_rms_trento + coeffs["c2"] * math.log(e_fo)
-             + coeffs["c3"] * math.log(normalization) + coeffs["c4"] * tau)
-    need = coeffs["k_tail"] * (r_rms + coeffs["n_sigma"] * coeffs["sigma"])
+    r_rms = (coeffs["c0"] + coeffs["c1"]*R_rms_trento
+             + coeffs["c2"]*math.log(e_fo)
+             + coeffs["c3"]*math.log(normalization) + coeffs["c4"]*tau)
+    need = coeffs["k_tail"]*(r_rms + coeffs["n_sigma"]*coeffs["sigma"])
     if fixed_cells and fixed_cells > 0:
         n_cells = int(fixed_cells)
         if n_cells < 2:
             n_cells = 2
-        half = n_cells * grid_step / 2.0
+        half = n_cells*grid_step/2.0
         # the cell count is held fixed, so the box is quantised in units of
         # grid_step; round the half-width up so the box still covers `need`
-        n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
+        n_cells = 2*int(math.ceil(need/grid_step - 1e-9))
         if n_cells < int(fixed_cells):
             n_cells = int(fixed_cells)
-        half = n_cells * grid_step / 2.0
-        dx_used = half / (n_cells / 2.0)
+        half = n_cells*grid_step/2.0
+        dx_used = half/(n_cells/2.0)
     else:
-        n_cells = 2 * int(math.ceil(need / grid_step - 1e-9))
+        n_cells = 2*int(math.ceil(need/grid_step - 1e-9))
         if n_cells < 2:
             n_cells = 2
-        half = n_cells * grid_step / 2.0
+        half = n_cells*grid_step/2.0
         dx_used = grid_step
     return half, n_cells, r_rms, dx_used
 
@@ -468,7 +483,8 @@ def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
     if R_rms is None:
         return None
 
-    normalization = float(read_input_value(trento_input, "normalization") or 1.0)
+    normalization = float(
+        read_input_value(trento_input, "normalization") or 1.0)
     t_freeze = float(read_input_value(music_input, "T_freeze") or 0.12)
     tau = float(para_dict.get("free_stream_tau", 1.0))
 
@@ -484,25 +500,24 @@ def apply_adaptive_grid(res_path, file_name, para_dict, grid_step):
                 break
         except (TypeError, ValueError):
             pass
-    L, n_cells, r_rms, dx_used = plan_adaptive_half_width(R_rms, t_freeze,
-                                                          normalization, tau,
-                                                          coeffs, grid_step,
-                                                          trento_grid_max,
-                                                          fixed_cells)
+    L, n_cells, r_rms, dx_used = plan_adaptive_half_width(
+        R_rms, t_freeze, normalization, tau, coeffs, grid_step, trento_grid_max,
+        fixed_cells)
 
-    current_cells = int(round(2.0 * trento_grid_max / grid_step))
+    current_cells = int(round(2.0*trento_grid_max/grid_step))
     # only act if it actually saves, and never grow past what was measured
     if L >= trento_grid_max - 1e-9 or n_cells >= current_cells:
-        print("\U0001F9FE  adaptive grid: keeping +-{:.1f} fm (needs +-{:.1f})".format(
-            trento_grid_max, L),
+        print("\U0001F9FE  adaptive grid: keeping +-{:.1f} fm (needs +-{:.1f})".
+              format(trento_grid_max, L),
               flush=True)
         return None
 
-    print("\U0001F9FE  adaptive grid: TRENTo R_rms={:.2f} -> r_rms_pred={:.2f} -> "
-          "+-{:.1f} fm, {} cells, dx={:.3f} requested (was +-{:.1f}, {}, dx={:.3f})".format(
-              R_rms, r_rms, L, n_cells, dx_used, trento_grid_max, current_cells,
-              grid_step),
-          flush=True)
+    print(
+        "\U0001F9FE  adaptive grid: TRENTo R_rms={:.2f} -> r_rms_pred={:.2f} -> "
+        "+-{:.1f} fm, {} cells, dx={:.3f} requested (was +-{:.1f}, {}, dx={:.3f})"
+        .format(R_rms, r_rms, L, n_cells, dx_used, trento_grid_max,
+                current_cells, grid_step),
+        flush=True)
     if not patch_input_value(trento_input, "grid-max", "{:.4f}".format(L)):
         return None
     patch_input_value(trento_input, "grid-step", "{:.4f}".format(grid_step))
@@ -523,8 +538,8 @@ def run_ipglasma(event_id):
     """This functions run IPGlasma"""
     print("\U0001F3B6  Run IPGlasma ... ")
     call("bash ./run_ipglasma.sh {}".format(event_id), shell=True)
-    
-    
+
+
 def collect_trento_event(final_results_folder):
     """This function collects the ipglasma results"""
     if path.exists(final_results_folder):
@@ -544,7 +559,8 @@ def collect_trento_event(final_results_folder):
                     try:
                         if path.islink(seed_path):
                             remove(seed_path)
-                            print(f"Removed per-event seed symlink: {seed_path}")
+                            print(
+                                f"Removed per-event seed symlink: {seed_path}")
                     except OSError:
                         # ignore failures to remove individual links
                         pass
@@ -553,7 +569,8 @@ def collect_trento_event(final_results_folder):
             for seed_path in glob(path.join(event_root, seed_pattern)):
                 try:
                     # do not remove files inside a shared_seeds directory
-                    if "/shared_seeds/" in path.abspath(seed_path).replace('\\\\', '/'):
+                    if "/shared_seeds/" in path.abspath(seed_path).replace(
+                            '\\\\', '/'):
                         continue
                     # remove regular files or symlinks that are local copies
                     remove(seed_path)
@@ -565,8 +582,10 @@ def collect_trento_event(final_results_folder):
         pass
 
 
-def write_trento_event_summary(trento_results_folder, final_results_folder,
-                               event_id, seed_add=None):
+def write_trento_event_summary(trento_results_folder,
+                               final_results_folder,
+                               event_id,
+                               seed_add=None):
     """Write a compact text summary for quiet-mode output transfer."""
     impact_parameter = None
     mult = None
@@ -588,11 +607,13 @@ def write_trento_event_summary(trento_results_folder, final_results_folder,
             pass
 
     metadata_file = path.join(trento_results_folder, "sampling_metadata.json")
-    if path.exists(metadata_file) and (impact_parameter is None or mult is None):
+    if path.exists(metadata_file) and (impact_parameter is None
+                                       or mult is None):
         try:
             with open(metadata_file, "r", encoding="utf-8") as f:
                 metadata = json.load(f)
-            impact_parameter = metadata.get("impact_parameter", impact_parameter)
+            impact_parameter = metadata.get("impact_parameter",
+                                            impact_parameter)
             mult = metadata.get("mult", mult)
         except (json.JSONDecodeError, OSError):
             pass
@@ -602,7 +623,8 @@ def write_trento_event_summary(trento_results_folder, final_results_folder,
         try:
             with open(run_log, "r", encoding="utf-8") as f:
                 for line in f:
-                    if impact_parameter is None and line.startswith("impact_parameter "):
+                    if impact_parameter is None and line.startswith(
+                            "impact_parameter "):
                         parts = line.split()
                         if len(parts) >= 2:
                             impact_parameter = float(parts[1])
@@ -615,18 +637,21 @@ def write_trento_event_summary(trento_results_folder, final_results_folder,
         except (OSError, ValueError):
             pass
 
-    summary_path = path.join(
-        final_results_folder, f"trento_event_summary_{event_id}.txt")
+    summary_path = path.join(final_results_folder,
+                             f"trento_event_summary_{event_id}.txt")
     with open(summary_path, "w", encoding="utf-8") as f:
-        f.write("impact_parameter {}\n".format(
-            "nan" if impact_parameter is None else impact_parameter))
+        f.write("impact_parameter {}\n".format("nan" if impact_parameter is
+                                               None else impact_parameter))
         f.write("mult {}\n".format("nan" if mult is None else mult))
 
     record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
                        seed_add)
 
 
-def record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
+def record_drawn_event(final_results_folder,
+                       event_id,
+                       impact_parameter,
+                       mult,
                        seed_add=None):
     """Append every DRAWN event, including the ones that never collide.
 
@@ -649,8 +674,9 @@ def record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
     state to carry between calls.
     """
     csv_path = path.join(final_results_folder, "events_drawn.csv")
-    columns = ["event_id", "b", "b_max", "b_over_bmax", "mult", "status",
-               "seed_add"]
+    columns = [
+        "event_id", "b", "b_max", "b_over_bmax", "mult", "status", "seed_add"
+    ]
     rows = {}
     try:
         with open(csv_path, "r", encoding="utf-8") as f:
@@ -674,14 +700,22 @@ def record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
         status = "ok"
 
     rows[int(event_id)] = {
-        "event_id": int(event_id),
-        "b": "" if impact_parameter is None else "{:.10g}".format(impact_parameter),
-        "b_max": "" if b_max is None else "{:.10g}".format(b_max),
-        "b_over_bmax": "" if (b_max in (None, 0.0) or impact_parameter is None)
-                        else "{:.10g}".format(impact_parameter / b_max),
-        "mult": "" if mult is None else "{:.10g}".format(mult),
-        "status": status,
-        "seed_add": "" if seed_add is None else int(seed_add),
+        "event_id":
+            int(event_id),
+        "b":
+            ""
+            if impact_parameter is None else "{:.10g}".format(impact_parameter),
+        "b_max":
+            "" if b_max is None else "{:.10g}".format(b_max),
+        "b_over_bmax":
+            "" if (b_max in (None, 0.0) or impact_parameter is None) else
+            "{:.10g}".format(impact_parameter/b_max),
+        "mult":
+            "" if mult is None else "{:.10g}".format(mult),
+        "status":
+            status,
+        "seed_add":
+            "" if seed_add is None else int(seed_add),
     }
 
     tmp_path = csv_path + ".tmp"
@@ -691,10 +725,10 @@ def record_drawn_event(final_results_folder, event_id, impact_parameter, mult,
         for key in sorted(rows):
             writer.writerow(rows[key])
     os.replace(tmp_path, csv_path)
-    
-    
-def connect_trento_event(res_path, initial_type, filename,
-                         free_stream_tau, grid_max, grid_step):
+
+
+def connect_trento_event(res_path, initial_type, filename, free_stream_tau,
+                         grid_max, grid_step):
     if initial_type == "TRENTo":
         file_path = path.join(res_path, filename)
         initial = np.loadtxt(file_path)
@@ -706,7 +740,7 @@ def connect_trento_event(res_path, initial_type, filename,
         # and is self-consistent with FreeStreamer, whose domain is
         # grid_max*(1 - 1/n) -- exactly the cell centres for a grid of step dx.
         n_actual = initial.shape[0]
-        grid_max = n_actual * grid_step / 2.0
+        grid_max = n_actual*grid_step/2.0
         print("   \U0001F9FE  lattice from TRENTo output: {} cells, dx={:.4f}, "
               "half-width +-{:.3f} fm".format(n_actual, grid_step, grid_max),
               flush=True)
@@ -718,13 +752,16 @@ def connect_trento_event(res_path, initial_type, filename,
         hydro_out = path.join(res_path, hydro_file)
 
         n_grid = n_actual
-        convert_matrix_to_table(e_path, hydro_out, n_grid=n_grid,
-                                lower=-grid_max, upper=grid_max)
+        convert_matrix_to_table(e_path,
+                                hydro_out,
+                                n_grid=n_grid,
+                                lower=-grid_max,
+                                upper=grid_max)
         hydro_initial_file = "MUSIC/initial/e.dat"
         if path.exists(hydro_initial_file) or path.islink(hydro_initial_file):
             remove(hydro_initial_file)
-        call("ln -s {0:s} {1:s}".format(hydro_out,
-                                        hydro_initial_file),shell=True)  
+        call("ln -s {0:s} {1:s}".format(hydro_out, hydro_initial_file),
+             shell=True)
 
 
 def collect_ipglasma_event(final_results_folder):
@@ -885,22 +922,25 @@ def compute_ic_extent(e_path, grid_max, grid_step):
     if eps.ndim != 2 or eps.shape[0] != eps.shape[1] or eps.sum() <= 0:
         return None
     n = eps.shape[0]
-    step = (2.0 * grid_max) / n
-    x = np.linspace(-grid_max + step / 2.0, grid_max - step / 2.0, n)
+    step = (2.0*grid_max)/n
+    x = np.linspace(-grid_max + step/2.0, grid_max - step/2.0, n)
     X, Y = np.meshgrid(x, x, indexing='xy')
     r = np.hypot(X, Y).ravel()
     order = np.argsort(r)
-    cum = np.cumsum(eps.ravel()[order]) / eps.sum()
-    out = {'n_cells': int(n), 'grid_max': float(grid_max),
-           'grid_step': float(step)}
+    cum = np.cumsum(eps.ravel()[order])/eps.sum()
+    out = {
+        'n_cells': int(n),
+        'grid_max': float(grid_max),
+        'grid_step': float(step)
+    }
     for frac in (0.90, 0.95, 0.99, 0.999):
         idx = int(np.searchsorted(cum, frac))
-        out['R{}'.format(int(frac * 1000))] = float(r[order][idx])
+        out['R{}'.format(int(frac*1000))] = float(r[order][idx])
     # RMS radius: the standard size measure, and the one expected to track the
     # freeze-out extent better than a cumulative radius, since it weights the
     # bulk of the density rather than the tail.
     e_rav = eps.ravel()
-    out['R_rms'] = float(np.sqrt((e_rav * r**2).sum() / e_rav.sum()))
+    out['R_rms'] = float(np.sqrt((e_rav*r**2).sum()/e_rav.sum()))
     return out
 
 
@@ -941,7 +981,7 @@ def compute_surface_extent(hydro_folder):
     # max_r is a max over cells and so is sensitive to a single stray cell;
     # carry an RMS and a high quantile alongside it as robust summaries.
     if wsum > 0:
-        out['r_rms'] = float(np.sqrt((w * r**2).sum() / wsum))
+        out['r_rms'] = float(np.sqrt((w*r**2).sum()/wsum))
     out['r_p999'] = float(np.percentile(r, 99.9))
     return out
 
@@ -1012,7 +1052,7 @@ def collect_flow_sample_counts(final_results_folder, event_id, row):
                         row['n_iss_resamplings'] = int(tot[2])
                         if row['n_iss_resamplings'] > 0:
                             row['pions_per_resampling'] = round(
-                                row['n_pions'] / row['n_iss_resamplings'], 4)
+                                row['n_pions']/row['n_iss_resamplings'], 4)
                     break
     except (OSError, ValueError, IndexError, KeyError):
         return
@@ -1075,10 +1115,8 @@ def prune_spvn_output(spvn_folder, keep_rapidity_windows=1):
             else:
                 kept += 1
             continue
-        drop = ('pTeta_distribution' in base
-                or '_evo_' in base
-                or 'inverse_Reynolds' in base
-                or 'meanpT_estimators' in base)
+        drop = ('pTeta_distribution' in base or '_evo_' in base
+                or 'inverse_Reynolds' in base or 'meanpT_estimators' in base)
         if not drop and '_vndata_diff_eta_' in base:
             drop = True
         # keep the unidentified/all-charged references; the identified-species
@@ -1100,12 +1138,17 @@ def prune_spvn_output(spvn_folder, keep_rapidity_windows=1):
         else:
             kept += 1
     if dropped:
-        print('\U0001F5D2  pruned {} flow files ({} kept)'.format(dropped, kept),
+        print('\U0001F5D2  pruned {} flow files ({} kept)'.format(
+            dropped, kept),
               flush=True)
 
 
-def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
-                                 e_path, grid_max, grid_step,
+def write_grid_extent_diagnostic(final_results_folder,
+                                 event_id,
+                                 hydro_folder,
+                                 e_path,
+                                 grid_max,
+                                 grid_step,
                                  music_seconds=None):
     """Record how much transverse space this event actually needed.
 
@@ -1146,7 +1189,7 @@ def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
         if path.exists(src):
             flat = np.loadtxt(src).ravel()
             n = int(round(math.sqrt(flat.size)))
-            if n * n == flat.size:
+            if n*n == flat.size:
                 L = read_input_value(path.join('TRENTo', 'input'), 'grid-max')
                 L = float(L) if L is not None else grid_max
                 rms = ic_rms_from_flat(flat, L, grid_step)
@@ -1157,8 +1200,8 @@ def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
         pass
 
     try:
-        sf = compute_surface_extent(path.join(final_results_folder,
-                                              hydro_folder))
+        sf = compute_surface_extent(
+            path.join(final_results_folder, hydro_folder))
         if sf:
             row.update(sf)
     except (OSError, ValueError):
@@ -1167,8 +1210,7 @@ def write_grid_extent_diagnostic(final_results_folder, event_id, hydro_folder,
     if music_seconds is not None:
         row['music_seconds'] = round(float(music_seconds), 1)
 
-    out = path.join(final_results_folder,
-                    'grid_extent_{}.csv'.format(event_id))
+    out = path.join(final_results_folder, 'grid_extent_{}.csv'.format(event_id))
     try:
         with open(out, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=list(row.keys()))
@@ -1191,7 +1233,8 @@ def prepare_surface_files_for_urqmd(final_results_folder, hydro_folder_name,
     if stat(surface_file[0]).st_size == 0:
         return False
     for iev in range(n_urqmd):
-        hydro_surface_folder = "{0}_{1:d}/hydro_event".format(sub_ev_prefix, iev)
+        hydro_surface_folder = "{0}_{1:d}/hydro_event".format(
+            sub_ev_prefix, iev)
         if path.exists(hydro_surface_folder):
             shutil.rmtree(hydro_surface_folder)
         mkdir(hydro_surface_folder)
@@ -1241,30 +1284,32 @@ def run_urqmd_shell(n_urqmd, final_results_folder, event_id, para_dict,
                     logo, curr_time),
                       flush=True)
                 call("bash ./run_spinPol.sh {}".format(n_urqmd), shell=True)
-                shutil.move("{0}_{1}/iSS/results".format(sub_ev_prefix, n_urqmd),
-                            spin_folder)
+                shutil.move(
+                    "{0}_{1}/iSS/results".format(sub_ev_prefix, n_urqmd),
+                    spin_folder)
                 if para_dict["check_point_flag"]:
                     checkPoint(startTime, checkPointFileName,
                                final_results_folder)
 
         max_workers = max(1, int(para_dict.get("num_threads", 1)))
         n_workers = max(1, min(n_urqmd, max_workers))
-        print("{}  [{}] Running afterburner with {} workers for {} samples ... ".format(
-                logo, curr_time, n_workers, n_urqmd),
-              flush=True)
+        print(
+            "{}  [{}] Running afterburner with {} workers for {} samples ... ".
+            format(logo, curr_time, n_workers, n_urqmd),
+            flush=True)
         with Pool(processes=n_workers) as pool1:
             pool1.map(run_urqmd_event, range(n_urqmd))
 
         urqmdResFile = "particle_list.bin"
         for iev in range(1, n_urqmd):
-            source_file = "{0}_{1}/{2}/{3}".format(
-                sub_ev_prefix, iev, results_dir, urqmdResFile)
+            source_file = "{0}_{1}/{2}/{3}".format(sub_ev_prefix, iev,
+                                                   results_dir, urqmdResFile)
             if not path.exists(source_file):
                 raise FileNotFoundError(
                     f"Missing UrQMD output file: {source_file}. "
                     "Check run_afterburner.sh / iSS / OSCAR / UrQMD logs.")
-            call("cat {0} >> {1}_0/{2}/{3}".format(
-                     source_file, sub_ev_prefix, results_dir, urqmdResFile),
+            call("cat {0} >> {1}_0/{2}/{3}".format(source_file, sub_ev_prefix,
+                                                   results_dir, urqmdResFile),
                  shell=True)
             remove(source_file)
         urqmd_success = True
@@ -1279,44 +1324,57 @@ def run_urqmd_shell(n_urqmd, final_results_folder, event_id, para_dict,
     return (urqmd_success, results_folder)
 
 
-def run_smash_analysis(smash_file_path, final_results_folder, event_id, analysis_mode="2D"):
+def run_smash_analysis(smash_file_path,
+                       final_results_folder,
+                       event_id,
+                       analysis_mode="2D"):
     """Run external SMASH analysis script and collect outputs"""
-    analysis_folder = path.join(final_results_folder, f"smash_results_{event_id}")
-    
+    analysis_folder = path.join(final_results_folder,
+                                f"smash_results_{event_id}")
+
     if path.exists(analysis_folder):
         shutil.rmtree(analysis_folder)
     mkdir(analysis_folder)
-    
+
     curr_time = time.asctime()
-    print(f"\U0001F52C [{curr_time}] Running SMASH analysis on {smash_file_path} ... ", flush=True)
-    
+    print(
+        f"\U0001F52C [{curr_time}] Running SMASH analysis on {smash_file_path} ... ",
+        flush=True)
+
     ret = call(
         f"python3 analysis_cli_optimized.py "
         f"--mode {analysis_mode} "
         f"--format SMASH "
         f"--file {smash_file_path} ",
-        shell=True
-    )
-    
+        shell=True)
+
     if ret != 0:
         print(f"\U0000274C SMASH analysis script failed. ", flush=True)
         return False
-    
+
     generate_npz = smash_file_path + ".npz"
     if not path.exists(generate_npz):
-        print(f"\U0000274C Expected analysis output not found: {generate_npz}. ", flush=True)
+        print(
+            f"\U0000274C Expected analysis output not found: {generate_npz}. ",
+            flush=True)
         return False
-    
+
     final_npz = path.join(analysis_folder, f"smash_analysis_{event_id}.npz")
     shutil.move(generate_npz, final_npz)
-    
-    curr_time = time.asctime()
-    print(f"\U0001F52C [{curr_time}] Finished SMASH analysis, results saved to {final_npz} ... ", flush=True)
-    
-    return True    
 
-def run_spvn_analysis(urqmd_file_path, n_threads, final_results_folder,
-                      event_id, para_dict_=None):
+    curr_time = time.asctime()
+    print(
+        f"\U0001F52C [{curr_time}] Finished SMASH analysis, results saved to {final_npz} ... ",
+        flush=True)
+
+    return True
+
+
+def run_spvn_analysis(urqmd_file_path,
+                      n_threads,
+                      final_results_folder,
+                      event_id,
+                      para_dict_=None):
     """This function runs analysis"""
     final_results_folder = path.join(final_results_folder,
                                      "spvn_results_{0:s}".format(event_id))
@@ -1355,7 +1413,9 @@ def check_an_event_is_good(event_folder):
         'particle_321_vndata_diff_y_*_boostinv.dat',
         'particle_2212_vndata_diff_y_*_boostinv.dat',
     ]
-    event_file_list = [path.basename(f) for f in glob(path.join(event_folder, "*"))]
+    event_file_list = [
+        path.basename(f) for f in glob(path.join(event_folder, "*"))
+    ]
     for pattern in required_patterns:
         if not any(fnmatch(name, pattern) for name in event_file_list):
             print("event {} is bad, missing {} ...".format(
@@ -1547,9 +1607,11 @@ def remove_unwanted_outputs(final_results_folder, event_id, para_dict):
     # under a `shared_seeds` directory.
     try:
         for seed_pattern in ("nucleon-seeds_*.hdf", "nucleon-seeds.hdf"):
-            for seed_path in glob(path.join(final_results_folder, seed_pattern)):
+            for seed_path in glob(path.join(final_results_folder,
+                                            seed_pattern)):
                 try:
-                    if "/shared_seeds/" in path.abspath(seed_path).replace('\\\\', '/'):
+                    if "/shared_seeds/" in path.abspath(seed_path).replace(
+                            '\\\\', '/'):
                         continue
                     remove(seed_path)
                 except OSError:
@@ -1633,10 +1695,10 @@ def main(para_dict_):
               flush=True)
 
         initStauts, ifile = get_initial_condition(initial_condition,
-                              initial_type, iev, idx0 + iev,
-                              para_dict_['seed_add'],
-                              final_results_folder,
-                              para_dict_)
+                                                  initial_type, iev, idx0 + iev,
+                                                  para_dict_['seed_add'],
+                                                  final_results_folder,
+                                                  para_dict_)
         if not initStauts:
             exitErrorTriggerInitial = True
             continue
@@ -1681,7 +1743,9 @@ def main(para_dict_):
         # is present regardless of save_hydro_surfaces.
         try:
             write_grid_extent_diagnostic(
-                final_results_folder, event_id, hydro_folder_name,
+                final_results_folder,
+                event_id,
+                hydro_folder_name,
                 path.join(final_results_folder,
                           'trento_results_{}'.format(event_id), 'e.dat'),
                 para_dict_['free_stream_grid_max'],
@@ -1741,20 +1805,25 @@ def main(para_dict_):
                 urqmd_file_path),
                   flush=True)
             continue
-        
+
         #########################################################################################
         if para_dict_['afterburner_type'] == "SMASH":
             curr_time = time.asctime()
-            print(f"\U0001F4BE [{curr_time}] SMASH is finished. " 
-                  f"Binary file saved in: {urqmd_file_path}", flush=True)
-            status = run_smash_analysis(urqmd_file_path, final_results_folder, event_id, analysis_mode="2D")
+            print(
+                f"\U0001F4BE [{curr_time}] SMASH is finished. "
+                f"Binary file saved in: {urqmd_file_path}",
+                flush=True)
+            status = run_smash_analysis(urqmd_file_path,
+                                        final_results_folder,
+                                        event_id,
+                                        analysis_mode="2D")
         ##########################################################################################
-        
+
         else:
 
             # finally collect results
-            run_spvn_analysis(urqmd_file_path, num_threads, final_results_folder,
-                              event_id, para_dict_)
+            run_spvn_analysis(urqmd_file_path, num_threads,
+                              final_results_folder, event_id, para_dict_)
 
             # zip results into a hdf5 database
             status = zip_results_into_hdf5(final_results_folder, event_id,
@@ -1786,7 +1855,8 @@ def main(para_dict_):
         for seed_pattern in ("nucleon-seeds_*.hdf", "nucleon-seeds.hdf"):
             for seed_path in glob(path.join(cwd, seed_pattern)):
                 try:
-                    if "/shared_seeds/" in path.abspath(seed_path).replace('\\\\', '/'):
+                    if "/shared_seeds/" in path.abspath(seed_path).replace(
+                            '\\\\', '/'):
                         continue
                     remove(seed_path)
                     print(f"Removed top-level seed file: {seed_path}")

@@ -54,7 +54,6 @@ import pprint
 from pathlib import Path
 import runpy
 
-
 DEFAULT_DESIGN_NAME = "design"
 
 
@@ -74,57 +73,157 @@ def default_template_config() -> dict:
         },
         "isobars_conf_dict_target": {
             "isobar_samples": {
-                "description": "Options for the isobar nucleon-position samples",
-                "number_configs": {"description": "Number of configurations to be sampled.", "value": 1},
-                "number_nucleons": {"description": "Mass number A of the nuclei.", "value": 96},
-                "seed_source": {"description": "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).", "value": "philox"},
-                "master_seed": {"description": "Master seed for the philox source. Never change once events exist.", "value": 8675309},
-                "pool_modulus": {"description": "Size of the virtual nucleus pool, 2**32.", "value": 4294967296},
-                "output_path": {"description": "Output directory where to save", "dirname": "nuclei_target"},
-                "number_of_parallel_processes": {"description": "Number of processes to compute in parallel.", "value": -1},
+                "description":
+                    "Options for the isobar nucleon-position samples",
+                "number_configs": {
+                    "description": "Number of configurations to be sampled.",
+                    "value": 1
+                },
+                "number_nucleons": {
+                    "description": "Mass number A of the nuclei.",
+                    "value": 96
+                },
+                "seed_source": {
+                    "description":
+                        "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).",
+                    "value":
+                        "philox"
+                },
+                "master_seed": {
+                    "description":
+                        "Master seed for the philox source. Never change once events exist.",
+                    "value":
+                        8675309
+                },
+                "pool_modulus": {
+                    "description": "Size of the virtual nucleus pool, 2**32.",
+                    "value": 4294967296
+                },
+                "output_path": {
+                    "description": "Output directory where to save",
+                    "dirname": "nuclei_target"
+                },
+                "number_of_parallel_processes": {
+                    "description":
+                        "Number of processes to compute in parallel.",
+                    "value":
+                        -1
+                },
             },
             "isobar_properties": {
                 "description": "Nuclear properties of isobars to be sampled.",
                 "isobar1": {
                     "isobar_name": "target",
-                    "WS_radius": {"description": "Woods-Saxon radius parameter R", "value": 6.38},
-                    "WS_diffusiveness": {"description": "Woods-Saxon diffusiveness parameter a", "value": 0.535},
-                    "beta_2": {"description": "Quadrupolar deformation", "value": 0.0},
-                    "gamma": {"description": "Quadrupolar deformation angle (rad)", "value": 0.0},
-                    "beta_3": {"description": "Octupolar deformation", "value": 0.0},
-                    "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},
-                    "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},
+                    "WS_radius": {
+                        "description": "Woods-Saxon radius parameter R",
+                        "value": 6.38
+                    },
+                    "WS_diffusiveness": {
+                        "description": "Woods-Saxon diffusiveness parameter a",
+                        "value": 0.535
+                    },
+                    "beta_2": {
+                        "description": "Quadrupolar deformation",
+                        "value": 0.0
+                    },
+                    "gamma": {
+                        "description": "Quadrupolar deformation angle (rad)",
+                        "value": 0.0
+                    },
+                    "beta_3": {
+                        "description": "Octupolar deformation",
+                        "value": 0.0
+                    },
+                    "correlation_length": {
+                        "description": "Short-range correlation length (fm)",
+                        "value": 0.4
+                    },
+                    "correlation_strength": {
+                        "description": "Short-range correlation strength",
+                        "value": 0.0
+                    },
                 },
             },
         },
         "isobars_conf_dict_projectile": {
             "isobar_samples": {
-                "description": "Options for the isobar nucleon-position samples",
-                "number_configs": {"description": "Number of configurations to be sampled.", "value": 1},
-                "number_nucleons": {"description": "Mass number A of the nuclei.", "value": 96},
-                "seed_source": {"description": "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).", "value": "philox"},
-                "master_seed": {"description": "Master seed for the philox source. Never change once events exist.", "value": 8675309},
-                "pool_modulus": {"description": "Size of the virtual nucleus pool, 2**32.", "value": 4294967296},
-                "output_path": {"description": "Output directory where to save", "dirname": "nuclei_projectile"},
-                "number_of_parallel_processes": {"description": "Number of processes to compute in parallel.", "value": -1},
+                "description":
+                    "Options for the isobar nucleon-position samples",
+                "number_configs": {
+                    "description": "Number of configurations to be sampled.",
+                    "value": 1
+                },
+                "number_nucleons": {
+                    "description": "Mass number A of the nuclei.",
+                    "value": 96
+                },
+                "seed_source": {
+                    "description":
+                        "Nucleon seeds: 'philox' (deterministic, no file) or 'file' (HDF5 pool).",
+                    "value":
+                        "philox"
+                },
+                "master_seed": {
+                    "description":
+                        "Master seed for the philox source. Never change once events exist.",
+                    "value":
+                        8675309
+                },
+                "pool_modulus": {
+                    "description": "Size of the virtual nucleus pool, 2**32.",
+                    "value": 4294967296
+                },
+                "output_path": {
+                    "description": "Output directory where to save",
+                    "dirname": "nuclei_projectile"
+                },
+                "number_of_parallel_processes": {
+                    "description":
+                        "Number of processes to compute in parallel.",
+                    "value":
+                        -1
+                },
             },
             "isobar_properties": {
                 "description": "Nuclear properties of isobars to be sampled.",
                 "isobar1": {
                     "isobar_name": "projectile",
-                    "WS_radius": {"description": "Woods-Saxon radius parameter R", "value": 6.38},
-                    "WS_diffusiveness": {"description": "Woods-Saxon diffusiveness parameter a", "value": 0.535},
-                    "beta_2": {"description": "Quadrupolar deformation", "value": 0.0},
-                    "gamma": {"description": "Quadrupolar deformation angle (rad)", "value": 0.0},
-                    "beta_3": {"description": "Octupolar deformation", "value": 0.0},
-                    "correlation_length": {"description": "Short-range correlation length (fm)", "value": 0.4},
-                    "correlation_strength": {"description": "Short-range correlation strength", "value": 0.0},
+                    "WS_radius": {
+                        "description": "Woods-Saxon radius parameter R",
+                        "value": 6.38
+                    },
+                    "WS_diffusiveness": {
+                        "description": "Woods-Saxon diffusiveness parameter a",
+                        "value": 0.535
+                    },
+                    "beta_2": {
+                        "description": "Quadrupolar deformation",
+                        "value": 0.0
+                    },
+                    "gamma": {
+                        "description": "Quadrupolar deformation angle (rad)",
+                        "value": 0.0
+                    },
+                    "beta_3": {
+                        "description": "Octupolar deformation",
+                        "value": 0.0
+                    },
+                    "correlation_length": {
+                        "description": "Short-range correlation length (fm)",
+                        "value": 0.4
+                    },
+                    "correlation_strength": {
+                        "description": "Short-range correlation strength",
+                        "value": 0.0
+                    },
                 },
             },
         },
         "trento_dict": {
             "type": "self",
-            "projectile": ["nuclei_target/target.hdf", "nuclei_projectile/projectile.hdf"],
+            "projectile": [
+                "nuclei_target/target.hdf", "nuclei_projectile/projectile.hdf"
+            ],
             "number-events": 1,
             "quiet": False,
             "output": "initial_condition",
@@ -213,7 +312,8 @@ def parse_args() -> argparse.Namespace:
         nargs="?",
         type=Path,
         default=None,
-        help="Path to the design matrix file. Defaults to ./design in the working directory.",
+        help=
+        "Path to the design matrix file. Defaults to ./design in the working directory.",
     )
     parser.add_argument(
         "--design",
@@ -226,13 +326,15 @@ def parse_args() -> argparse.Namespace:
         "--template",
         type=Path,
         default=None,
-        help="Path to the template parameter file. Defaults to the realistic template in this repo.",
+        help=
+        "Path to the template parameter file. Defaults to the realistic template in this repo.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=None,
-        help="Directory in which to create DesignPointN folders. Defaults to the current working directory.",
+        help=
+        "Directory in which to create DesignPointN folders. Defaults to the current working directory.",
     )
     parser.add_argument(
         "--start-design-point",
@@ -244,7 +346,8 @@ def parse_args() -> argparse.Namespace:
         "--end-design-point",
         type=int,
         default=None,
-        help="Last design-point number to generate, inclusive. Defaults to the final row.",
+        help=
+        "Last design-point number to generate, inclusive. Defaults to the final row.",
     )
     args = parser.parse_args()
     if args.design_flag is not None:
@@ -260,17 +363,16 @@ def find_template_path(template_arg: Path | None, cwd: Path) -> Path | None:
         return template_path
 
     candidates = [
-        cwd / "parameters_dict_user_TRENTo_realistic.py",
-        cwd / "config" / "design_points" / "parameters_dict_user_TRENTo_realistic.py",
+        cwd/"parameters_dict_user_TRENTo_realistic.py",
+        cwd/"config"/"design_points"/"parameters_dict_user_TRENTo_realistic.py",
     ]
 
     repo_root = Path(__file__).resolve().parent
-    candidates.extend(
-        [
-            repo_root / "config" / "design_points" / "parameters_dict_user_TRENTo_realistic.py",
-            repo_root / "parameters_dict_user_TRENTo_realistic.py",
-        ]
-    )
+    candidates.extend([
+        repo_root/"config"/"design_points"
+        /"parameters_dict_user_TRENTo_realistic.py",
+        repo_root/"parameters_dict_user_TRENTo_realistic.py",
+    ])
 
     for candidate in candidates:
         if candidate.exists():
@@ -283,7 +385,7 @@ def find_design_path(design_arg: Path | None, cwd: Path) -> Path:
     if design_arg is not None:
         return design_arg.resolve()
 
-    candidate = cwd / DEFAULT_DESIGN_NAME
+    candidate = cwd/DEFAULT_DESIGN_NAME
     if candidate.exists():
         return candidate.resolve()
 
@@ -328,20 +430,23 @@ def bmax_from_design(row: dict[str, str]) -> float:
     R = float(row["WS_radius"])
     a = float(row["WS_diffusiveness"])
     w = float(row["nucleon-width"])
-    beta_2 = float(row["beta_2"]) + 2.0 * f_sigma(row, "sigma_plane")
-    beta_3 = float(row["beta_3"]) + 2.0 * f_sigma(row, "sigma_beta_3")
+    beta_2 = float(row["beta_2"]) + 2.0*f_sigma(row, "sigma_plane")
+    beta_3 = float(row["beta_3"]) + 2.0*f_sigma(row, "sigma_beta_3")
 
-    deformation_term = (7.0 / (4.0 * math.pi)) * (beta_2 ** 2 + beta_3 ** 2)
-    bmax = 1.789 * math.sqrt(R ** 2 * (1.0 + deformation_term) + (7.0 * math.pi ** 2 / 3.0) * (a ** 2)) + w + 0.5
+    deformation_term = (7.0/(4.0*math.pi))*(beta_2**2 + beta_3**2)
+    bmax = 1.789*math.sqrt(R**2*(1.0 + deformation_term) + (7.0*math.pi**2/3.0)*
+                           (a**2)) + w + 0.5
     return bmax
 
 
 def set_target_and_projectile_shapes(config: dict, row: dict[str, str]) -> None:
     for section_name in ("target", "projectile"):
         if section_name == "target":
-            section = config["isobars_conf_dict_target"]["isobar_properties"]["isobar1"]
+            section = config["isobars_conf_dict_target"]["isobar_properties"][
+                "isobar1"]
         else:
-            section = config["isobars_conf_dict_projectile"]["isobar_properties"]["isobar1"]
+            section = config["isobars_conf_dict_projectile"][
+                "isobar_properties"]["isobar1"]
 
         section["WS_radius"]["value"] = float(row["WS_radius"])
         section["WS_diffusiveness"]["value"] = float(row["WS_diffusiveness"])
@@ -379,7 +484,7 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
         sigma_k = float(row["sigma_k"])
         if sigma_k <= 0.0:
             raise ValueError(f"sigma_k must be positive, got {sigma_k}")
-        trento["fluctuation"] = 1.0 / sigma_k**2
+        trento["fluctuation"] = 1.0/sigma_k**2
         print(f"  sigma_k = {sigma_k:.4f} -> TRENTo fluctuation k = "
               f"{trento['fluctuation']:.4f}")
     else:
@@ -393,22 +498,19 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
     trento["b-max"] = bmax_from_design(row)
 
     music["shear_viscosity_3_eta_over_s_T_kink_in_GeV"] = float(
-        row["shear_viscosity_3_eta_over_s_T_kink_in_GeV"]
-    )
+        row["shear_viscosity_3_eta_over_s_T_kink_in_GeV"])
     music["shear_viscosity_3_eta_over_s_low_T_slope_in_GeV"] = float(
-        row["shear_viscosity_3_eta_over_s_low_T_slope_in_GeV"]
-    )
+        row["shear_viscosity_3_eta_over_s_low_T_slope_in_GeV"])
     music["shear_viscosity_3_eta_over_s_high_T_slope_in_GeV"] = float(
-        row["shear_viscosity_3_eta_over_s_high_T_slope_in_GeV"]
-    )
+        row["shear_viscosity_3_eta_over_s_high_T_slope_in_GeV"])
     music["shear_viscosity_3_eta_over_s_at_kink"] = float(
-        row["shear_viscosity_3_eta_over_s_at_kink"]
-    )
+        row["shear_viscosity_3_eta_over_s_at_kink"])
     music["shear_relax_time_factor"] = float(row["shear_relax_time_factor"])
 
     # CSV columns keep their historical short names; the master expects the
     # bulk_viscosity_3_zeta_over_s_* spelling, and a mismatch here is silent.
-    music["bulk_viscosity_3_zeta_over_s_max"] = float(row["bulk_viscosity_3_max"])
+    music["bulk_viscosity_3_zeta_over_s_max"] = float(
+        row["bulk_viscosity_3_max"])
     music["bulk_viscosity_3_zeta_over_s_T_peak_in_GeV"] = float(
         row["bulk_viscosity_3_T_peak_in_GeV"])
     music["bulk_viscosity_3_zeta_over_s_width_in_GeV"] = float(
@@ -419,9 +521,12 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
     music["T_freeze"] = float(row["T_freeze"])
 
 
-def format_python_string(value: str, in_list: bool = False, quote: str = '"') -> str:
+def format_python_string(value: str,
+                         in_list: bool = False,
+                         quote: str = '"') -> str:
     escaped = value.replace('\\', '\\\\')
-    escaped = escaped.replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t')
+    escaped = escaped.replace('\n', '\\n').replace('\r',
+                                                   '\\r').replace('\t', '\\t')
     if quote == "'":
         escaped = escaped.replace("'", "\\'")
     else:
@@ -429,9 +534,13 @@ def format_python_string(value: str, in_list: bool = False, quote: str = '"') ->
     return quote + escaped + quote
 
 
-def format_python_value(value, indent: int = 0, in_list: bool = False, key_quote: str = "'", string_quote: str = '"'):
-    pad = " " * indent
-    next_pad = " " * (indent + 4)
+def format_python_value(value,
+                        indent: int = 0,
+                        in_list: bool = False,
+                        key_quote: str = "'",
+                        string_quote: str = '"'):
+    pad = " "*indent
+    next_pad = " "*(indent + 4)
 
     if isinstance(value, dict):
         if not value:
@@ -440,8 +549,14 @@ def format_python_value(value, indent: int = 0, in_list: bool = False, key_quote
         items = list(value.items())
         for index, (key, item) in enumerate(items):
             suffix = ","
-            nested_value = format_python_value(item, indent + 4, in_list=False, key_quote='"', string_quote=string_quote)
-            lines.append(f"{next_pad}{key_quote}{key}{key_quote}: {nested_value}{suffix}")
+            nested_value = format_python_value(item,
+                                               indent + 4,
+                                               in_list=False,
+                                               key_quote='"',
+                                               string_quote=string_quote)
+            lines.append(
+                f"{next_pad}{key_quote}{key}{key_quote}: {nested_value}{suffix}"
+            )
         lines.append(f"{pad}}}")
         return "\n".join(lines)
 
@@ -452,7 +567,8 @@ def format_python_value(value, indent: int = 0, in_list: bool = False, key_quote
         rendered_items = []
         for item in value:
             if isinstance(item, str):
-                rendered_items.append(format_python_string(item, in_list=True, quote="'"))
+                rendered_items.append(
+                    format_python_string(item, in_list=True, quote="'"))
             elif isinstance(item, (int, float, bool)) or item is None:
                 rendered_items.append(repr(item))
             else:
@@ -467,7 +583,11 @@ def format_python_value(value, indent: int = 0, in_list: bool = False, key_quote
         lines = ["["]
         for index, item in enumerate(value):
             suffix = ","
-            nested_value = format_python_value(item, indent + 4, in_list=True, key_quote='"', string_quote='"')
+            nested_value = format_python_value(item,
+                                               indent + 4,
+                                               in_list=True,
+                                               key_quote='"',
+                                               string_quote='"')
             lines.append(f"{next_pad}{nested_value}{suffix}")
         lines.append(f"{pad}]")
         return "\n".join(lines)
@@ -485,7 +605,11 @@ def format_python_value(value, indent: int = 0, in_list: bool = False, key_quote
 
 
 def python_literal(value):
-    return format_python_value(value, indent=0, in_list=False, key_quote="'", string_quote='"')
+    return format_python_value(value,
+                               indent=0,
+                               in_list=False,
+                               key_quote="'",
+                               string_quote='"')
 
 
 def f_sigma(row: dict[str, str], key: str) -> float:
@@ -517,7 +641,8 @@ def f_beta_max(row: dict[str, str], samples: dict) -> float:
     return 0.5
 
 
-def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) -> str:
+def format_isobar_dict(section_name: str, row: dict[str, str],
+                       samples: dict) -> str:
     label = "target" if section_name == "target" else "projectile"
     seed_source = samples["seed_source"]["value"]
     master_seed = samples["master_seed"]["value"]
@@ -589,10 +714,11 @@ def format_isobar_dict(section_name: str, row: dict[str, str], samples: dict) ->
     return "\n".join(lines)
 
 
-def write_design_point_file(output_dir: Path, index_one_based: int, config: dict, row: dict[str, str]) -> None:
+def write_design_point_file(output_dir: Path, index_one_based: int,
+                            config: dict, row: dict[str, str]) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     file_name = f"parameter_dictionary_design_point_{index_one_based}.py"
-    output_path = output_dir / file_name
+    output_path = output_dir/file_name
     # Defaults (seed_source, master_seed, pool_modulus, mass number) come from
     # the template this design point is generated against.
     samples = config["isobars_conf_dict_target"]["isobar_samples"]
@@ -621,11 +747,11 @@ def write_design_point_file(output_dir: Path, index_one_based: int, config: dict
     ]
 
     for name in [
-        "trento_dict",
-        "free_streaming_dict",
-        "music_dict",
-        "iss_dict",
-        "hadronic_afterburner_toolkit_dict",
+            "trento_dict",
+            "free_streaming_dict",
+            "music_dict",
+            "iss_dict",
+            "hadronic_afterburner_toolkit_dict",
     ]:
         value = config[name]
         lines.append(f"{name} = {python_literal(value)}")
@@ -662,8 +788,7 @@ def main() -> None:
 
     template_ns = load_template(template_path)
     base_config = {
-        name: template_ns[name]
-        for name in [
+        name: template_ns[name] for name in [
             "control_dict",
             "isobars_conf_dict_target",
             "isobars_conf_dict_projectile",
@@ -679,30 +804,37 @@ def main() -> None:
         one_based_index = zero_based_index + 1
         if one_based_index < start_design_point or one_based_index > end_design_point:
             continue
-        config = {key: value.copy() if isinstance(value, dict) else value for key, value in base_config.items()}
+        config = {
+            key: value.copy() if isinstance(value, dict) else value
+            for key, value in base_config.items()
+        }
         # deep-copy the nested dicts to avoid cross-design pollution
         config["control_dict"] = dict(base_config["control_dict"])
         config["isobars_conf_dict_target"] = {
-            k: (v.copy() if isinstance(v, dict) else v) for k, v in base_config["isobars_conf_dict_target"].items()
+            k: (v.copy() if isinstance(v, dict) else v)
+            for k, v in base_config["isobars_conf_dict_target"].items()
         }
         config["isobars_conf_dict_projectile"] = {
-            k: (v.copy() if isinstance(v, dict) else v) for k, v in base_config["isobars_conf_dict_projectile"].items()
+            k: (v.copy() if isinstance(v, dict) else v)
+            for k, v in base_config["isobars_conf_dict_projectile"].items()
         }
         config["trento_dict"] = dict(base_config["trento_dict"])
         config["free_streaming_dict"] = dict(base_config["free_streaming_dict"])
         config["music_dict"] = dict(base_config["music_dict"])
         config["iss_dict"] = dict(base_config["iss_dict"])
-        config["hadronic_afterburner_toolkit_dict"] = dict(base_config["hadronic_afterburner_toolkit_dict"])
+        config["hadronic_afterburner_toolkit_dict"] = dict(
+            base_config["hadronic_afterburner_toolkit_dict"])
         config["control_dict"]["walltime"] = "20:00:00"
 
         update_template_values(config, row)
 
         dir_name = f"DesignPoint{one_based_index}"
-        point_dir = output_dir / dir_name
+        point_dir = output_dir/dir_name
         write_design_point_file(point_dir, one_based_index, config, row)
 
     generated_count = end_design_point - start_design_point + 1
-    print(f"Generated {generated_count} design-point folders under {output_dir}")
+    print(
+        f"Generated {generated_count} design-point folders under {output_dir}")
 
 
 if __name__ == "__main__":

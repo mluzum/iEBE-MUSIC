@@ -166,8 +166,7 @@ for icen in range(len(centralityCutList) - 1):
     for event_name in selected_events_list:
         chargedpTDiff.append(data[event_name]['ch_pTArr'])
         QnArrEtapTw.append(
-            _coerce_eta_reference(data[event_name]['chVneta_pTw_pT_0p15_2'])
-        )
+            _coerce_eta_reference(data[event_name]['chVneta_pTw_pT_0p15_2']))
         pTArr = data[event_name]['pTArr']
     chargedpTDiff = np.array(chargedpTDiff)
     QnArrEtapTw = np.array(QnArrEtapTw)

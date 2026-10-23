@@ -37,7 +37,10 @@ import numpy as np
 COUNTER_STRIDE = 1 << 24
 
 
-def seed_rows(master_seed, number_configs, number_nucleons, stride=COUNTER_STRIDE):
+def seed_rows(master_seed,
+              number_configs,
+              number_nucleons,
+              stride=COUNTER_STRIDE):
     """Return (number_configs, number_nucleons, 6) float32 seed rows.
 
     Each configuration is a pure function of (master_seed, config_index): the
@@ -48,7 +51,7 @@ def seed_rows(master_seed, number_configs, number_nucleons, stride=COUNTER_STRID
     for i in range(number_configs):
         gen = np.random.Generator(
             np.random.Philox(key=master_seed,
-                             counter=np.uint64(i) * np.uint64(stride)))
+                             counter=np.uint64(i)*np.uint64(stride)))
         rows[i, :, :3] = gen.random((number_nucleons, 3))
         rows[i, :, 3:] = gen.standard_normal((number_nucleons, 3))
     return rows
@@ -63,19 +66,25 @@ def file_digest(path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--output', required=True, help='output HDF5 path')
     parser.add_argument('--number-configs', type=int, required=True)
     parser.add_argument('--number-nucleons', type=int, required=True)
-    parser.add_argument('--seed', type=int, required=True,
+    parser.add_argument('--seed',
+                        type=int,
+                        required=True,
                         help='integer seed; the same seed always yields the '
-                             'same file')
-    parser.add_argument('--compression', type=int, default=9,
+                        'same file')
+    parser.add_argument('--compression',
+                        type=int,
+                        default=9,
                         help='gzip level for the dataset (0-9, default 9)')
-    parser.add_argument('--verify', action='store_true',
+    parser.add_argument('--verify',
+                        action='store_true',
                         help='after writing, re-generate in memory and confirm '
-                             'the contents match, then print the sha256')
+                        'the contents match, then print the sha256')
     args = parser.parse_args()
 
     if args.number_configs <= 0 or args.number_nucleons <= 0:
@@ -84,13 +93,14 @@ def main():
     data = seed_rows(args.seed, args.number_configs, args.number_nucleons)
 
     with h5py.File(args.output, 'w') as f:
-        dset = f.create_dataset('isobar_seeds', data.shape,
+        dset = f.create_dataset('isobar_seeds',
+                                data.shape,
                                 compression="gzip",
                                 compression_opts=args.compression)
         dset[:] = data
 
-    print('wrote {}  shape={} dtype={}  seed={}'.format(
-        args.output, data.shape, data.dtype, args.seed))
+    print('wrote {}  shape={} dtype={}  seed={}'.format(args.output, data.shape,
+                                                        data.dtype, args.seed))
     print('sha256({}) = {}'.format(args.output, file_digest(args.output)))
 
     if args.verify:

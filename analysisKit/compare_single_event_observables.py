@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """Compare single-event observables across multiple runs.
 
 This script overlays the exported observables produced by
@@ -62,8 +61,10 @@ def load_table(path: str) -> np.ndarray:
 
 def load_run(label: str, run_dir: str) -> RunData:
     obs_dir = os.path.join(run_dir, "event_0", "EVENT_RESULTS_0", "observables")
-    pT_table = load_table(os.path.join(obs_dir, "charged_hadron_pT_observables.dat"))
-    eta_table = load_table(os.path.join(obs_dir, "charged_hadron_eta_observables.dat"))
+    pT_table = load_table(
+        os.path.join(obs_dir, "charged_hadron_pT_observables.dat"))
+    eta_table = load_table(
+        os.path.join(obs_dir, "charged_hadron_eta_observables.dat"))
     summary = parse_summary(os.path.join(obs_dir, "summary.txt"))
     return RunData(
         label=label,
@@ -77,7 +78,11 @@ def load_run(label: str, run_dir: str) -> RunData:
 
 
 def plot_pT_comparison(runs: Sequence[RunData], outdir: str) -> None:
-    fig, axes = plt.subplots(5, 1, figsize=(8.8, 14.0), sharex=True, constrained_layout=True)
+    fig, axes = plt.subplots(5,
+                             1,
+                             figsize=(8.8, 14.0),
+                             sharex=True,
+                             constrained_layout=True)
 
     for run in runs:
         axes[0].plot(run.pT, run.pT_table[:, 1], lw=2, label=run.label)
@@ -89,16 +94,20 @@ def plot_pT_comparison(runs: Sequence[RunData], outdir: str) -> None:
 
     # vn columns: pT, dN, then (re, im, abs) for v1..v4
     for harmonic in range(1, 5):
-        abs_col = 2 + (harmonic - 1) * 3 + 2
+        abs_col = 2 + (harmonic - 1)*3 + 2
         for run in runs:
-            axes[harmonic].plot(run.pT, run.pT_table[:, abs_col], lw=2, label=run.label)
+            axes[harmonic].plot(run.pT,
+                                run.pT_table[:, abs_col],
+                                lw=2,
+                                label=run.label)
         axes[harmonic].set_ylabel(rf"$|v_{harmonic}(p_T)|$")
         axes[harmonic].grid(alpha=0.25)
         axes[harmonic].legend(frameon=False)
 
     axes[-1].set_xlabel(r"$p_T$ [GeV]")
 
-    fig.savefig(os.path.join(outdir, "comparison_charged_hadron_pT.png"), dpi=180)
+    fig.savefig(os.path.join(outdir, "comparison_charged_hadron_pT.png"),
+                dpi=180)
     plt.close(fig)
 
 
@@ -111,19 +120,22 @@ def plot_eta_comparison(runs: Sequence[RunData], outdir: str) -> None:
     ax.set_title("Charged-hadron rapidity density comparison")
     ax.grid(alpha=0.25)
     ax.legend(frameon=False)
-    fig.savefig(os.path.join(outdir, "comparison_charged_hadron_eta.png"), dpi=180)
+    fig.savefig(os.path.join(outdir, "comparison_charged_hadron_eta.png"),
+                dpi=180)
     plt.close(fig)
 
 
 def plot_summary_comparison(runs: Sequence[RunData], outdir: str) -> None:
     metrics = ["Nch", "mean_pT_ch", "ET"]
     labels = [run.label for run in runs]
-    values = np.array([[run.summary.get(metric, np.nan) for metric in metrics] for run in runs])
+    values = np.array([
+        [run.summary.get(metric, np.nan) for metric in metrics] for run in runs
+    ])
 
     fig, axes = plt.subplots(3, 1, figsize=(8.4, 8.5), constrained_layout=True)
     x = np.arange(len(runs))
     for i, metric in enumerate(metrics):
-        axes[i].bar(x, values[:, i], color=["#1f77b4", "#ff7f0e"][: len(runs)])
+        axes[i].bar(x, values[:, i], color=["#1f77b4", "#ff7f0e"][:len(runs)])
         axes[i].set_xticks(x)
         axes[i].set_xticklabels(labels)
         axes[i].set_ylabel(metric)
@@ -136,7 +148,9 @@ def plot_summary_comparison(runs: Sequence[RunData], outdir: str) -> None:
 
 def write_delta_table(runs: Sequence[RunData], outdir: str) -> None:
     metrics = ["Nch", "mean_pT_ch", "ET"]
-    with open(os.path.join(outdir, "comparison_summary.txt"), "w", encoding="utf-8") as handle:
+    with open(os.path.join(outdir, "comparison_summary.txt"),
+              "w",
+              encoding="utf-8") as handle:
         handle.write("metric")
         for run in runs:
             handle.write(f"  {run.label}")
@@ -158,15 +172,25 @@ def write_delta_table(runs: Sequence[RunData], outdir: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("runs", nargs="+", help="Run directories to compare")
-    parser.add_argument("--labels", nargs="*", default=None, help="Optional labels for the runs")
-    parser.add_argument("--outdir", default="comparison_observables", help="Output directory for comparison plots")
+    parser.add_argument("--labels",
+                        nargs="*",
+                        default=None,
+                        help="Optional labels for the runs")
+    parser.add_argument("--outdir",
+                        default="comparison_observables",
+                        help="Output directory for comparison plots")
     args = parser.parse_args()
 
     if args.labels is not None and len(args.labels) not in (0, len(args.runs)):
-        raise ValueError("If provided, --labels must have the same length as runs")
+        raise ValueError(
+            "If provided, --labels must have the same length as runs")
 
-    labels = args.labels if args.labels else [f"run{i+1}" for i in range(len(args.runs))]
-    runs = [load_run(label, run_dir) for label, run_dir in zip(labels, args.runs)]
+    labels = args.labels if args.labels else [
+        f"run{i+1}" for i in range(len(args.runs))
+    ]
+    runs = [
+        load_run(label, run_dir) for label, run_dir in zip(labels, args.runs)
+    ]
 
     os.makedirs(args.outdir, exist_ok=True)
     plot_pT_comparison(runs, args.outdir)

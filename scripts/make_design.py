@@ -80,7 +80,7 @@ COLUMNS = (["label"] + [name for name, _, _ in PRIOR]
 def latin_hypercube(n, rng):
     """n points in d dimensions, one per stratum in every marginal."""
     d = len(PRIOR)
-    strata = (rng.random((n, d)) + np.arange(n)[:, None]) / n
+    strata = (rng.random((n, d)) + np.arange(n)[:, None])/n
     return np.stack([strata[rng.permutation(n), j] for j in range(d)], axis=1)
 
 
@@ -95,7 +95,7 @@ def maximin_order(unit_points):
 
     n = len(unit_points)
     dist = squareform(pdist(unit_points))
-    start = int(np.argmin(((unit_points - 0.5) ** 2).sum(axis=1)))
+    start = int(np.argmin(((unit_points - 0.5)**2).sum(axis=1)))
     order = [start]
     nearest = dist[start].copy()
     nearest[start] = -1.0
@@ -118,16 +118,24 @@ def prefix_separation(unit_points, order, sizes):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--n", type=int, default=2000,
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--n",
+                        type=int,
+                        default=2000,
                         help="number of design points (default 2000)")
-    parser.add_argument("--seed", type=int, default=8675309,
+    parser.add_argument("--seed",
+                        type=int,
+                        default=8675309,
                         help="RNG seed (default 8675309, the campaign seed)")
-    parser.add_argument("--out", default="design/design_lhs2000.csv",
+    parser.add_argument("--out",
+                        default="design/design_lhs2000.csv",
                         help="output CSV path")
-    parser.add_argument("--no-order", action="store_true",
-                        help="write the points in LHS order instead of maximin order")
+    parser.add_argument(
+        "--no-order",
+        action="store_true",
+        help="write the points in LHS order instead of maximin order")
     args = parser.parse_args()
 
     if args.n < 2:
@@ -140,7 +148,7 @@ def main():
 
     lows = np.array([lo for _, lo, _ in PRIOR])
     highs = np.array([hi for _, _, hi in PRIOR])
-    design = lows + unit * (highs - lows)
+    design = lows + unit*(highs - lows)
 
     with open(args.out, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
@@ -148,8 +156,10 @@ def main():
         for i, row in enumerate(design, start=1):
             record = ["design_{:04d}".format(i)]
             record += ["{:.10g}".format(v) for v in row]
-            record += ["{:.10g}".format(v) if isinstance(v, float) else v
-                       for _, v in FIXED]
+            record += [
+                "{:.10g}".format(v) if isinstance(v, float) else v
+                for _, v in FIXED
+            ]
             writer.writerow(record)
 
     print("wrote {} design points to {}".format(args.n, args.out))

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """Export and plot observables for a single event stored in QnVectors pickle.
 
 This script is intended as a lightweight sanity-check helper for a single-event
@@ -21,7 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def load_event(database_file: str, event_name: str | None) -> tuple[str, Dict[str, Any]]:
+def load_event(database_file: str,
+               event_name: str | None) -> tuple[str, Dict[str, Any]]:
     with open(database_file, "rb") as pf:
         data = pickle.load(pf)
 
@@ -53,7 +53,8 @@ def main() -> None:
     args = parser.parse_args()
 
     event_name, event = load_event(args.pickle_file, args.event)
-    outdir = args.outdir or os.path.join(os.path.dirname(args.pickle_file), "observables")
+    outdir = args.outdir or os.path.join(os.path.dirname(args.pickle_file),
+                                         "observables")
     ensure_dir(outdir)
 
     pT = np.asarray(event["pTArr"])
@@ -74,7 +75,8 @@ def main() -> None:
         pT_table,
     )
 
-    eta = np.asarray(event.get("etaArr", np.linspace(-7.0, 7.0, len(event["dNch/deta"]))))
+    eta = np.asarray(
+        event.get("etaArr", np.linspace(-7.0, 7.0, len(event["dNch/deta"]))))
     dNch_deta = np.asarray(event["dNch/deta"])
     eta_table = np.column_stack([eta, dNch_deta])
     write_text_table(
@@ -96,7 +98,11 @@ def main() -> None:
         f.write("\n".join(summary_lines) + "\n")
 
     # Plot charged hadron spectrum and vn(pT).
-    fig, axes = plt.subplots(2, 1, figsize=(8.2, 8.2), sharex=True, constrained_layout=True)
+    fig, axes = plt.subplots(2,
+                             1,
+                             figsize=(8.2, 8.2),
+                             sharex=True,
+                             constrained_layout=True)
 
     axes[0].plot(pT, spectrum, color="#1f77b4", lw=2)
     axes[0].set_ylabel(r"$dN/d^2p_T$")
@@ -111,7 +117,8 @@ def main() -> None:
     axes[1].grid(alpha=0.25)
     axes[1].legend(frameon=False, ncol=2)
 
-    fig.savefig(os.path.join(outdir, "charged_hadron_pT_observables.png"), dpi=180)
+    fig.savefig(os.path.join(outdir, "charged_hadron_pT_observables.png"),
+                dpi=180)
     plt.close(fig)
 
     # Plot dNch/deta.
@@ -121,7 +128,8 @@ def main() -> None:
     ax.set_ylabel(r"$dN_{ch}/d\eta$")
     ax.set_title(f"{event_name}: charged-hadron rapidity density")
     ax.grid(alpha=0.25)
-    fig.savefig(os.path.join(outdir, "charged_hadron_eta_observables.png"), dpi=180)
+    fig.savefig(os.path.join(outdir, "charged_hadron_eta_observables.png"),
+                dpi=180)
     plt.close(fig)
 
     print(f"Wrote observables to {outdir}")

@@ -143,7 +143,21 @@ defaults — prefer those over guessing flags.
   one working directory; it is now settable with `-disk` (default 10 GB). Run large batches from
   the data disk (`/ospool/ap40/data/matthew.luzum`, ~465 GB) so results land there, but keep
   condor `log`/`error`/`output` on the home disk, which the generator already does via an absolute
-  `home_log_dir`.
+  `home_log_dir`. Measured over 1990 production jobs (20 events each, decays-only, dx=0.15):
+  wall median 1.09 h (p10 0.60, p90 2.33, max 6.2), peak RSS median 269 MB, p99 733 MB, max
+  1221 MB. Only 2/1990 jobs exceeded 1 GB, both at one design point, so keep 1 GB as the
+  default and `condor_qedit ... RequestMemory 1400` + `condor_release` the rare hold. Memory
+  is a property of the design point, not of job length: one dp sat at 733 MB median.
+- **A job that skips one event must still transfer its other 19.** `prepare_surface_files_for_urqmd`
+  returns False when the freeze-out surface is empty (very peripheral / tiny fireball), the
+  driver skips that event *silently* (no print), and at the end exits 73. The submit template
+  used to carry `periodic_remove = (ExitCode == 73)`, which races the output transfer: when
+  the remove wins the whole job's 20 events vanish with no HoldReason, exit code, or message,
+  and the job simply disappears from the queue. That cost 47 of 2000 blocks (~2.3%) in the
+  first production batch and was only found by diffing h5 files against `events_drawn.csv`.
+  `periodic_remove` is gone. Expect ~1-2% of drawn events to be skipped for real (surface
+  size 0); they stay in `events_drawn.csv` with `mult > 0` and are visible as drawn-but-missing
+  h5, which is exactly the set to re-run.
 - Root-level `collect_events.sh`, `combine_multiple_hdf5.py`, `average_event_spvn_h5.py` are
   gitignored because `generate_jobs.py` copies them into the CWD. Missing-from-git is not a bug.
 - `submit_design_points.py` contains machine-specific hardcodes that must be edited before use:

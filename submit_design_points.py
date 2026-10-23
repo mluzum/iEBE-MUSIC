@@ -17,7 +17,9 @@ import shlex
 import subprocess
 from pathlib import Path
 
-DEFAULT_OSG_SCRIPT = Path("/home/joaopaulo.picchetti/iEBE-MUSIC/Cluster_supports/OSG/generate_submission_script.py")
+DEFAULT_OSG_SCRIPT = Path(
+    "/home/joaopaulo.picchetti/iEBE-MUSIC/Cluster_supports/OSG/generate_submission_script.py"
+)
 
 
 def find_design_points(root: Path) -> list[tuple[int, Path]]:
@@ -50,9 +52,10 @@ def submit_all(
     for index, point_dir in find_design_points(root):
         if index < start_design_point or index > end_design_point:
             continue
-        param_file = point_dir / f"parameter_dictionary_design_point_{index}.py"
+        param_file = point_dir/f"parameter_dictionary_design_point_{index}.py"
         if not param_file.exists():
-            raise FileNotFoundError(f"Missing parameter file for DesignPoint{index}: {param_file}")
+            raise FileNotFoundError(
+                f"Missing parameter file for DesignPoint{index}: {param_file}")
 
         print(f"\nSubmitting DesignPoint{index} from {point_dir}")
         generate_cmd = [
@@ -93,7 +96,8 @@ def main() -> None:
         "--end-design-point",
         type=int,
         default=None,
-        help="Last design-point number to submit, inclusive. Defaults to the final folder.",
+        help=
+        "Last design-point number to submit, inclusive. Defaults to the final folder.",
     )
     parser.add_argument(
         "--dry-run",

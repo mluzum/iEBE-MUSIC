@@ -31,9 +31,9 @@ control_dict = {
     'debugFlag': False,
     'usePosteriorParameters': False,
     'PosteriorChainFilePath': "config/arXiv_2408.00537",
-    'PosteriorParamSet': 0,         # -1: choose randoomly
-    'PosteriorParamSetFlag': 0,     # 0: choose from sorted chain
-                                    # 1: choose from parameter clusters
+    'PosteriorParamSet': 0,  # -1: choose randoomly
+    'PosteriorParamSetFlag': 0,  # 0: choose from sorted chain
+    # 1: choose from parameter clusters
 }
 
 # isobar-sample
@@ -49,18 +49,19 @@ isobars_conf_dict_target = {
             "value": 197,
         },
         "seeds_file": {
-            "description": "Input file with list of seeds for nucleon positions.",
-            "filename": "nucleon-seeds.hdf",
+            "description":
+                "Input file with list of seeds for nucleon positions.",
+            "filename":
+                "nucleon-seeds.hdf",
         },
         "output_path": {
             "description": "Output directory where to save",
             "dirname": "nuclei_target",
         },
         "number_of_parallel_processes": {
-            "description": (
-                "Number of processes to compute in parallel. A value of -1 "
-                "automatically selects the number of CPUs present."
-            ),
+            "description":
+                ("Number of processes to compute in parallel. A value of -1 "
+                 "automatically selects the number of CPUs present."),
             "value": -1,
         },
     },
@@ -71,17 +72,39 @@ isobars_conf_dict_target = {
         ),
         "isobar1": {
             "isobar_name": "Au",
-            "WS_radius": {"description": "Woods‑Saxon radius parameter R", "value": 6.38},
-            "WS_diffusiveness": {"description": "Woods‑Saxon diffusiveness parameter a", "value": 0.535},
-            "beta_2": {"description": "Quadrupolar deformation β₂", "value": 0},
-            "gamma": {"description": "Triaxiality angle gamma_lit (rad), Bohr-Mottelson convention: 0 = axial prolate, pi/6 = max triaxial, pi/3 = axial oblate", "value": 0},
-            "beta_3": {"description": "Octupolar deformation β₃", "value": 0},
-            "correlation_length": {"description": "Radius of step‑function correlation C(r) (fm)", "value": 0},
-            "correlation_strength": {"description": "Depth of correlation (≥ −1)", "value": -1},
+            "WS_radius": {
+                "description": "Woods‑Saxon radius parameter R",
+                "value": 6.38
+            },
+            "WS_diffusiveness": {
+                "description": "Woods‑Saxon diffusiveness parameter a",
+                "value": 0.535
+            },
+            "beta_2": {
+                "description": "Quadrupolar deformation β₂",
+                "value": 0
+            },
+            "gamma": {
+                "description":
+                    "Triaxiality angle gamma_lit (rad), Bohr-Mottelson convention: 0 = axial prolate, pi/6 = max triaxial, pi/3 = axial oblate",
+                "value":
+                    0
+            },
+            "beta_3": {
+                "description": "Octupolar deformation β₃",
+                "value": 0
+            },
+            "correlation_length": {
+                "description": "Radius of step‑function correlation C(r) (fm)",
+                "value": 0
+            },
+            "correlation_strength": {
+                "description": "Depth of correlation (≥ −1)",
+                "value": -1
+            },
         },
     },
 }
-
 
 isobars_conf_dict_projectile = {
     "isobar_samples": {
@@ -95,18 +118,19 @@ isobars_conf_dict_projectile = {
             "value": 197,
         },
         "seeds_file": {
-            "description": "Input file with list of seeds for nucleon positions.",
-            "filename": "nucleon-seeds.hdf",
+            "description":
+                "Input file with list of seeds for nucleon positions.",
+            "filename":
+                "nucleon-seeds.hdf",
         },
         "output_path": {
             "description": "Output directory where to save",
             "dirname": "nuclei_projectile",
         },
         "number_of_parallel_processes": {
-            "description": (
-                "Number of processes to compute in parallel. A value of -1 "
-                "automatically selects the number of CPUs present."
-            ),
+            "description":
+                ("Number of processes to compute in parallel. A value of -1 "
+                 "automatically selects the number of CPUs present."),
             "value": -1,
         },
     },
@@ -117,47 +141,72 @@ isobars_conf_dict_projectile = {
         ),
         "isobar1": {
             "isobar_name": "Au",
-            "WS_radius": {"description": "Woods‑Saxon radius parameter R", "value": 6.38},
-            "WS_diffusiveness": {"description": "Woods‑Saxon diffusiveness parameter a", "value": 0.535},
-            "beta_2": {"description": "Quadrupolar deformation β₂", "value": 0},
-            "gamma": {"description": "Triaxiality angle gamma_lit (rad), Bohr-Mottelson convention: 0 = axial prolate, pi/6 = max triaxial, pi/3 = axial oblate", "value": 0},
-            "beta_3": {"description": "Octupolar deformation β₃", "value": 0},
-            "correlation_length": {"description": "Radius of step‑function correlation C(r) (fm)", "value": 0},
-            "correlation_strength": {"description": "Depth of correlation (≥ −1)", "value": -1},
+            "WS_radius": {
+                "description": "Woods‑Saxon radius parameter R",
+                "value": 6.38
+            },
+            "WS_diffusiveness": {
+                "description": "Woods‑Saxon diffusiveness parameter a",
+                "value": 0.535
+            },
+            "beta_2": {
+                "description": "Quadrupolar deformation β₂",
+                "value": 0
+            },
+            "gamma": {
+                "description":
+                    "Triaxiality angle gamma_lit (rad), Bohr-Mottelson convention: 0 = axial prolate, pi/6 = max triaxial, pi/3 = axial oblate",
+                "value":
+                    0
+            },
+            "beta_3": {
+                "description": "Octupolar deformation β₃",
+                "value": 0
+            },
+            "correlation_length": {
+                "description": "Radius of step‑function correlation C(r) (fm)",
+                "value": 0
+            },
+            "correlation_strength": {
+                "description": "Depth of correlation (≥ −1)",
+                "value": -1
+            },
         },
     },
 }
 
-
 # Seeds generation configuration for Isobar-Sampler (used when initial_state_type == "TRENTo")
 seeds_conf_dict = {
-    'number_configs': 10000,           # total number of nucleon-position seeds to generate
-    'number_of_parallel_processes': 1, # -1: auto-detect available CPUs
+    'number_configs':
+        10000,  # total number of nucleon-position seeds to generate
+    'number_of_parallel_processes': 1,  # -1: auto-detect available CPUs
 }
 
 # TRENTo
 trento_dict = {
-    'type': "self", # self: generate initial condition on the fly #'database_name?'
-    'projectile': ['nuclei_target/Au.hdf', 'nuclei_projectile/Au.hdf'], # projectile nucleus name
+    'type':
+        "self",  # self: generate initial condition on the fly #'database_name?'
+    'projectile': ['nuclei_target/Au.hdf',
+                   'nuclei_projectile/Au.hdf'],  # projectile nucleus name
     #'projectile': "Pb", # projectile/target nucleus name
-    'number-events': 1, # number of events
-    'quiet': True, ###
+    'number-events': 1,  # number of events
+    'quiet': True,  ###
     'output': 'test_path.dat',
-    'reduced-thickness': 0, ###
-    'fluctuation': 1 ,      # gamma fluctuations
-    'nucleon-width': 0.5,    # nucleon width
-    'cross-section': 6.4,   # inelastic nucleon-nucleon cross-section
-    'normalization': 1,      # normalization
-    'b-min': 0,              # minimum b
-    'b-max': 14,             # maximum b
-    'grid-max': 10,          #####
-    'grid-step': 0.2,        #####
+    'reduced-thickness': 0,  ###
+    'fluctuation': 1,  # gamma fluctuations
+    'nucleon-width': 0.5,  # nucleon width
+    'cross-section': 6.4,  # inelastic nucleon-nucleon cross-section
+    'normalization': 1,  # normalization
+    'b-min': 0,  # minimum b
+    'b-max': 14,  # maximum b
+    'grid-max': 10,  #####
+    'grid-step': 0.2,  #####
 }
 
 free_streaming_dict = {
-    'tau': 1.0,           # free-streaming duration (fm/c)
-    'grid_max': 10.0,     # transverse half-size (fm)
-    'grid_step': 0.2,     # transverse grid spacing (fm)
+    'tau': 1.0,  # free-streaming duration (fm/c)
+    'grid_max': 10.0,  # transverse half-size (fm)
+    'grid_step': 0.2,  # transverse grid spacing (fm)
 }
 
 # IPGlasma
@@ -172,9 +221,9 @@ ipglasma_dict = {
     'mode': 1,  # run mode
     'readMultFromFile': 0,
     'size': 800,  # number of grid points of IP-Glasma computation
-    'L': 30.,     # grid size in the transverse plane
-    'Nc': 3,      # number of color
-    'm': 0.2,     # infrared cut-off mass (GeV)
+    'L': 30.,  # grid size in the transverse plane
+    'Nc': 3,  # number of color
+    'm': 0.2,  # infrared cut-off mass (GeV)
     'rmax': 100.,
     'UVdamp': 0.,
     'Jacobianm': 0.35,
@@ -269,7 +318,7 @@ ipglasma_dict = {
     'Lambda_QCD_jimwlk': 0.040,
     'm_jimwlk': 0.4,
     'saveSnapshots': 0,
-    'xSnapshotList': [5e-3,2e-3,0.0001,0.00005,0.00001]
+    'xSnapshotList': [5e-3, 2e-3, 0.0001, 0.00005, 0.00001]
 }
 
 # 3DMCGlauber model
@@ -438,9 +487,9 @@ music_dict = {
     # 17: BEST lattice EoS at finite mu_B
     # transport coefficients
     'quest_revert_strength': 10.0,  # the strength of the viscous regulation
-    'FlagResumTransportCoeff': 0,   # switch to use resummed transport coeff.
+    'FlagResumTransportCoeff': 0,  # switch to use resummed transport coeff.
     'FlagResetCausality': 0,
-    'resumTransCoeffAlpha': 1.5,    # resummed transport coeff. control parameter
+    'resumTransCoeffAlpha': 1.5,  # resummed transport coeff. control parameter
     'Viscosity_Flag_Yes_1_No_0': 1,  # turn on viscosity in the evolution
     'Include_Shear_Visc_Yes_1_No_0': 1,  # include shear viscous effect
     'Shear_to_S_ratio':
@@ -460,8 +509,7 @@ music_dict = {
         -1.0,  # a_low, d(\eta/s)/dT below the kink [GeV^-1]
     'shear_viscosity_3_eta_over_s_high_T_slope_in_GeV':
         0.0,  # a_high, d(\eta/s)/dT above the kink [GeV^-1]
-    'shear_viscosity_3_eta_over_s_at_kink':
-        0.12,  # (eta/s)_kink
+    'shear_viscosity_3_eta_over_s_at_kink': 0.12,  # (eta/s)_kink
     'shear_relax_time_factor':
         5.0,  # b_pi = T*tau_pi/(\eta/s); MUSIC's default, NOT a design axis
     'muB_dependent_Shear_to_S_ratio':
@@ -482,7 +530,7 @@ music_dict = {
     'bulk_viscosity_3_zeta_over_s_width_in_GeV': 0.05,  # w_zeta
     'bulk_viscosity_3_zeta_over_s_lambda_asymm':
         0.0,  # lambda_zeta, fixed at 0 (symmetric peak), NOT a design axis
-    'bulk_relax_time_factor': 1.0 / 14.55,  # MUSIC's default, recorded
+    'bulk_relax_time_factor': 1.0/14.55,  # MUSIC's default, recorded
     'Include_second_order_terms':
         1,  # include second order non-linear coupling terms
     'Include_vorticity_terms': 0,  # include vorticity coupling terms
@@ -554,13 +602,13 @@ photon_dict = {
     'photon_phi_q_f': 6.2831853,  # the largest angle of photon momentum
     'photon_y_i': 0.0,  # the smallest photon rapidity
     'photon_y_f': 0.0,  # the largest photon rapidity
-    'nMInv': 11,        # number of points for dilepton invariant mass
-    'dilepton_mass_i': 1.0,         # the smallest dilepton mass (GeV)
-    'dilepton_mass_f': 3.0,         # the largest dilepton mass (GeV)
-    'dilepton_y_i': -0.5,           # the dilepton rapidity integration limit
-    'dilepton_y_f': 0.5,            # the dilepton rapidity integration limit
-    'dileptonType': 0,              # 0: electrons, 1: muons
-    'alpha_s': 0.2,         # value of alpha_s used in the NLO QGP dilepton rate
+    'nMInv': 11,  # number of points for dilepton invariant mass
+    'dilepton_mass_i': 1.0,  # the smallest dilepton mass (GeV)
+    'dilepton_mass_f': 3.0,  # the largest dilepton mass (GeV)
+    'dilepton_y_i': -0.5,  # the dilepton rapidity integration limit
+    'dilepton_y_f': 0.5,  # the dilepton rapidity integration limit
+    'dileptonType': 0,  # 0: electrons, 1: muons
+    'alpha_s': 0.2,  # value of alpha_s used in the NLO QGP dilepton rate
     'norder': 10,  # calculate photon vn to norder
     'turn_on_muB': 1,  # flag to include muB dependence in photon rates
     'T_dec': 0.105,  # freeze out temperature (GeV)
@@ -725,7 +773,7 @@ smash_config_dict = {
     },
     "General": {
         "Modus": "List",
-        "Time_Step_Mode":"Fixed",
+        "Time_Step_Mode": "Fixed",
         "Delta_Time": 0.1,
         "End_Time": 100.0,
         "Randomseed": -1,
@@ -734,16 +782,15 @@ smash_config_dict = {
     "Output": {
         "Output_Interval": 10.0,
         "Particles": {
-            "Format": ["Binary"], # Options: "ASCII", "Binary", "Oscar2013"
-            "Extended": True,
-            "Quantities": [ "t","x","y","z",
-              "mass","p0","px","py","pz",
-              "pdg","ID","charge",
-              "ncoll","form_time","xsecfac",
-              "proc_id_origin","proc_type_origin","time_last_coll",
-              "pdg_mother1","pdg_mother2",
-              "baryon_number","strangeness"
-             ],
+            "Format": ["Binary"],  # Options: "ASCII", "Binary", "Oscar2013"
+            "Extended":
+                True,
+            "Quantities": [
+                "t", "x", "y", "z", "mass", "p0", "px", "py", "pz", "pdg", "ID",
+                "charge", "ncoll", "form_time", "xsecfac", "proc_id_origin",
+                "proc_type_origin", "time_last_coll", "pdg_mother1",
+                "pdg_mother2", "baryon_number", "strangeness"
+            ],
         },
     },
     "Modi": {
@@ -754,7 +801,6 @@ smash_config_dict = {
         },
     },
 }
-
 
 # hadronic afterburner toolkit
 hadronic_afterburner_toolkit_dict = {
@@ -877,45 +923,57 @@ Parameters_list = [(ipglasma_dict, "input", 3), (kompost_dict, "setup.ini", 4),
                    (music_dict, "music_input_mode_2", 2),
                    (photon_dict, "parameters.dat", 1),
                    (iss_dict, "iSS_parameters.dat", 1),
-                   (hadronic_afterburner_toolkit_dict, "parameters.dat", 1), (trento_dict, "input", 5),
+                   (hadronic_afterburner_toolkit_dict, "parameters.dat", 1),
+                   (trento_dict, "input", 5),
                    (isobars_conf_dict_target, "isobars-conf_target.yaml", 6),
-                   (isobars_conf_dict_projectile, "isobars-conf_projectile.yaml", 6),
+                   (isobars_conf_dict_projectile,
+                    "isobars-conf_projectile.yaml", 6),
                    (smash_config_dict, "config.yaml", 7)]
 
 path_list = [
     'model_parameters/IPGlasma/', 'model_parameters/KoMPoST/',
     'model_parameters/3dMCGlauber/', 'model_parameters/MUSIC/',
     'model_parameters/photonEmission_hydroInterface/', 'model_parameters/iSS/',
-    'model_parameters/hadronic_afterburner_toolkit/', 'model_parameters/TRENTo', 'model_parameters/Isobar-Sampler_target',
+    'model_parameters/hadronic_afterburner_toolkit/', 'model_parameters/TRENTo',
+    'model_parameters/Isobar-Sampler_target',
     'model_parameters/Isobar-Sampler_projectile', 'model_parameters/SMASH'
 ]
-
 
 #add um comentario aqui
 ###################################################################################################
 
+
 class QuotedStr(str):
     pass
+
 
 def quoted_str_representer(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
 
+
 yaml.add_representer(QuotedStr, quoted_str_representer, Dumper=yaml.SafeDumper)
+
 
 class FlowList(list):
     pass
 
+
 def flow_list_representer(dumper, data):
-    return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+    return dumper.represent_sequence('tag:yaml.org,2002:seq',
+                                     data,
+                                     flow_style=True)
+
 
 yaml.add_representer(QuotedStr, quoted_str_representer, Dumper=yaml.SafeDumper)
 yaml.add_representer(FlowList, flow_list_representer, Dumper=yaml.SafeDumper)
 
 FLOW_KEYS = {"Format", "Quantities"}
-EXEMPT_TOP_LEVEL = {"General", "Logging"}   
+EXEMPT_TOP_LEVEL = {"General", "Logging"}
+
 
 def _in_exempt(path):
     return bool(path) and path[0] in EXEMPT_TOP_LEVEL
+
 
 def transform_rhs(obj, path=None, parent_key=None):
     if path is None:
@@ -937,6 +995,8 @@ def transform_rhs(obj, path=None, parent_key=None):
         return QuotedStr(obj)
 
     return obj
+
+
 ########################################################################################################
 
 
@@ -978,8 +1038,10 @@ def update_parameters_dict(par_dict_path, ran_seed):
                 kompost_dict['KoMPoSTInputs']['tOut'])
 ###########################################################################################
     elif initial_condition_type == "TRENTo":
-        isobars_conf_dict_target.update(parameters_dict.isobars_conf_dict_target)
-        isobars_conf_dict_projectile.update(parameters_dict.isobars_conf_dict_projectile)
+        isobars_conf_dict_target.update(
+            parameters_dict.isobars_conf_dict_target)
+        isobars_conf_dict_projectile.update(
+            parameters_dict.isobars_conf_dict_projectile)
         trento_dict.update(parameters_dict.trento_dict)
         if hasattr(parameters_dict, 'seeds_conf_dict'):
             seeds_conf_dict.update(parameters_dict.seeds_conf_dict)
@@ -987,12 +1049,13 @@ def update_parameters_dict(par_dict_path, ran_seed):
             free_streaming_dict.update(parameters_dict.free_streaming_dict)
         if 'Initial_Distribution_input_filename' not in parameters_dict.music_dict:
             parameters_dict.music_dict[
-                'Initial_Distribution_input_filename'] = (
-                    'initial/e.dat')
+                'Initial_Distribution_input_filename'] = ('initial/e.dat')
         if 'boost_invariant' not in parameters_dict.music_dict:
             parameters_dict.music_dict['boost_invariant'] = 1
+
+
 ###########################################################################################
-            
+
     else:
         mcglauber_dict.update(parameters_dict.mcglauber_dict)
 
@@ -1129,7 +1192,7 @@ def output_parameters_to_files(workfolder="."):
                     continue
                 if isinstance(parameters_dict[key_name], list):
                     varStr = ",".join(
-                            [str(var) for var in parameters_dict[key_name]])
+                        [str(var) for var in parameters_dict[key_name]])
                     f.write(f"{key_name}  {varStr}\n")
                 else:
                     f.write("{parameter_name}  {parameter_value}\n".format(
@@ -1153,7 +1216,7 @@ def output_parameters_to_files(workfolder="."):
                     f.write(f"{key_name} = {value}\n")
             elif itype == 6:
                 yaml.safe_dump(parameters_dict, f, sort_keys=False)
-            
+
             elif itype == 7:
                 data = transform_rhs(smash_config_dict)
                 yaml.dump(
@@ -1168,7 +1231,6 @@ def output_parameters_to_files(workfolder="."):
                 )
                 break
 
-                
         if itype == 2:
             f.write("EndOfData")
         elif itype == 3:

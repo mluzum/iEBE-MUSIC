@@ -233,8 +233,13 @@ log = {4}/job.$(Cluster).$(Process).log
 #+JobDurationCategory = "Long"
 max_idle = 1000
 
-# remove the failed jobs
-periodic_remove = (ExitCode == 73)
+# Exit code 73 only means "at least one event was skipped" (an empty freeze-out
+# surface), NOT "this job's output is junk".  Removing such jobs here races the
+# output transfer: when the remove wins, all 20 events vanish silently and the
+# job leaves the queue with no results and no HoldReason.  That cost ~2% of the
+# first production batch and had to be found by comparing h5 files against
+# events_drawn.csv.  Let the job finish and transfer; per-event gaps are visible
+# as drawn-but-missing h5 files and are re-run individually.
 
 # auto release hold jobs if they are caused by data transfer issues on OSG
 periodic_release = ((HoldReasonCode == 13 || HoldReasonCode == 26) && (time() - EnteredCurrentStatus) > 1200 )
@@ -574,8 +579,13 @@ log = {4}/job.$(Cluster).$(Process).log
 #+JobDurationCategory = "Long"
 max_idle = 1000
 
-# remove the failed jobs
-periodic_remove = (ExitCode == 73)
+# Exit code 73 only means "at least one event was skipped" (an empty freeze-out
+# surface), NOT "this job's output is junk".  Removing such jobs here races the
+# output transfer: when the remove wins, all 20 events vanish silently and the
+# job leaves the queue with no results and no HoldReason.  That cost ~2% of the
+# first production batch and had to be found by comparing h5 files against
+# events_drawn.csv.  Let the job finish and transfer; per-event gaps are visible
+# as drawn-but-missing h5 files and are re-run individually.
 
 # auto release hold jobs if they are caused by data transfer issues on OSG
 periodic_release = ((HoldReasonCode == 13 || HoldReasonCode == 26) && (time() - EnteredCurrentStatus) > 1200 )

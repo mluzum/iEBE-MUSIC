@@ -53,8 +53,11 @@ DICT_NAMES = [
 
 
 def git(*args):
-    return subprocess.run(["git"] + list(args), cwd=REPO_ROOT, capture_output=True,
-                          text=True, check=True).stdout.strip()
+    return subprocess.run(["git"] + list(args),
+                          cwd=REPO_ROOT,
+                          capture_output=True,
+                          text=True,
+                          check=True).stdout.strip()
 
 
 def sha256_file(path):
@@ -75,12 +78,17 @@ def md5_file(path):
 
 def generate_parameter_file(design_csv, design_point, workdir):
     """Run MakeDictionaries.py for one design point and return its parameter file."""
-    subprocess.run([sys.executable,
-                    os.path.join(REPO_ROOT, "MakeDictionaries.py"),
-                    os.path.abspath(design_csv),
-                    "--start-design-point", str(design_point),
-                    "--end-design-point", str(design_point)],
-                   cwd=workdir, check=True, capture_output=True, text=True)
+    subprocess.run([
+        sys.executable,
+        os.path.join(REPO_ROOT, "MakeDictionaries.py"),
+        os.path.abspath(design_csv), "--start-design-point",
+        str(design_point), "--end-design-point",
+        str(design_point)
+    ],
+                   cwd=workdir,
+                   check=True,
+                   capture_output=True,
+                   text=True)
     folder = os.path.join(workdir, "DesignPoint{}".format(design_point))
     for name in sorted(os.listdir(folder)):
         if name.startswith("parameter_dictionary") and name.endswith(".py"):
@@ -97,21 +105,29 @@ def resolve_parameters(param_file, seed):
     resolved = {}
     for name in DICT_NAMES:
         if not hasattr(master, name):
-            raise SystemExit("config/parameters_dict_master.py has no {}".format(name))
+            raise SystemExit(
+                "config/parameters_dict_master.py has no {}".format(name))
         resolved[name] = getattr(master, name)
     return resolved
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--design", default="design/design_lhs2000.csv")
-    parser.add_argument("--design-point", type=int, default=1,
-                        help="design point whose resolved dictionary is recorded")
-    parser.add_argument("--image", default="",
+    parser.add_argument(
+        "--design-point",
+        type=int,
+        default=1,
+        help="design point whose resolved dictionary is recorded")
+    parser.add_argument("--image",
+                        default="",
                         help="local SIF to hash; its md5 is recorded")
-    parser.add_argument("--sif-url", default="",
-                        help="published container URL recorded instead of the local path")
+    parser.add_argument(
+        "--sif-url",
+        default="",
+        help="published container URL recorded instead of the local path")
     parser.add_argument("--outdir", default="provenance")
     args = parser.parse_args()
 
@@ -122,24 +138,39 @@ def main():
     revision = git("rev-parse", "HEAD")
     dirty = git("status", "--porcelain") != ""
     if dirty:
-        print("WARNING: working tree is dirty; the recorded revision does not "
-              "describe the code that is present.", file=sys.stderr)
+        print(
+            "WARNING: working tree is dirty; the recorded revision does not "
+            "describe the code that is present.",
+            file=sys.stderr)
 
     manifest = {
-        "recorded_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "git_revision": revision,
-        "git_branch": git("rev-parse", "--abbrev-ref", "HEAD"),
-        "git_dirty": dirty,
-        "dockerfile_pin": subprocess.run(
-            ["grep", "-oE", r"git fetch -q --depth=1 origin [0-9a-f]{40}",
-             os.path.join(REPO_ROOT, "docker", "Dockerfile")],
-            capture_output=True, text=True).stdout.split()[-1],
-        "design_file": args.design,
-        "design_sha256": sha256_file(design_path),
-        "design_points": sum(1 for _ in open(design_path)) - 1,
-        "recorded_design_point": args.design_point,
-        "master_seed": 8675309,
-        "campaign_seed_add": 0,
+        "recorded_utc":
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "git_revision":
+            revision,
+        "git_branch":
+            git("rev-parse", "--abbrev-ref", "HEAD"),
+        "git_dirty":
+            dirty,
+        "dockerfile_pin":
+            subprocess.run([
+                "grep", "-oE", r"git fetch -q --depth=1 origin [0-9a-f]{40}",
+                os.path.join(REPO_ROOT, "docker", "Dockerfile")
+            ],
+                           capture_output=True,
+                           text=True).stdout.split()[-1],
+        "design_file":
+            args.design,
+        "design_sha256":
+            sha256_file(design_path),
+        "design_points":
+            sum(1 for _ in open(design_path)) - 1,
+        "recorded_design_point":
+            args.design_point,
+        "master_seed":
+            8675309,
+        "campaign_seed_add":
+            0,
     }
 
     if args.image:
@@ -154,13 +185,15 @@ def main():
     # is verified against the hash recorded above.
     design_copy = os.path.join(outdir, os.path.basename(design_path))
     subprocess.run(["cp", design_path, design_copy], check=True)
-    manifest["design_copy"] = os.path.join(args.outdir, os.path.basename(design_path))
+    manifest["design_copy"] = os.path.join(args.outdir,
+                                           os.path.basename(design_path))
     if sha256_file(design_copy) != manifest["design_sha256"]:
         raise SystemExit("design copy does not hash to the original")
     print("wrote", design_copy)
 
     with tempfile.TemporaryDirectory() as tmp:
-        param_file = generate_parameter_file(design_path, args.design_point, tmp)
+        param_file = generate_parameter_file(design_path, args.design_point,
+                                             tmp)
         resolved = resolve_parameters(param_file, 0)
         dict_name = "parameters_design_{:04d}.json".format(args.design_point)
         manifest["parameter_dictionary"] = os.path.join(args.outdir, dict_name)
