@@ -28,12 +28,12 @@ mkdir -p /tmp/opencode/tars
 
 pull_dir_layout() {
   dp=$1; dest=$2
-  rc=$($SSH osg "mkdir -p $TAR && cd $BASE/$dp && tar czf $TAR/$dp.tgz spvn_results && ls $BASE/$dp/spvn_results/spvn_results_*.h5 | wc -l" 2>/dev/null) \
-    || { echo "$dp TAR FAILED"; return 1; }
-  $SCP osg:$TAR/$dp.tgz /tmp/opencode/tars/ || { echo "$dp SCP FAILED"; return 1; }
-  tar xzf /tmp/opencode/tars/$dp.tgz -C "$dest" || { echo "$dp EXTRACT FAILED"; return 1; }
-  rm -f /tmp/opencode/tars/$dp.tgz
-  $SSH osg "rm -f $TAR/$dp.tgz" 2>/dev/null
+  # Stream the archive: writing a temporary tarball on the AP fails once the
+  # data disk is at its file-count quota, and a stream touches nothing there.
+  rc=$($SSH osg "ls $BASE/$dp/spvn_results/spvn_results_*.h5 | wc -l" 2>/dev/null) \
+    || { echo "$dp COUNT FAILED"; return 1; }
+  $SSH osg "cd $BASE/$dp && tar czf - spvn_results" 2>/dev/null | tar xzf - -C "$dest" \
+    || { echo "$dp STREAM FAILED"; return 1; }
   lc=$(ls "$dest"/spvn_results/spvn_results_*.h5 2>/dev/null | wc -l)
   echo "$dp layout=dir local=$lc remote=$rc"
   [ "$lc" = "$rc" ]
