@@ -175,6 +175,16 @@ defaults — prefer those over guessing flags.
   handle both: `scripts/osg_pull_results.sh` pulls either, `scripts/osg_merge_reruns.sh`
   folds re-run output back in either (renaming `spvn_results_0.tar.gz` to the block it covered,
   because re-runs are single jobs with ProcessId 0).
+- **The data disk quota binds on FILES, not bytes: ~2M (`ceph.dir.rfiles`).** `quota -s` only
+  reports the local mounts and `df` reports the whole CephFS, so both look healthy while every
+  write fails with `errno 122 Disk quota exceeded` and jobs pile up on transfer holds
+  (`HoldReason` naming the file it failed to write). A directory-layout design point is ~4000
+  files (1900 h5 + 2000 trento summaries + 100 drawn), so ~460 points exhausted 2M; the archive
+  layout is 100 files per point and would fit ~20,000. Consequences: (a) the AP is staging, not
+  the archive — pull, verify, delete; (b) purging old points with `rm -rf` on CephFS is slow
+  (~10-30 files/s for 4000-file directories) and running several in parallel pushed the AP to
+  load average >1000, at which point `condor_submit` and even `ssh` hang. Delete at low
+  concurrency (2-4), and check `uptime` before blaming a hung command on the script.
 - **The AP caps in-flight jobs at 50,000 per owner, and excess submissions are deferred, not
   rejected.** `condor_config_val -schedd MAX_JOBS_PER_OWNER` returns 50000. When the queue is at
   the cap, `condor_submit` still prints "submitted to cluster N" (the cluster object is created)
