@@ -185,6 +185,25 @@ defaults — prefer those over guessing flags.
   (~10-30 files/s for 4000-file directories) and running several in parallel pushed the AP to
   load average >1000, at which point `condor_submit` and even `ssh` hang. Delete at low
   concurrency (2-4), and check `uptime` before blaming a hung command on the script.
+- **When the AP's CephFS metadata server is saturated, put every submit-side file on the AP's
+  local `/tmp`.** Measured during a 2026-10-24 storm: `mkdir` on the data disk took 1m51s and
+  file creation ~3 min, so a 378-dp staging pass spent 53 min on `mkdir` and wrote ~40 of 756
+  files in two hours — while the 7.3k-job queue drained to zero and the pool idled. With the
+  submit files, parameter dictionaries, and `run_singularity.sh` on `/tmp` (and `initialdir`
+  still pointing at the data-disk dp dir), submission is **0.6 s per cluster** instead of
+  10 min. Two site quirks: (a) `condor_submit` given several submit files silently submits only
+  the **last** one (a 378-file bulk call created exactly one cluster); loop one file per
+  invocation. (b) tar-extracted submit files can lack a trailing newline, producing
+  `ERROR: Failed to parse command file (line N)` on the final `queue` line — `echo >>` fixes it.
+- **Local `/data` is mergerfs over `/mnt/data1..5`, and `df` hides per-branch inode exhaustion.**
+  The branch holding the repo/results hit **953,888/953,888 inodes = 100%** while `df -h` showed
+  3.6 TB free; every write then failed with `No space left on device` (including a 10 KB
+  `mkdir`), and pulls silently failed. A directory-layout design point costs ~6,000 inodes
+  (1,900 event h5 + 2,000 TRENTo summaries + 100 drawn CSVs), so ~160 dps filled the table.
+  Check `df -i /mnt/data5`, not `df -h`, before blaming space. Remedy: consolidate each dp to
+  one h5 (`scripts/consolidate_dps.sh`, ~1 file instead of ~4,000), keep the
+  `events_drawn_*.csv` files (they are NOT inside the merged h5), and only then delete the raw
+  tree. Merged-vs-raw parity was verified group-for-group (122/122) before the first cleanup.
 - **The AP caps in-flight jobs at 50,000 per owner, and excess submissions are deferred, not
   rejected.** `condor_config_val -schedd MAX_JOBS_PER_OWNER` returns 50000. When the queue is at
   the cap, `condor_submit` still prints "submitted to cluster N" (the cluster object is created)
