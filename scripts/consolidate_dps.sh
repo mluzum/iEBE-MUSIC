@@ -30,6 +30,10 @@ if [ -z "$LIST" ]; then
       echo "$dp" >> "$LIST"
     elif [ "$(ls "$d"/spvn_results/events_drawn_*.csv 2>/dev/null | wc -l)" -eq 100 ]; then
       echo "$dp" >> "$LIST"
+    elif [ -f "$d/raw_spvn_results.tar.gz" ]; then
+      # packed dir-layout tree: count blocks by listing (no extraction)
+      nb=$(tar tzf "$d/raw_spvn_results.tar.gz" 2>/dev/null | grep -c 'events_drawn_.*\.csv$')
+      [ "$nb" -eq 100 ] && echo "$dp" >> "$LIST"
     fi
   done
   echo "auto-detected $(wc -l < "$LIST") complete design points"

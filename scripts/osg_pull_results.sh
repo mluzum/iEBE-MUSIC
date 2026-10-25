@@ -28,14 +28,16 @@ mkdir -p /tmp/opencode/tars
 
 pull_dir_layout() {
   dp=$1; dest=$2
-  # Stream the archive: writing a temporary tarball on the AP fails once the
-  # data disk is at its file-count quota, and a stream touches nothing there.
+  # Stream the remote tar straight to a LOCAL FILE (one tarball per dp) instead
+  # of extracting it: extraction costs ~2000 files/dp and is what exhausted the
+  # local inode table.  Writing the tarball on the AP is impossible once the
+  # data disk is at its file quota, so the stream goes through ssh to local disk.
   rc=$($SSH osg "ls $BASE/$dp/spvn_results/spvn_results_*.h5 | wc -l" 2>/dev/null) \
     || { echo "$dp COUNT FAILED"; return 1; }
-  $SSH osg "cd $BASE/$dp && tar czf - spvn_results" 2>/dev/null | tar xzf - -C "$dest" \
-    || { echo "$dp STREAM FAILED"; return 1; }
-  lc=$(ls "$dest"/spvn_results/spvn_results_*.h5 2>/dev/null | wc -l)
-  echo "$dp layout=dir local=$lc remote=$rc"
+  $SSH osg "cd $BASE/$dp && tar czf - spvn_results" 2>/dev/null > "$dest/raw_spvn_results.tar.gz" \
+    || { echo "$dp STREAM FAILED"; rm -f "$dest/raw_spvn_results.tar.gz"; return 1; }
+  lc=$(tar tzf "$dest/raw_spvn_results.tar.gz" 2>/dev/null | grep -c 'spvn_results_[0-9]*\.h5$')
+  echo "$dp layout=dir h5_in_tar=$lc/$rc"
   [ "$lc" = "$rc" ]
 }
 
