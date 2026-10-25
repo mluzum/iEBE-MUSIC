@@ -158,6 +158,14 @@ defaults — prefer those over guessing flags.
   collapses 300 MB to 61 MB (4.9x — float32 h5 data) and the single file moves in ~15 s, so
   pack per design point on the AP and transfer the archive. The packing step parallelizes;
   the per-file walk does not.
+- **Never edit a shell script while instances of it are running.** bash reads a script
+  incrementally by byte offset, so an in-place edit makes the running instance resume in the
+  middle of new text — this produced `syntax error near unexpected token ';;'` mid-pull and
+  silently killed two waves.  Launch long runs from a timestamped copy
+  (`cp scripts/x.sh /tmp/opencode/x_$(date +%s).sh && bash /tmp/opencode/x_*.sh ...`).
+  Pair this with `ControlMaster=auto,ControlPath=/tmp/opencode/cm_osg,ControlPersist=600` in
+  the pull tooling: a per-dp probe+count+copy is three connections, and multiplexing them onto
+  one TCP stream is what keeps the AP from blackholing ssh during a 300-point sweep.
 - **The AP rate-limits ssh: a connection burst gets port 22 blackholed for ~30 min.** Eight
   parallel workers opening 4 connections each per design point was enough. The symptoms look
   like an outage but are not: `ssh` says "Network is unreachable" (the AP resolves to IPv6,

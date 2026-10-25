@@ -22,8 +22,12 @@ START=${1:-21}
 END=${2:-60}
 PAR=${3:-3}
 LISTFILE=${4:-}
-SSH="ssh -o ControlMaster=no -o ControlPath=none -o ConnectTimeout=15"
-SCP="scp -q -o ControlMaster=no -o ControlPath=none"
+# Multiplex everything over ONE TCP connection: the AP blackholes port 22 for
+# ~30 min after a burst of new connections, and a per-dp probe+count+copy cycle
+# is three connections.  With ControlMaster=auto the first connection becomes
+# the master and every later ssh/scp reuses it until ControlPersist expires.
+SSH="ssh -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg -o ControlPersist=600 -o ConnectTimeout=15"
+SCP="scp -q -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg -o ControlPersist=600"
 mkdir -p /tmp/opencode/tars
 
 pull_dir_layout() {
