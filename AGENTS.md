@@ -302,6 +302,19 @@ defaults — prefer those over guessing flags.
   derived from `iss_dict` only when `music_dict['boost_invariant'] == 1`; it must stay 0 for
   (3+1)-d runs. The `9999`/`99999` references use pseudorapidity and never get it.
 
+- **Batch augmentation is event-id based and already wired: batch k uses ids
+  `[k*B, (k+1)*B-1]` via `-event_start_id` (the 6th job argument, `eventOffset` in
+  `run_singularity.sh`).** Batch 1 is 0..1999. New ids are new events (freeze-out seed
+  `default_rng([seed_add, event_id, iev])`, nucleon-pool address from the id, TRENTo seed
+  `event_id+1`) and the same id is the same event at every design point. Since batch 1's
+  archives are named `spvn_results_<Process>.tar.gz`, later batches carry a tag: batch 2
+  submits with `-event_start_id 2000` and produces `spvn_results_e2000_<Process>.tar.gz`
+  plus `events_drawn_e2000_<Process>.csv` (the generator and the worker packing script both
+  derive the tag from the offset; batch 1 stays untagged for compatibility). In the merged
+  h5 nothing is ambiguous anyway: groups are named by global event id
+  (`spvn_results_2000`...), so a batch is `2000 <= id <= 3999` regardless of file names.
+  `audit_event_losses.py` accepts the optional tag; `--blocks` must become 300 for a
+  three-batch design point.
 - **An event is identified by `(MASTER_SEED, seed_add, event_id, iev)` — all four, and
   `seed_add` must never be random.** The freeze-out seed is
   `np.random.default_rng([seed_add, event_id, iev])`, the TRENTo seed is `event_id + 1`, and the

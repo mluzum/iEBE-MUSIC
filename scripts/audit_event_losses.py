@@ -38,7 +38,7 @@ def load_drawn(dpdir):
     blocks = set()
     for f in glob.glob(os.path.join(dpdir, 'spvn_results',
                                     'events_drawn_*.csv')):
-        m = re.search(r'events_drawn_(\d+)\.csv$', f)
+        m = re.search(r'events_drawn(?:e\d+_)?(\d+)\.csv$', f)
         if not m:
             continue
         blocks.add(int(m.group(1)))

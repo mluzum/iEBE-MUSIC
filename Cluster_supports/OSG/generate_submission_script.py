@@ -224,7 +224,14 @@ Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransf
         # costs ~90 ms per file of CephFS metadata latency.  It also cuts the
         # stored footprint ~5x (h5 float32 data compresses well), which is what
         # keeps 2000 design points inside the 465 GB data-disk quota.
-        transfer_output = "spvn_results_$(Process).tar.gz"
+        # Batch tag: batch k uses global event ids [k*B, k*B+B-1], so the
+        # per-job archive and drawn-CSV names carry the offset whenever it is
+        # non-zero.  Without this, batch 2's job P would overwrite batch 1's
+        # archive (both are spvn_results_<P>.tar.gz in the same directory).
+        # Batch 1 keeps the historical untagged names.
+        _offset = int(para_dict_["event_start_id"])
+        _tag = "" if _offset == 0 else "_e{}".format(_offset)
+        transfer_output = "spvn_results{0}_$(Process).tar.gz".format(_tag)
     else:
         transfer_output = build_transfer_output_tarball_name()
 
@@ -457,6 +464,11 @@ cleanup_job_scratch() {
 
 finalize_job_output() {
     cleanup_job_scratch
+    # Batch tag, mirroring the submit-side transfer_output_files entry: batch 1
+    # (offset 0) keeps the historical untagged names, later batches add _e<offset>
+    # so they can never overwrite an earlier batch's files.
+    tag=""
+    if [ "${eventOffset}" != "0" ]; then tag="_e${eventOffset}"; fi
 
     quiet_out_dir="${SCRATCH_DIR}/spvn_results"
     mkdir -p "${quiet_out_dir}"
@@ -469,7 +481,7 @@ finalize_job_output() {
     # The driver runs once per event, so each event writes its own
     # events_drawn.csv with a single row. Concatenate them into one table per
     # job, keeping the header from the first file only.
-    drawn_csv="${quiet_out_dir}/events_drawn_${processId}.csv"
+    drawn_csv="${quiet_out_dir}/events_drawn${tag}_${processId}.csv"
     rm -f "${drawn_csv}"
     for drawn in $(find "${SCRATCH_DIR}/playground" -type f -name 'events_drawn.csv'); do
         if [ ! -s "${drawn_csv}" ]; then
@@ -500,7 +512,7 @@ finalize_job_output() {
     else
         # quiet mode: ship the collected results as a single archive (the submit
         # file only lists this file in transfer_output_files)
-        ( cd "${SCRATCH_DIR}" && tar czf "spvn_results_${processId}.tar.gz" spvn_results ) || true
+        ( cd "${SCRATCH_DIR}" && tar czf "spvn_results${tag}_${processId}.tar.gz" spvn_results ) || true
         ls -lh "${SCRATCH_DIR}/spvn_results_${processId}.tar.gz" || true
     fi
 }
