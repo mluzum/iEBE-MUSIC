@@ -41,18 +41,23 @@ pull_dir_layout() {
 
 pull_tar_layout() {
   dp=$1; dest=$2
+  # Keep the per-job tarballs as the local record; do NOT extract them here.
+  # Extracting costs ~6200 files per design point (20 events x h5 + TRENTO
+  # summary + grid extent, plus target_nucleus.hdf per job), which exhausted
+  # the local inode table at ~160 points.  100 tarballs per dp carry the same
+  # data and are extracted only when a design point is consolidated.
   mkdir -p "$dest/tarballs"
   $SCP "osg:$BASE/$dp/spvn_results_*.tar.gz" "$dest/tarballs/" || { echo "$dp SCP FAILED"; return 1; }
   ntar=$(ls "$dest"/tarballs/*.tar.gz 2>/dev/null | wc -l)
-  exp=0
+  rtar=$($SSH osg "ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l" 2>/dev/null)
+  exp=0; bad=0
   for t in "$dest"/tarballs/*.tar.gz; do
-    exp=$((exp + $(tar tzf "$t" | grep -c '\.h5$')))
-    tar xzf "$t" -C "$dest" || { echo "$dp EXTRACT FAILED"; return 1; }
+    c=$(tar tzf "$t" 2>/dev/null | grep -c '\.h5$'); [ -z "$c" ] && c=0
+    exp=$((exp + c))
+    [ "$c" -eq 0 ] && bad=$((bad+1))
   done
-  lc=$(ls "$dest"/spvn_results/spvn_results_*.h5 2>/dev/null | wc -l)
-  echo "$dp layout=tars archives=$ntar h5=$lc/$exp"
-  rm -rf "$dest/tarballs"
-  [ "$lc" = "$exp" ]
+  echo "$dp layout=tars archives=$ntar/$rtar h5_in_tars=$exp bad=$bad"
+  [ "$ntar" = "$rtar" ] && [ "$bad" -eq 0 ]
 }
 
 pull_one() {

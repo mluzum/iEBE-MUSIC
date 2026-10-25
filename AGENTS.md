@@ -204,6 +204,11 @@ defaults — prefer those over guessing flags.
   one h5 (`scripts/consolidate_dps.sh`, ~1 file instead of ~4,000), keep the
   `events_drawn_*.csv` files (they are NOT inside the merged h5), and only then delete the raw
   tree. Merged-vs-raw parity was verified group-for-group (122/122) before the first cleanup.
+  **Archive-layout pulls must keep the per-job tarballs and never extract them**: extraction
+  costs ~6,200 files per dp (20 events x h5 + TRENTO summary + grid extent per job tarball),
+  which refilled the table after only ~90 points. `osg_pull_results.sh` now keeps the 100
+  tarballs per dp and verifies by listing archive contents; consolidation extracts one dp at a
+  time into /tmp.
 - **The AP caps in-flight jobs at 50,000 per owner, and excess submissions are deferred, not
   rejected.** `condor_config_val -schedd MAX_JOBS_PER_OWNER` returns 50000. When the queue is at
   the cap, `condor_submit` still prints "submitted to cluster N" (the cluster object is created)
