@@ -203,6 +203,15 @@ defaults — prefer those over guessing flags.
   the **last** one (a 378-file bulk call created exactly one cluster); loop one file per
   invocation. (b) tar-extracted submit files can lack a trailing newline, producing
   `ERROR: Failed to parse command file (line N)` on the final `queue` line — `echo >>` fixes it.
+- **Merging per-event h5 into one file per dp: use `scripts/merge_dp_h5.py`, not
+  `combine_multiple_hdf5.py`.** The latter spawns one `h5copy` per event, which is ~10,000
+  subprocesses for a 10,000-event design point (~1 h). The in-process merger copies groups and
+  datasets with h5py and does dp0001's 1,894 events in ~60 s with byte-identical output
+  (verified: same group names, same 46 datasets, values equal). `scripts/consolidate_dps.sh`
+  uses it and records `merged/<dp>/sources.txt` (number of archives merged); a dp is re-merged
+  automatically when its source count changes (`100 -> 300 -> 500` as augmentation batches
+  land) and only when the count is a multiple of 100, so a half-delivered batch never
+  produces a partial file.
 - **Local `/data` is mergerfs over `/mnt/data1..5`, and `df` hides per-branch inode exhaustion.**
   The branch holding the repo/results hit **953,888/953,888 inodes = 100%** while `df -h` showed
   3.6 TB free; every write then failed with `No space left on device` (including a 10 KB

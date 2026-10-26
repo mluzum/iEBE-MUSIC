@@ -72,7 +72,12 @@ pull_one() {
   dest=$LOCAL/$dp
   mkdir -p "$dest"
   probe() {
-    $SSH osg "if [ -d $BASE/$dp/spvn_results ]; then echo dir; elif ls $BASE/$dp/spvn_results_*.tar.gz >/dev/null 2>&1; then echo tars; else echo none; fi" 2>/dev/null
+    # Prefer a COMPLETE archive set: 100 job tarballs is 100 files to fetch,
+    # while the directory layout is ~2000 files read one-by-one through the AP
+    # (minutes per dp at high metadata latency).  Only fall back to the dir
+    # tree when the archives are not complete, since mixing the two layouts in
+    # one merged file would duplicate event groups.
+    $SSH osg "t=\$(ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l); if [ \"\$t\" = \"100\" ]; then echo tars; elif [ -d $BASE/$dp/spvn_results ]; then echo dir; elif [ \"\$t\" -gt 0 ]; then echo tars; else echo none; fi" 2>/dev/null
   }
   kind=$(probe); st=$?
   # An empty answer means the probe failed (timeout/route flap), NOT that the
