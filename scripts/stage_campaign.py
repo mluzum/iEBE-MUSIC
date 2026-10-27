@@ -104,7 +104,10 @@ def main():
                 staged.add(dp)
             odir = os.path.join(out, "submit", "b%d" % batch_index, "dp%04d" % dp)
             os.makedirs(odir, exist_ok=True)
-            jobid = args.jobid_template.format(batch=batch_index, dp="dp%04d" % dp)
+            # {dp} is the 4-digit number so templates read naturally:
+            #   'ge76_dp{dp}'      -> ge76_dp1461
+            #   'zr96_b{batch}_dp{dp}' -> zr96_b2_dp0421
+            jobid = args.jobid_template.format(batch=batch_index, dp="%04d" % dp)
             cmd = [
                 sys.executable, GENERATOR,
                 "-param", dict_src,
