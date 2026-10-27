@@ -15,9 +15,12 @@
 #   only those indices are pulled (use it to re-do gaps without repacking
 #   design points that are already local).
 set -u
-BASE=/ospool/ap40/data/matthew.luzum/ge76_prod
-TAR=/ospool/ap40/data/matthew.luzum/tmp_pull
-LOCAL=/data/mluzum/ge76_results/prod
+# Overridable so the same tool serves a second campaign with a different AP
+# root and a different local tree (e.g. the A=96 run, whose outputs live on the
+# AP home disk).
+BASE=${IBEM_BASE:-/ospool/ap40/data/matthew.luzum/ge76_prod}
+TAR=${IBEM_TAR:-/ospool/ap40/data/matthew.luzum/tmp_pull}
+LOCAL=${IBEM_LOCAL:-/data/mluzum/ge76_results/prod}
 START=${1:-21}
 END=${2:-60}
 PAR=${3:-3}

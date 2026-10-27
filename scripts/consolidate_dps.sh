@@ -18,8 +18,9 @@
 # produces a partial file.
 set -u
 LIST=${1:-}
-PROD=/data/mluzum/ge76_results/prod
-OUT=/data/mluzum/ge76_results/merged
+# Overridable for a second campaign tree.
+PROD=${IBEM_PROD:-/data/mluzum/ge76_results/prod}
+OUT=${IBEM_OUT:-/data/mluzum/ge76_results/merged}
 MERGE=/data/mluzum/GeSe/scripts/merge_dp_h5.py
 TMP=/tmp/opencode/merge_tmp
 mkdir -p "$OUT" "$TMP" || exit 1

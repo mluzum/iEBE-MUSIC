@@ -19,8 +19,9 @@
 # --max-load, so this can be left running during quiet periods without adding
 # metadata pressure during a storm.
 set -u
-BASE=/ospool/ap40/data/matthew.luzum/ge76_prod
-LOCAL=/data/mluzum/ge76_results/prod
+# Overridable so the same tool prunes a second campaign tree.
+BASE=${IBEM_BASE:-/ospool/ap40/data/matthew.luzum/ge76_prod}
+LOCAL=${IBEM_LOCAL:-/data/mluzum/ge76_results/prod}
 APPLY=0
 DPS="1-1460"
 PAUSE=5
