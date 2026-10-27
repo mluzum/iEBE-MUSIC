@@ -56,9 +56,16 @@ pull_tar_layout() {
   # the local inode table at ~160 points.  100 tarballs per dp carry the same
   # data and are extracted only when a design point is consolidated.
   mkdir -p "$dest/tarballs"
-  $SCP "osg:$BASE/$dp/spvn_results_*.tar.gz" "$dest/tarballs/" || { echo "$dp SCP FAILED"; return 1; }
-  ntar=$(ls "$dest"/tarballs/*.tar.gz 2>/dev/null | wc -l)
+  # Fetch into a scratch dir and verify against the REMOTE count.  Counting the
+  # destination would break once earlier batches have been pruned: local holds
+  # batch 1 while remote holds only batch 2, and totals no longer match.
+  _fetch="$dest/.fetch_$$"
+  rm -rf "$_fetch"; mkdir -p "$_fetch"
+  $SCP "osg:$BASE/$dp/spvn_results_*.tar.gz" "$_fetch/" || { echo "$dp SCP FAILED"; rm -rf "$_fetch"; return 1; }
+  ntar=$(ls "$_fetch"/*.tar.gz 2>/dev/null | wc -l)
   rtar=$($SSH osg "ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l" 2>/dev/null)
+  mv "$_fetch"/*.tar.gz "$dest/tarballs/" 2>/dev/null
+  rm -rf "$_fetch"
   exp=0; bad=0
   for t in "$dest"/tarballs/*.tar.gz; do
     c=$(tar tzf "$t" 2>/dev/null | grep -c '\.h5$'); [ -z "$c" ] && c=0

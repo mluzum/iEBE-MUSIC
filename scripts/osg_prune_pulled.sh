@@ -61,12 +61,26 @@ for i in $list; do
     tar tzf "$t" > /dev/null 2>&1 || { bad=1; break; }
   done
   [ $bad -eq 0 ] || { echo "$dp LOCAL_UNREADABLE"; skipped=$((skipped+1)); continue; }
-  # one remote query: archive count for this dp
-  nrem=$(timeout 120 ssh -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg \
-            -o ConnectTimeout=20 osg "ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l" 2>/dev/null)
-  nrem=${nrem:-none}
-  if [ "$nrem" = "none" ]; then echo "$dp REMOTE_QUERY_FAILED"; skipped=$((skipped+1)); continue; fi
-  if [ "$nrem" != "$nloc" ]; then echo "$dp count_mismatch local=$nloc remote=$nrem"; skipped=$((skipped+1)); continue; fi
+  # Name-based verification: every remote archive must exist locally (and read).
+  # Counts are not comparable across batches: after pruning batch 1 the local
+  # tree holds 100 files while the remote holds the next batch's 100.
+  rlist=$(timeout 120 ssh -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg \
+            -o ConnectTimeout=20 osg "ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null" 2>/dev/null)
+  rlist=${rlist:-none}
+  if [ "$rlist" = "none" ]; then echo "$dp REMOTE_QUERY_FAILED"; skipped=$((skipped+1)); continue; fi
+  nrem=$(echo "$rlist" | wc -l)
+  missing=0
+  for rf in $rlist; do
+    b=$(basename "$rf")
+    if [ ! -f "$dest/tarballs/$b" ]; then
+      # also accept the packed dir-layout record
+      if [ -f "$dest/raw_spvn_results.tar.gz" ] && tar tzf "$dest/raw_spvn_results.tar.gz" 2>/dev/null | grep -q "/$b$"; then
+        continue
+      fi
+      missing=$((missing+1))
+    fi
+  done
+  if [ "$missing" -gt 0 ]; then echo "$dp local_missing=$missing of remote $nrem"; skipped=$((skipped+1)); continue; fi
   verified=$((verified+1))
   if [ $APPLY -eq 1 ]; then
     load=$(timeout 60 ssh -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg \
@@ -76,7 +90,7 @@ for i in $list; do
     fi
     timeout 300 ssh -o ControlMaster=auto -o ControlPath=/tmp/opencode/cm_osg \
       -o ConnectTimeout=20 osg "rm -f $BASE/$dp/spvn_results_*.tar.gz $BASE/$dp/events_drawn_*.csv 2>/dev/null" 2>/dev/null
-    echo "$dp pruned ($nloc archives)"
+    echo "$dp pruned ($nrem remote archives)"
     pruned=$((pruned+1))
   else
     echo "$dp would prune ($nloc archives)"
