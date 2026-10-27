@@ -229,8 +229,11 @@ Requirements = TARGET.HasSingularity && StringListIMember("stash", HasFileTransf
         # non-zero.  Without this, batch 2's job P would overwrite batch 1's
         # archive (both are spvn_results_<P>.tar.gz in the same directory).
         # Batch 1 keeps the historical untagged names.
+        # Tag only at true batch boundaries (multiples of 2000).  A repair job
+        # also has a non-zero event_start_id (block*20) but belongs to batch 1,
+        # whose archives follow the plain spvn_results_<block>.tar.gz convention.
         _offset = int(para_dict_["event_start_id"])
-        _tag = "" if _offset == 0 else "_e{}".format(_offset)
+        _tag = "_e{}".format(_offset) if (_offset != 0 and _offset % 2000 == 0) else ""
         transfer_output = "spvn_results{0}_$(Process).tar.gz".format(_tag)
     else:
         transfer_output = build_transfer_output_tarball_name()
@@ -468,7 +471,7 @@ finalize_job_output() {
     # (offset 0) keeps the historical untagged names, later batches add _e<offset>
     # so they can never overwrite an earlier batch's files.
     tag=""
-    if [ "${eventOffset}" != "0" ]; then tag="_e${eventOffset}"; fi
+    if [ "${eventOffset}" != "0" ] && [ $((eventOffset % 2000)) -eq 0 ]; then tag="_e${eventOffset}"; fi
 
     quiet_out_dir="${SCRATCH_DIR}/spvn_results"
     mkdir -p "${quiet_out_dir}"
