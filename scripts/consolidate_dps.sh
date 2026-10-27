@@ -24,18 +24,26 @@ MERGE=/data/mluzum/GeSe/scripts/merge_dp_h5.py
 TMP=/tmp/opencode/merge_tmp
 mkdir -p "$OUT" "$TMP" || exit 1
 
-# Source count for a dp (archives, or blocks for the dir/packed layouts).
-src_count() {
+# Source fingerprint for a dp: how many archives and how many packed dir blocks
+# are present.  Different batches add archives (100 -> 300 -> 500); a purged
+# dir-layout tree exists only as raw_spvn_results.tar.gz.  Both are merged
+# together (event ids are unique across batches, so their h5 names never clash),
+# which is why the fingerprint keeps the two numbers separate.
+src_fingerprint() {
   local d=$1
-  if [ "$(ls "$d"/tarballs/*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]; then
-    ls "$d"/tarballs/*.tar.gz 2>/dev/null | wc -l
-  elif [ -d "$d/spvn_results" ]; then
-    ls "$d"/spvn_results/events_drawn_*.csv 2>/dev/null | wc -l
-  elif [ -f "$d/raw_spvn_results.tar.gz" ]; then
-    tar tzf "$d/raw_spvn_results.tar.gz" 2>/dev/null | grep -c 'events_drawn_.*\.csv$'
-  else
-    echo 0
-  fi
+  local tars=0 raw=0 dir=0
+  [ -d "$d/tarballs" ] && tars=$(ls "$d"/tarballs/*.tar.gz 2>/dev/null | wc -l)
+  [ -f "$d/raw_spvn_results.tar.gz" ] && \
+    raw=$(tar tzf "$d/raw_spvn_results.tar.gz" 2>/dev/null | grep -c 'events_drawn_.*\.csv$')
+  [ -d "$d/spvn_results" ] && \
+    dir=$(ls "$d"/spvn_results/events_drawn_*.csv 2>/dev/null | wc -l)
+  echo "tars=${tars} raw=${raw} dir=${dir}"
+}
+
+src_total() {
+  local f
+  f=$(src_fingerprint "$1")
+  echo "$f" | sed -E 's/[a-z]+=//g' | awk '{print $1+$2+$3}'
 }
 
 # Build the work list: dps whose source count is a complete batch multiple and
@@ -45,10 +53,10 @@ if [ -z "$LIST" ]; then
   : > "$LIST"
   for d in "$PROD"/dp*; do
     dp=$(basename "$d")
-    n=$(src_count "$d")
+    fp=$(src_fingerprint "$d")
+    n=$(src_total "$d")
     [ "$n" -ge 100 ] || continue
-    [ $((n % 100)) -eq 0 ] || continue
-    if [ -s "$OUT/$dp/$dp.h5" ] && [ "$(cat "$OUT/$dp/sources.txt" 2>/dev/null)" = "$n" ]; then
+    if [ -s "$OUT/$dp/$dp.h5" ] && [ "$(cat "$OUT/$dp/sources.txt" 2>/dev/null)" = "$fp" ]; then
       continue
     fi
     echo "$dp" >> "$LIST"
@@ -61,23 +69,29 @@ one() {
   odir=$OUT/$dp
   tmpd=$TMP/$dp
   d=$PROD/$dp
-  n=$(src_count "$d")
-  if [ "$n" -lt 100 ] || [ $((n % 100)) -ne 0 ]; then echo "$dp SKIP count=$n"; return; fi
-  if [ -s "$odir/$dp.h5" ] && [ "$(cat "$odir/sources.txt" 2>/dev/null)" = "$n" ]; then
-    echo "$dp up-to-date ($n sources)"; return
+  fp=$(src_fingerprint "$d")
+  n=$(src_total "$d")
+  if [ "$n" -lt 100 ]; then echo "$dp SKIP sources=$n"; return; fi
+  if [ -s "$odir/$dp.h5" ] && [ "$(cat "$odir/sources.txt" 2>/dev/null)" = "$fp" ]; then
+    echo "$dp up-to-date ($fp)"; return
   fi
   rm -rf "$tmpd"; mkdir -p "$tmpd"
   src=""
   if [ -d "$d/spvn_results" ]; then
     src=$d/spvn_results
-  elif [ "$(ls "$d"/tarballs/*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]; then
-    for t in "$d"/tarballs/*.tar.gz; do
-      tar xzf "$t" -C "$tmpd" || { echo "$dp EXTRACT_FAILED"; rm -rf "$tmpd"; return; }
-    done
+  else
+    # Extract EVERY source into one tree: tagged batch archives and the packed
+    # dir-layout tree.  Files are named after the global event id, so batches
+    # never collide and the merge sees the union.
     src=$tmpd/spvn_results
-  elif [ -f "$d/raw_spvn_results.tar.gz" ]; then
-    tar xzf "$d/raw_spvn_results.tar.gz" -C "$tmpd" || { echo "$dp EXTRACT_FAILED"; rm -rf "$tmpd"; return; }
-    src=$tmpd/spvn_results
+    if [ "$(ls "$d"/tarballs/*.tar.gz 2>/dev/null | wc -l)" -gt 0 ]; then
+      for t in "$d"/tarballs/*.tar.gz; do
+        tar xzf "$t" -C "$tmpd" || { echo "$dp EXTRACT_FAILED"; rm -rf "$tmpd"; return; }
+      done
+    fi
+    if [ -f "$d/raw_spvn_results.tar.gz" ]; then
+      tar xzf "$d/raw_spvn_results.tar.gz" -C "$tmpd" || { echo "$dp EXTRACT_FAILED"; rm -rf "$tmpd"; return; }
+    fi
   fi
   if [ -z "$src" ] || [ ! -d "$src" ]; then echo "$dp NO_SOURCE"; rm -rf "$tmpd"; return; fi
   mkdir -p "$odir"
@@ -85,13 +99,13 @@ one() {
     echo "$dp MERGE_FAILED"; rm -f "$odir/$dp.h5.tmp"; rm -rf "$tmpd"; return
   fi
   mv "$odir/$dp.h5.tmp" "$odir/$dp.h5"
-  echo "$n" > "$odir/sources.txt"
+  echo "$fp" > "$odir/sources.txt"
   if ls "$src"/events_drawn_*.csv >/dev/null 2>&1; then
     ( cd "$src" && tar czf "$odir/csv.tgz" events_drawn_*.csv ) || echo "$dp CSV_TAR_FAILED"
   fi
   rm -rf "$tmpd"
-  echo "$dp DONE $(du -h "$odir/$dp.h5" | cut -f1) sources=$n"
+  echo "$dp DONE $(du -h "$odir/$dp.h5" | cut -f1) sources=$n [$fp]"
 }
-export -f one src_count; export PROD OUT MERGE TMP
+export -f one src_fingerprint src_total; export PROD OUT MERGE TMP
 xargs -P 2 -n 1 bash -c 'one "$0"' < "$LIST"
 echo CONSOLIDATION_DONE
