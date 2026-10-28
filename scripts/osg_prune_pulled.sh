@@ -8,8 +8,8 @@
 #   local archive count == remote archive count, and
 #   every local tarball is readable (tar tzf succeeds).
 #
-# Only dps whose local count is a multiple of 100 are considered, i.e. whole
-# batches; a half-pulled point is never pruned.
+# Safety: only files that already exist locally (and read cleanly) are deleted,
+# so a half-pulled point is not at risk.
 #
 # Usage:
 #   osg_prune_pulled.sh --dry-run [--dps 1-1460] [--pause 5] [--max-load 500]
@@ -53,8 +53,12 @@ for i in $list; do
   dp=$(printf 'dp%04d' "$i")
   dest=$LOCAL/$dp
   nloc=$(ls "$dest"/tarballs/*.tar.gz 2>/dev/null | wc -l)
-  [ "$nloc" -ge 100 ] || { skipped=$((skipped+1)); continue; }
-  [ $((nloc % 100)) -eq 0 ] || { skipped=$((skipped+1)); continue; }
+  # No whole-batch requirement: a design point legitimately ends at 96-99
+  # archives because ~2% of events have empty freeze-out surfaces, and a rule
+  # of "multiples of 100" would then never prune anything.  Safety comes from
+  # the name-based check below: only files that exist locally (and read) are
+  # deleted, so pruning is safe even while more archives are still arriving.
+  [ "$nloc" -ge 1 ] || { skipped=$((skipped+1)); continue; }
   # readable local copy?
   bad=0
   for t in "$dest"/tarballs/*.tar.gz; do
