@@ -21,8 +21,20 @@ def merge(src_dir, out_path):
     if not files:
         print("no input files in", src_dir)
         return 1
+    skipped = []
+    hdf5_sig = b"\x89HDF\r\n\x1a\n"
     with h5py.File(out_path, "w") as out:
         for i, path in enumerate(files):
+            # A single truncated file (a killed transfer can leave a 0-byte h5)
+            # must not abort the whole design point: skip it and report.
+            try:
+                with open(path, "rb") as probe:
+                    if probe.read(8) != hdf5_sig:
+                        skipped.append(os.path.basename(path))
+                        continue
+            except OSError:
+                skipped.append(os.path.basename(path))
+                continue
             with h5py.File(path, "r") as src:
                 for gname in src.keys():
                     if gname in out:
@@ -36,7 +48,9 @@ def merge(src_dir, out_path):
                             dg.create_dataset(dname, data=obj[()])
             if (i + 1) % 500 == 0:
                 print("  merged %d/%d events" % (i + 1, len(files)), flush=True)
-    print("merged %d events -> %s" % (len(files), out_path))
+    if skipped:
+        print("WARNING: skipped %d unreadable file(s): %s" % (len(skipped), ", ".join(skipped[:10])))
+    print("merged %d events -> %s" % (len(files) - len(skipped), out_path))
     return 0
 
 
