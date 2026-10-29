@@ -87,7 +87,11 @@ pull_one() {
     # (minutes per dp at high metadata latency).  Only fall back to the dir
     # tree when the archives are not complete, since mixing the two layouts in
     # one merged file would duplicate event groups.
-    $SSH osg "t=\$(ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l); if [ \"\$t\" = \"100\" ]; then echo tars; elif [ -d $BASE/$dp/spvn_results ]; then echo dir; elif [ \"\$t\" -gt 0 ]; then echo tars; else echo none; fi" 2>/dev/null
+    # Prefer archives whenever at least one full batch exists.  The old rule
+    # required exactly 100, which sent augmented or repaired points (300-400
+    # archives) down the directory path: streaming ~1400 files per dp that we
+    # already have as archives.
+    $SSH osg "t=\$(ls $BASE/$dp/spvn_results_*.tar.gz 2>/dev/null | wc -l); if [ \"\$t\" -ge 100 ]; then echo tars; elif [ -d $BASE/$dp/spvn_results ]; then echo dir; elif [ \"\$t\" -gt 0 ]; then echo tars; else echo none; fi" 2>/dev/null
   }
   kind=$(probe); st=$?
   # An empty answer means the probe failed (timeout/route flap), NOT that the
