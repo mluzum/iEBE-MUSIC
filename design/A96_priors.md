@@ -23,6 +23,18 @@ the draw itself.
 Consequence: `design_000k` is the *same* normalized point in the A=76 and A=96
 campaigns, so the two runs are paired point-by-point.
 
+## Campaign 2 (2026-10-30): normalization 6 – 13
+
+`design/design_lhs2000_A96_c2.csv` is this design with `normalization` mapped
+from 3 – 10 onto **6 – 13** by `scripts/remap_design_prior.py` (same unit-cube
+point for every row; every other column byte-identical; since both ranges
+are 7 wide, normalization simply shifts by +3).  Why: with the full
+free-streaming T^munu (campaign 2) the multiplicity at fixed normalization
+rises 10-23%, and the data want roughly 7.5 - 9.5; 3 - 10 left most of the
+prior below the data and no margin above.  The TRENTo collision probability
+does not depend on the normalization, so the sigma_inel / b_max tables of
+`/data/mluzum/cross_sections/` remain valid.
+
 ## Planned priors
 
 | # | axis (design column) | A=76 (current) | **A=96 (planned)** | change |
