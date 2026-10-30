@@ -17,7 +17,7 @@ Results: <out>/<variant>/results/spvn_results_<id>.h5 (+ TRENTo summary),
 <out>/<variant>/log.csv (event, exit code, seconds), the exact parameter
 file, driver and inner script used, and effective_parameters.txt (the
 generated MUSIC/iSS settings that matter here, from the first event).  Work folders are deleted after a
-successful event; a failed one keeps its logs under <out>/<variant>/failed/.
+successful event unless --keep; a failed one keeps its logs under <out>/<variant>/failed/.
 """
 
 import argparse
@@ -38,7 +38,7 @@ def parse_events(spec):
     return [int(x) for x in spec.split(",") if x.strip()]
 
 
-def run_one(ev, vdir, par, image, per_job, use_driver, nice):
+def run_one(ev, vdir, par, image, per_job, use_driver, nice, keep=False):
     wd = os.path.join(vdir, "work", "ev%d" % ev)
     shutil.rmtree(wd, ignore_errors=True)
     os.makedirs(wd)
@@ -64,14 +64,15 @@ def run_one(ev, vdir, par, image, per_job, use_driver, nice):
         eff = os.path.join(wd, "effective_parameters.txt")
         if os.path.exists(eff) and not os.path.exists(os.path.join(vdir, "effective_parameters.txt")):
             shutil.copy2(eff, vdir)
-        shutil.rmtree(wd, ignore_errors=True)
+        if not keep:
+            shutil.rmtree(wd, ignore_errors=True)
     else:
         rc = rc or 99
-        keep = os.path.join(vdir, "failed", "ev%d" % ev)
-        os.makedirs(keep, exist_ok=True)
+        fail_dir = os.path.join(vdir, "failed", "ev%d" % ev)
+        os.makedirs(fail_dir, exist_ok=True)
         for f in ("docker.log", "run.log", "generate.log", "effective_parameters.txt"):
             if os.path.exists(os.path.join(wd, f)):
-                shutil.copy2(os.path.join(wd, f), keep)
+                shutil.copy2(os.path.join(wd, f), fail_dir)
         shutil.rmtree(wd, ignore_errors=True)
     return ev, rc, dt
 
@@ -92,6 +93,9 @@ def main():
                     help="events per OSG job in the campaign")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--nice", type=int, default=10)
+    ap.add_argument("--keep", action="store_true",
+                    help="keep each event's work folder (e.g. with "
+                         "control_dict['save_hydro_surfaces'] = True)")
     args = ap.parse_args()
 
     events = parse_events(args.events)
@@ -121,7 +125,8 @@ def main():
           (args.variant, len(todo), len(events) - len(todo), args.jobs), flush=True)
     with cf.ThreadPoolExecutor(args.jobs) as pool, open(logp, "a") as log:
         futs = [pool.submit(run_one, e, vdir, par, args.image, args.per_job,
-                            bool(args.driver), args.nice) for e in todo]
+                            bool(args.driver), args.nice, args.keep)
+                for e in todo]
         for f in cf.as_completed(futs):
             ev, rc, dt = f.result()
             log.write("%d,%d,%.0f\n" % (ev, rc, dt))
