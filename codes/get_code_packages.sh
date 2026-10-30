@@ -71,11 +71,16 @@ git clone https://github.com/MUSIC-fluid/MUSIC -b public_stable MUSIC_code
 #(cd MUSIC_code; git checkout e898cc826efc0303f2dd688602e6c604c9ef0f91)
 rm -fr MUSIC_code/.git
 
-# download iSS particle sampler
+# download iSS particle sampler (pinned: the PTB delta f patch below is
+# generated against this commit, the one get_code_packages_test.sh uses)
 rm -fr iSS_code
 git clone https://github.com/chunshen1987/iSS -b XSCAPE iSS_code
-#(cd iSS_code; git checkout b612a8e425d3e1dfc2d2b71cd208df6810c783be)
+(cd iSS_code; git checkout d242555306930f813881caca500f0e6f82036b2e)
 rm -fr iSS_code/.git
+(
+  cd iSS_code
+  patch -p1 --forward < ../patches/iSS_PTB_deltaf.patch
+) || echo "WARNING: iSS PTB delta f patch did not apply; deltaf_model 1 unavailable" >&2
 
 # download photonEmission wrapper
 rm -fr photonEmission_hydroInterface_code

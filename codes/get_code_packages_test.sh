@@ -110,11 +110,25 @@ clone_repo_at_commit \
   XSCAPE
 
 # download iSS particle sampler (XSCAPE branch for OSCAR2013 output compatible with SMASH)
+# (pinned: the PTB delta f patch below is generated against this commit)
 clone_repo_at_commit \
   https://github.com/chunshen1987/iSS \
   iSS_code \
   d242555306930f813881caca500f0e6f82036b2e \
   XSCAPE
+
+# PTB (Pratt-Torrieri-Bernhard) delta f: iss_dict['deltaf_model'] = 1 samples
+# a positive-definite modified equilibrium instead of the linear delta f, which
+# the MC_sampling 4 sampler clamps to [-1, 1]; deltaf_model 0 (default) is
+# byte-identical to the unpatched sampler.  Fail the build if it does not apply.
+(
+  cd iSS_code
+  patch -p1 --forward < ../patches/iSS_PTB_deltaf.patch
+)
+if ! grep -q "deltaf_model_" iSS_code/src/FSSW.cpp; then
+  echo "ERROR: codes/patches/iSS_PTB_deltaf.patch did not apply to iSS_code" >&2
+  exit 1
+fi
 
 # download photonEmission wrapper
 clone_repo_at_commit \

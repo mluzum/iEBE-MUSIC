@@ -25,6 +25,10 @@ control_dict = {
     'compute_photon_emission':
         False,  # flag to compute EM radiation from hydrodynamic medium
     'compute_polarization': False,  # flag to save spin polarization results
+    # {name: {iSS overrides}} particlizes every surface once per model (same
+    # seeds) into spvn_results_<id>/deltaf_<name>; None: one particlization
+    # with iss_dict as is.  Decays-only and UrQMD chains.
+    'deltaf_models': None,
     'EOSType': 0,
     'EOSId': 0,
     'EOSFileName': "EoS.pkl",
@@ -664,6 +668,13 @@ iss_dict = {
         1,  # 0: 14-momentum approximation, 1: relaxation time approximation
     'restrict_deltaf': 0,  # flag to apply restriction on the size of delta f
     'deltaf_max_ratio': 1.0,  # the maximum allowed size of delta f w.r.t f0
+    # (restrict_deltaf/deltaf_max_ratio are read only by MC_sampling < 4; the
+    # MC_sampling 4 sampler clamps 1 + delta f to [0, 2] instead)
+    'deltaf_model': 0,  # 0: linear delta f of bulk_deltaf_kind (20: 22-moment,
+    # 21: Chapman-Enskog); 1: PTB modified equilibrium, positive definite,
+    # needs bulk_deltaf_kind 21 (iSS patch codes/patches/iSS_PTB_deltaf.patch)
+    'ptb_min_eigenvalue': 0.1,  # PTB regulator: smallest allowed eigenvalue
+    # of the momentum transformation over (1 + lambda_Pi)
     'quantum_statistics': 1,  # include quantum statistics (1: yes, 0: no)
     'calculate_polarization': 0,  # switch to compute Lambda's polarization
     'polarizationRapType': 1,  # 0: rapidity; 1: pseudorapidity; 2: both

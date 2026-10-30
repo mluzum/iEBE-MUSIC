@@ -1,0 +1,485 @@
+diff --git a/src/FSSW.cpp b/src/FSSW.cpp
+index 7153786..f58e8fc 100644
+--- a/src/FSSW.cpp
++++ b/src/FSSW.cpp
+@@ -122,6 +122,39 @@ FSSW::FSSW(std::shared_ptr<RandomUtil::Random> ran_gen,
+         NEoS_deltaf_kind_ = -1;
+     }
+ 
++    // deltaf_model 0: the linear delta f selected by bulk_deltaf_kind (the
++    // sampler clamps 1 + delta f to [0, 2]); 1: PTB, positive by construction.
++    // PTB takes beta_pi from the Chapman-Enskog table, so it needs
++    // bulk_deltaf_kind 21, and it has no diffusion term.
++    deltaf_model_ = 0;
++    if (paraRdr->exist("deltaf_model")) {
++        deltaf_model_ = static_cast<int>(paraRdr->getVal("deltaf_model"));
++    }
++    ptb_min_eigenvalue_ = 0.1;
++    if (paraRdr->exist("ptb_min_eigenvalue")) {
++        ptb_min_eigenvalue_ = paraRdr->getVal("ptb_min_eigenvalue");
++    }
++    if (deltaf_model_ != 0 && deltaf_model_ != 1) {
++        messager_ << "deltaf_model = " << deltaf_model_
++                  << " is not supported (0: linear, 1: PTB).";
++        messager_.flush("error");
++        exit(1);
++    }
++    if (deltaf_model_ == 1) {
++        if (NEoS_deltaf_kind_ != 1 || iEoS_MUSIC_ == 20) {
++            messager_ << "deltaf_model = 1 (PTB) needs bulk_deltaf_kind = 21 "
++                      << "(Chapman-Enskog coefficients) and iEoS_MUSIC != 20.";
++            messager_.flush("error");
++            exit(1);
++        }
++        if (bINCLUDE_DIFFUSION_DELTAF) {
++            messager_ << "deltaf_model = 1 (PTB) has no diffusion term; "
++                      << "include_deltaf_diffusion is ignored.";
++            messager_.flush("warning");
++            bINCLUDE_DIFFUSION_DELTAF = false;
++        }
++    }
++
+     local_charge_conservation = paraRdr->getVal("local_charge_conservation");
+     number_of_repeated_sampling = (
+             paraRdr->getVal("number_of_repeated_sampling"));
+@@ -819,6 +852,11 @@ void FSSW::calculate_dN_dxtdy_for_one_particle_species(
+         if (flagRegVisYield_) {
+             total_N = std::min(2.*N_eq, total_N);
+         }
++        if (deltaf_model_ == 1) {
++            // PTB: the shear transformation keeps the density (normalized
++            // by det A); the bulk part scales it by the fugacity z_Pi.
++            total_N = ptb_z_[l]*N_eq;
++        }
+ 
+         dN_dxtdy_for_one_particle_species[l] = std::max(0., total_N);
+     }
+@@ -1005,6 +1043,12 @@ void FSSW::sample_using_dN_dxtdy_4all_particles_conventional() {
+     int sampling_model    = paraRdr->getVal("dN_dy_sampling_model");
+     double sampling_para1 = paraRdr->getVal("dN_dy_sampling_para1");
+ 
++    // PTB cell data must exist before any yield is computed (including the
++    // one compute_number_of_sampling_needed does below)
++    if (deltaf_model_ == 1) {
++        prepare_PTB_cells();
++    }
++
+     int flag_sample_upto_desired_particle_number = paraRdr->getVal(
+                                     "sample_upto_desired_particle_number");
+     if (flag_sample_upto_desired_particle_number == 1) {
+@@ -1144,10 +1188,10 @@ void FSSW::sample_using_dN_dxtdy_4all_particles_conventional() {
+ 
+                 // next sample pt and phi
+                 double pT, phi, y_minus_eta_s;
+-                int status = sample_momemtum_from_a_fluid_cell(
++                int status = sample_momentum(
+                                 mass, sign, baryon, strange, charge,
+-                                surf, visCoefficients, deltaf_qmu_coeff,
+-                                pT, phi, y_minus_eta_s);
++                                FO_idx, surf, visCoefficients,
++                                deltaf_qmu_coeff, pT, phi, y_minus_eta_s);
+ 
+                 if (status == 0) {
+                     continue;
+@@ -1172,10 +1216,10 @@ void FSSW::sample_using_dN_dxtdy_4all_particles_conventional() {
+                     double pT2, phi2, y_minus_eta_s2;
+                     int status2 = 0;
+                     do {
+-                        status2 = sample_momemtum_from_a_fluid_cell(
++                        status2 = sample_momentum(
+                                 mass, sign, -baryon, -strange, -charge,
+-                                surf, visCoefficients, deltaf_qmu_coeff,
+-                                pT2, phi2, y_minus_eta_s2);
++                                FO_idx, surf, visCoefficients,
++                                deltaf_qmu_coeff, pT2, phi2, y_minus_eta_s2);
+                     } while (status2 == 0);
+                     add_one_sampled_particle(
+                         repeated_sampling_idx, surf, -particle->monval,
+@@ -2108,6 +2152,340 @@ int FSSW::sample_momemtum_from_a_fluid_cell(
+ }
+ 
+ 
++//***************************************************************************
++// PTB (Pratt-Torrieri-Bernhard) modified-equilibrium delta f
++//
++// In the local rest frame
++//     f(p) = z_Pi/det(A) f_eq(sqrt(m^2 + |A^{-1} p|^2)/T),
++//     A_ij = (1 + lambda_Pi) delta_ij + pi_ij/(2 beta_pi),
++// which is positive by construction.  To first order in pi it is the
++// Chapman-Enskog shear delta f that bulk_deltaf_kind 21 uses (same beta_pi
++// table).  lambda_Pi and z_Pi are fixed per cell by Landau matching of the
++// kinetic hadron gas being sampled: lambda_Pi reproduces P + Pi and z_Pi
++// keeps e (J. Bernhard, PhD thesis, Duke 2018; M. McNelis, D. Everett,
++// U. Heinz, Comput. Phys. Commun. 258 (2021) 107604).  The density is
++// z_Pi n_eq, so a cell emits z_Pi N_eq particles.
++//
++// Sampling: draw p' from f_eq at T with the equilibrium sampler, map
++// p = A p' and keep the Cooper-Frye flux acceptance.  There is no
++// (1 + delta f)/2 acceptance, so nothing is clamped.
++//
++// Regulator: A must stay positive definite.  Where the shear part would
++// push the smallest eigenvalue of A below ptb_min_eigenvalue*(1 + lambda_Pi)
++// it is scaled down to that bound, and where P + Pi is out of reach of an
++// isotropic rescaling lambda_Pi is clamped.  Both are reported.
++//***************************************************************************
++namespace {
++double smallest_eigenvalue_sym3(const double S[3][3]) {
++    const double p1 = (S[0][1]*S[0][1] + S[0][2]*S[0][2] + S[1][2]*S[1][2]);
++    if (p1 == 0.) {
++        return(std::min(S[0][0], std::min(S[1][1], S[2][2])));
++    }
++    const double q = (S[0][0] + S[1][1] + S[2][2])/3.;
++    const double p2 = ((S[0][0] - q)*(S[0][0] - q) + (S[1][1] - q)*(S[1][1] - q)
++                       + (S[2][2] - q)*(S[2][2] - q) + 2.*p1);
++    const double p = sqrt(p2/6.);
++    double B[3][3];
++    for (int i = 0; i < 3; i++) {
++        for (int j = 0; j < 3; j++) {
++            B[i][j] = (S[i][j] - (i == j ? q : 0.))/p;
++        }
++    }
++    const double detB = (B[0][0]*(B[1][1]*B[2][2] - B[1][2]*B[2][1])
++                         - B[0][1]*(B[1][0]*B[2][2] - B[1][2]*B[2][0])
++                         + B[0][2]*(B[1][0]*B[2][1] - B[1][1]*B[2][0]));
++    const double r = std::max(-1., std::min(1., detB/2.));
++    const double phi = acos(r)/3.;
++    return(q + 2.*p*cos(phi + 2.*M_PI/3.));
++}
++}  // namespace
++
++
++void FSSW::build_PTB_bulk_table(const double T_min, const double T_max) {
++    // species with the same mass and statistics are merged
++    std::vector<double> group_mass, group_degen;
++    std::vector<int> group_sign;
++    for (int n = 0; n < number_of_chosen_particles; n++) {
++        const particle_info *particle = (
++                            &particles[chosen_particles_sampling_table[n]]);
++        bool found = false;
++        for (unsigned int g = 0; g < group_mass.size(); g++) {
++            if (std::abs(group_mass[g] - particle->mass) < 1e-6
++                    && group_sign[g] == particle->sign) {
++                group_degen[g] += particle->gspin;
++                found = true;
++                break;
++            }
++        }
++        if (!found) {
++            group_mass.push_back(particle->mass);
++            group_degen.push_back(particle->gspin);
++            group_sign.push_back(particle->sign);
++        }
++    }
++
++    // u = ln(1 + lambda_Pi) on [-2, 1.5]; u = 0 is node 160
++    const int n_u = 281;
++    ptb_u_grid_.resize(n_u);
++    for (int i = 0; i < n_u; i++) {
++        ptb_u_grid_[i] = -2.0 + 0.0125*i;
++    }
++    std::vector<double> scale(n_u);
++    for (int i = 0; i < n_u; i++) {
++        scale[i] = exp(ptb_u_grid_[i]);
++    }
++
++    // T rows 1 MeV apart (a single row for an isothermal surface)
++    const double dT = 0.001;
++    int n_T = 1;
++    if (T_max - T_min > 1e-6) {
++        n_T = std::min(200, static_cast<int>(ceil((T_max - T_min)/dT)) + 1);
++    }
++    ptb_T_grid_.resize(n_T);
++    for (int i = 0; i < n_T; i++) {
++        ptb_T_grid_[i] = (n_T == 1 ? T_min
++                                   : T_min + (T_max - T_min)*i/(n_T - 1.));
++    }
++    ptb_e_.assign(n_T, std::vector<double>(n_u, 0.));
++    ptb_P_.assign(n_T, std::vector<double>(n_u, 0.));
++
++    // e and P of the rescaled equilibrium gas, Simpson in x = p'/T on [0, 30]
++    const int n_x = 120;
++    const double x_max = 30.;
++    const double dx = x_max/n_x;
++    const double prefactor = 1./(2.*M_PI*M_PI*hbarC*hbarC*hbarC);
++    for (int iT = 0; iT < n_T; iT++) {
++        const double T = ptb_T_grid_[iT];
++        for (unsigned int g = 0; g < group_mass.size(); g++) {
++            const double m = group_mass[g];
++            for (int k = 1; k <= n_x; k++) {
++                const double simpson = (k == n_x ? 1. : (k % 2 == 1 ? 4. : 2.));
++                const double p = k*dx*T;
++                const double arg = sqrt(m*m + p*p)/T;
++                if (arg > 700.) continue;
++                const double f = 1./(exp(arg) + group_sign[g]);
++                const double W = (prefactor*group_degen[g]*simpson*dx/3.*T
++                                  *p*p*f);
++                for (int iu = 0; iu < n_u; iu++) {
++                    const double ps = scale[iu]*p;
++                    const double Es = sqrt(m*m + ps*ps);
++                    ptb_e_[iT][iu] += W*Es;
++                    ptb_P_[iT][iu] += W*ps*ps/(3.*Es);
++                }
++            }
++        }
++        for (int iu = 1; iu < n_u; iu++) {
++            if (ptb_P_[iT][iu]/ptb_e_[iT][iu]
++                    <= ptb_P_[iT][iu-1]/ptb_e_[iT][iu-1]) {
++                messager_ << "PTB bulk table: P/e not increasing in lambda_Pi "
++                          << "at T = " << T << " GeV.";
++                messager_.flush("error");
++                exit(1);
++            }
++        }
++    }
++    if (echoLevel_ > 0) {
++        messager_ << "PTB bulk table: " << group_mass.size()
++                  << " mass groups, " << n_T << " temperature rows in ["
++                  << T_min << ", " << T_max << "] GeV, kinetic e = "
++                  << ptb_e_[0][160] << " GeV/fm^3, P = " << ptb_P_[0][160]
++                  << " GeV/fm^3 at T = " << ptb_T_grid_[0] << " GeV.";
++        messager_.flush("info");
++    }
++}
++
++
++void FSSW::get_PTB_bulk_parameters(const double T, const double bulkPi,
++                                   double &lambda_Pi, double &z_Pi,
++                                   bool &clamped) const {
++    const int n_T = ptb_T_grid_.size();
++    const int n_u = ptb_u_grid_.size();
++    int iT = 0;
++    double fT = 0.;
++    if (n_T > 1) {
++        const double r = ((T - ptb_T_grid_[0])
++                          /(ptb_T_grid_[1] - ptb_T_grid_[0]));
++        iT = std::max(0, std::min(n_T - 2, static_cast<int>(r)));
++        fT = std::max(0., std::min(1., r - iT));
++    }
++    auto e_at = [&](int iu) {
++        return(n_T > 1 ? (1. - fT)*ptb_e_[iT][iu] + fT*ptb_e_[iT+1][iu]
++                       : ptb_e_[0][iu]);
++    };
++    auto P_at = [&](int iu) {
++        return(n_T > 1 ? (1. - fT)*ptb_P_[iT][iu] + fT*ptb_P_[iT+1][iu]
++                       : ptb_P_[0][iu]);
++    };
++    const int iu0 = 160;  // u = 0
++    const double e0 = e_at(iu0);
++    const double target = (P_at(iu0) + bulkPi)/e0;  // (P + Pi)/e
++
++    clamped = false;
++    double u, e_u;
++    if (target <= P_at(0)/e_at(0)) {
++        u = ptb_u_grid_[0];
++        e_u = e_at(0);
++        clamped = true;
++    } else if (target >= P_at(n_u - 1)/e_at(n_u - 1)) {
++        u = ptb_u_grid_[n_u - 1];
++        e_u = e_at(n_u - 1);
++        clamped = true;
++    } else {
++        int lo = 0, hi = n_u - 1;
++        while (hi - lo > 1) {
++            const int mid = (lo + hi)/2;
++            if (P_at(mid)/e_at(mid) <= target) {
++                lo = mid;
++            } else {
++                hi = mid;
++            }
++        }
++        const double R_lo = P_at(lo)/e_at(lo);
++        const double R_hi = P_at(hi)/e_at(hi);
++        const double frac = (target - R_lo)/(R_hi - R_lo);
++        u = ptb_u_grid_[lo] + frac*(ptb_u_grid_[hi] - ptb_u_grid_[lo]);
++        e_u = e_at(lo) + frac*(e_at(hi) - e_at(lo));
++    }
++    lambda_Pi = exp(u) - 1.;
++    z_Pi = e0/e_u;
++}
++
++
++void FSSW::prepare_PTB_cells() {
++    if (bINCLUDE_BULK_DELTAF) {
++        double T_min = 1e30, T_max = -1e30;
++        for (long l = 0; l < FO_length; l++) {
++            T_min = std::min(T_min, static_cast<double>(FOsurf_ptr[l].Tdec));
++            T_max = std::max(T_max, static_cast<double>(FOsurf_ptr[l].Tdec));
++        }
++        build_PTB_bulk_table(T_min, T_max);
++    }
++
++    ptb_A_.resize(FO_length);
++    ptb_z_.resize(FO_length);
++    std::vector<double> visCoefficients;
++    double w_tot = 0., w_shear_reg = 0., w_bulk_clamped = 0.;
++    for (long l = 0; l < FO_length; l++) {
++        const FO_surf_LRF *surf = &FOsurf_ptr[l];
++        double lambda_Pi = 0., z_Pi = 1.;
++        bool clamped = false;
++        if (bINCLUDE_BULK_DELTAF) {
++            get_PTB_bulk_parameters(surf->Tdec, surf->bulkPi,
++                                    lambda_Pi, z_Pi, clamped);
++        }
++        const double a = 1. + lambda_Pi;
++
++        // shear part S = pi/(2 beta_pi), traceless and symmetric in the LRF
++        double S[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
++        if (bINCLUDE_SHEAR_DELTAF) {
++            getCENEOSBQSCoefficients(surf->Edec, std::abs(surf->Bn),
++                                     visCoefficients);
++            const double beta_pi = visCoefficients[2];   // GeV/fm^3
++            if (beta_pi > 0.) {
++                const double c = 1./(2.*beta_pi);
++                S[0][0] = c*surf->piLRF_xx;
++                S[0][1] = S[1][0] = c*surf->piLRF_xy;
++                S[0][2] = S[2][0] = c*surf->piLRF_xz;
++                S[1][1] = c*surf->piLRF_yy;
++                S[1][2] = S[2][1] = c*surf->piLRF_yz;
++                S[2][2] = -(S[0][0] + S[1][1]);
++            }
++        }
++        double s_reg = 1.;
++        const double lam_min = smallest_eigenvalue_sym3(S);
++        if (a + lam_min < ptb_min_eigenvalue_*a) {
++            s_reg = (1. - ptb_min_eigenvalue_)*a/(-lam_min);
++        }
++        ptb_A_[l] = {a + s_reg*S[0][0], s_reg*S[0][1], s_reg*S[0][2],
++                     a + s_reg*S[1][1], s_reg*S[1][2], a + s_reg*S[2][2]};
++        ptb_z_[l] = z_Pi;
++
++        const double w = std::max(0., static_cast<double>(surf->da_mu_LRF[0]));
++        w_tot += w;
++        if (s_reg < 1.) w_shear_reg += w;
++        if (clamped) w_bulk_clamped += w;
++    }
++    if (echoLevel_ > 0 && w_tot > 0.) {
++        messager_ << "PTB delta f: " << FO_length << " cells; emission-weighted "
++                  << "fraction with the shear part regulated: "
++                  << w_shear_reg/w_tot << ", with lambda_Pi clamped: "
++                  << w_bulk_clamped/w_tot;
++        messager_.flush("info");
++    }
++}
++
++
++int FSSW::sample_momentum_PTB(
++        const double mass, const int sign, const double mu,
++        const FO_surf_LRF *surf, const std::array<double, 6> &A,
++        double &pT, double &phi, double &y_minus_eta_s) {
++    const double Tdec = surf->Tdec;
++    const double dsigam_fac = (std::abs(surf->da_mu_LRF[0])
++                            + sqrt(  surf->da_mu_LRF[1]*surf->da_mu_LRF[1]
++                                   + surf->da_mu_LRF[2]*surf->da_mu_LRF[2]
++                                   + surf->da_mu_LRF[3]*surf->da_mu_LRF[3]));
++    int tries = 1;
++    const int maximum_impatience = 5000;
++    while (tries < maximum_impatience) {
++        // p' from the equilibrium distribution, then p = A p'
++        double p_mag = momentum_sampler_ptr_->Sample_a_momentum(mass, Tdec, mu,
++                                                                sign);
++        double phi_candidate = 2*M_PI*ran_gen_ptr->rand_uniform();
++        double cos_theta = 2.*ran_gen_ptr->rand_uniform() - 1.;
++        double sin_theta = sqrt(1. - cos_theta*cos_theta);
++        const double qx = p_mag*sin_theta*cos(phi_candidate);
++        const double qy = p_mag*sin_theta*sin(phi_candidate);
++        const double qz = p_mag*cos_theta;
++
++        const double px = A[0]*qx + A[1]*qy + A[2]*qz;
++        const double py = A[1]*qx + A[3]*qy + A[4]*qz;
++        const double pz = A[2]*qx + A[4]*qy + A[5]*qz;
++        const double p0 = sqrt(mass*mass + px*px + py*py + pz*pz);
++
++        double pdsigma = (  p0*surf->da_mu_LRF[0] + px*surf->da_mu_LRF[1]
++                          + py*surf->da_mu_LRF[2] + pz*surf->da_mu_LRF[3]);
++        double accept_prob = std::max(0., std::min(1., pdsigma/p0/dsigam_fac));
++
++        if (ran_gen_ptr->rand_uniform() < accept_prob) {
++            VecD4 pLRF = {p0, px, py, pz};
++            VecD4 umu = {surf->u_tz[0], surf->u_tz[1],
++                         surf->u_tz[2], surf->u_tz[3]};
++            VecD4 pLab = {0., 0., 0., 0.};
++            boost_vector_back_to_lab_frame(pLRF, pLab, umu);
++
++            double y = 0.5*log((pLab[0] + pLab[3])/(pLab[0] - pLab[3]));
++            if (!std::isnan(y) && !std::isinf(y)) {
++                pT = sqrt(pLab[1]*pLab[1] + pLab[2]*pLab[2]);
++                phi = atan2(pLab[2], pLab[1]);
++                y_minus_eta_s = y - surf->eta;
++                return(1);
++            }
++        }
++        tries++;
++    }
++    return(0);
++}
++
++
++int FSSW::sample_momentum(
++        const double mass, const int sign,
++        const int baryon, const int strange, const int charge,
++        const long FO_idx, const FO_surf_LRF *surf,
++        const std::vector<double> visCoefficients,
++        const double deltaf_qmu_coeff,
++        double &pT, double &phi, double &y_minus_eta_s) {
++    if (deltaf_model_ == 1) {
++        const double mu = std::min(mass, static_cast<double>(
++                baryon*surf->muB + strange*surf->muS + charge*surf->muQ));
++        return(sample_momentum_PTB(mass, sign, mu, surf, ptb_A_[FO_idx],
++                                   pT, phi, y_minus_eta_s));
++    }
++    return(sample_momemtum_from_a_fluid_cell(
++                mass, sign, baryon, strange, charge, surf, visCoefficients,
++                deltaf_qmu_coeff, pT, phi, y_minus_eta_s));
++}
++
++
+ void FSSW::add_one_sampled_particle(
+                 const int repeated_sampling_idx, const FO_surf_LRF *surf,
+                 const int particle_monval, const double mass,
+diff --git a/src/FSSW.h b/src/FSSW.h
+index 08121ce..a80f0d0 100644
+--- a/src/FSSW.h
++++ b/src/FSSW.h
+@@ -129,6 +129,19 @@ class FSSW {
+ 
+     std::string OSCAR_header_filename_, OSCAR_output_filename_;
+ 
++    // PTB (Pratt-Torrieri-Bernhard) modified-equilibrium delta f
++    //   f = z_Pi/det(A) f_eq(sqrt(m^2 + |A^{-1} p|^2)/T)  in the LRF,
++    //   A_ij = (1 + lambda_Pi) delta_ij + pi_ij/(2 beta_pi).
++    int deltaf_model_;               // 0: linear delta f, 1: PTB
++    double ptb_min_eigenvalue_;      // regulator, see prepare_PTB_cells()
++    std::vector<std::array<double, 6>> ptb_A_;  // xx, xy, xz, yy, yz, zz
++    std::vector<double> ptb_z_;                 // z_Pi per cell
++    // bulk matching table: rows in T, columns in u = ln(1 + lambda_Pi)
++    std::vector<double> ptb_T_grid_;
++    std::vector<double> ptb_u_grid_;
++    std::vector<std::vector<double>> ptb_e_;    // kinetic e(T, u) [GeV/fm^3]
++    std::vector<std::vector<double>> ptb_P_;    // kinetic P(T, u) [GeV/fm^3]
++
+  public:
+     FSSW(std::shared_ptr<RandomUtil::Random> ran_gen,
+            Table* chosen_particles_in,
+@@ -209,6 +222,22 @@ class FSSW {
+         const std::vector<double> visCoefficients,
+         const double deltaf_qmu_coeff,
+         double &pT, double &phi, double &y_minus_eta_s);
++    void build_PTB_bulk_table(const double T_min, const double T_max);
++    void get_PTB_bulk_parameters(const double T, const double bulkPi,
++                                 double &lambda_Pi, double &z_Pi,
++                                 bool &clamped) const;
++    void prepare_PTB_cells();
++    int sample_momentum_PTB(
++        const double mass, const int sign, const double mu,
++        const FO_surf_LRF *surf, const std::array<double, 6> &A,
++        double &pT, double &phi, double &y_minus_eta_s);
++    int sample_momentum(
++        const double mass, const int sign,
++        const int baryon, const int strange, const int charge,
++        const long FO_idx, const FO_surf_LRF *surf,
++        const std::vector<double> visCoefficients,
++        const double deltaf_qmu_coeff,
++        double &pT, double &phi, double &y_minus_eta_s);
+     void add_one_sampled_particle(
+         const int repeated_sampling_idx, const FO_surf_LRF *surf,
+         const int particle_monval, const double mass,
