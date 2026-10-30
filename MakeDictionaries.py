@@ -70,6 +70,13 @@ def default_template_config() -> dict:
             "afterburner_type": "decay",
             "save_hydro_surfaces": False,
             "save_UrQMD_files": False,
+            # each hydro surface is particlized once per delta f model, with
+            # the same seeds; results in spvn_results_<id>/deltaf_<name>
+            "deltaf_models": {
+                "Grad22": {"deltaf_model": 0, "bulk_deltaf_kind": 20},
+                "CE": {"deltaf_model": 0, "bulk_deltaf_kind": 21},
+                "PTB": {"deltaf_model": 1, "bulk_deltaf_kind": 21},
+            },
         },
         "isobars_conf_dict_target": {
             "isobar_samples": {
@@ -247,7 +254,9 @@ def default_template_config() -> dict:
         },
         "music_dict": {
             "beastMode": 2,
-            "Initial_profile": 92,
+            # 9: full free-streaming T^munu (e, u^mu, pi^munu, Pi); 92 was
+            # e only, which discarded the flow and ~17% of the energy
+            "Initial_profile": 9,
             "s_factor": 1.0,
             "Initial_time_tau_0": 1.0,
             "Delta_Tau": 0.005,
@@ -294,8 +303,12 @@ def default_template_config() -> dict:
             "flag_charge_dependence": 0,
             "compute_corr_rap_dep": 0,
             "resonance_weak_feed_down_flag": 1,
-            "pT_min": 0.2,
-            "pT_max": 2.0,
+            # bin edges pT_min + i (pT_max - pT_min)/npT: 0.05 GeV bins, so
+            # every experimental cut in use (0.15, 0.2, 0.3, 0.5, 2, 3, 5) is
+            # an edge
+            "pT_min": 0.0,
+            "pT_max": 5.0,
+            "npT": 100,
             "rap_min": -1.0,
             "rap_max": 1.0,
             "rap_type": 1,

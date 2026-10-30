@@ -10,6 +10,16 @@ control_dict = {
     'afterburner_type': "decay",
     'save_hydro_surfaces': False,
     'save_UrQMD_files': False,
+    # Each hydro surface is particlized once per delta f model, with the same
+    # seeds; results in spvn_results_<id>/deltaf_<name>.  Grad22 and CE are the
+    # linear 22-moment and Chapman-Enskog delta f (clamped to [-1, 1] by the
+    # sampler); PTB is the positive-definite modified equilibrium
+    # (codes/patches/iSS_PTB_deltaf.patch).
+    'deltaf_models': {
+        'Grad22': {'deltaf_model': 0, 'bulk_deltaf_kind': 20},
+        'CE': {'deltaf_model': 0, 'bulk_deltaf_kind': 21},
+        'PTB': {'deltaf_model': 1, 'bulk_deltaf_kind': 21},
+    },
 }
 
 # No isobar_seed_file is declared on purpose. Nucleon positions are generated
@@ -164,8 +174,10 @@ free_streaming_dict = {
 
 music_dict = {
     'beastMode': 2,
-    'Initial_profile': 92,   # type of initial condition 
-                            # 9: IPGlasma (full Tmunu),
+    'Initial_profile': 9,    # type of initial condition
+                            # 9: full T^munu (the free-streaming e, u^mu,
+                            #    pi^munu and Pi = e/3 - P_eos); 92 dropped the
+                            #    flow and ~17% of the energy (first campaigns)
                             #   -- 91: e and u^\mu,
                             #   -- 92: e only,
                             #   -- 93: e, u^\mu, and pi^\munu
@@ -224,8 +236,13 @@ hadronic_afterburner_toolkit_dict = {
     'resonance_weak_feed_down_flag': 1,
     # Charged particles (particle_monval=9999) use this as -1 < eta < 1;
     # identified particles use it as -1 < y < 1 because rap_type=1.
-    'pT_min': 0.2,
-    'pT_max': 2.0,
+    # pT bins for the identified-particle tables: edges
+    # pT_min + i (pT_max - pT_min)/npT, i.e. 0.05 GeV bins on 0-5 GeV, so every
+    # experimental cut in use (0.15, 0.2, 0.3, 0.5, 2, 3, 5 GeV) is an edge.
+    # (The first campaigns had 0.2-2.0 GeV in 41 bins of 0.0439 GeV.)
+    'pT_min': 0.0,
+    'pT_max': 5.0,
+    'npT': 100,
     'rap_min': -1.0,
     'rap_max': 1.0,
     'rap_type': 1,
