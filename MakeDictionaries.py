@@ -30,6 +30,9 @@ Design-matrix columns (csv.DictReader; every one is required unless noted):
     beta_max           optional; support of the bounded beta_2 draw, defaults to
                        the template value or 0.5 if the template has none
     number_nucleons    optional; mass number A, defaults to the template value
+    cross-section      optional; TRENTo inelastic nucleon-nucleon cross-section
+                       sigma_NN [fm^2], a campaign constant (4.23 = 42.3 mb at
+                       200 GeV, 6.8 = 68 mb at ~5 TeV); defaults to the template
     shear_viscosity_3_eta_over_s_T_kink_in_GeV, ..._low_T_slope_in_GeV,
     ..._high_T_slope_in_GeV, ..._at_kink
                        T_eta, a_low, a_high, (eta/s)_kink
@@ -508,6 +511,11 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
     # axis unreachable from the design matrix.
     if str(row.get("normalization", "")).strip():
         trento["normalization"] = float(row["normalization"])
+    # sigma_NN sets the collision energy as far as TRENTo is concerned; the
+    # template's 4.23 fm^2 is the 200 GeV value, so an LHC-energy design carries
+    # its own (constant) column.
+    if str(row.get("cross-section", "")).strip():
+        trento["cross-section"] = float(row["cross-section"])
     trento["b-max"] = bmax_from_design(row)
 
     music["shear_viscosity_3_eta_over_s_T_kink_in_GeV"] = float(

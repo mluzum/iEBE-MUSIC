@@ -13,9 +13,15 @@ The old ranges come from the generator that made the input:
     --prior a76   make_design.PRIOR        (design/design_lhs2000.csv)
     --prior a96   make_design_a96.PRIOR_A96 (design/design_lhs2000_A96.csv)
 
+--set-column name=value adds (or overwrites) a column that is constant over the
+design, for campaign constants such as the TRENTo `cross-section`.
+
 Usage:
     python3 scripts/remap_design_prior.py design/design_lhs2000_A96.csv \\
         design/design_lhs2000_A96_c2.csv --prior a96 --range normalization=6,13
+    python3 scripts/remap_design_prior.py design/design_lhs2000.csv \\
+        design/design_lhs2000_c2.csv --prior a76 --range normalization=12,24 \\
+        --set-column cross-section=6.8
 """
 import argparse
 import csv
@@ -32,8 +38,10 @@ def main():
     ap.add_argument("design_in")
     ap.add_argument("design_out")
     ap.add_argument("--prior", choices=["a76", "a96"], required=True)
-    ap.add_argument("--range", action="append", required=True,
+    ap.add_argument("--range", action="append", default=[],
                     help="axis=lo,hi (repeatable)")
+    ap.add_argument("--set-column", action="append", default=[],
+                    help="name=value, a column constant over the design")
     args = ap.parse_args()
 
     if args.prior == "a76":
@@ -72,6 +80,16 @@ def main():
             u = (x - lo)/(hi - lo)
             r[name] = "%.10g" % (lo2 + u*(hi2 - lo2))
             worst = max(worst, abs((float(r[name]) - lo2)/(hi2 - lo2) - u))
+
+    for spec in args.set_column:
+        name, _, value = spec.partition("=")
+        if name in prior:
+            sys.exit("%s is a design axis; use --range" % name)
+        if name not in fields:
+            fields = fields + [name]
+        for r in rows:
+            r[name] = value
+        print("%s = %s for every row" % (name, value))
 
     with open(args.design_out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields, lineterminator=eol)

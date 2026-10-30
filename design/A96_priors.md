@@ -25,6 +25,8 @@ campaigns, so the two runs are paired point-by-point.
 
 ## Campaign 2 (2026-10-30): normalization 6 – 13
 
+(Both campaign-2 designs, A=96 and A=76: `design/CAMPAIGN2_DESIGNS.md`.)
+
 `design/design_lhs2000_A96_c2.csv` is this design with `normalization` mapped
 from 3 – 10 onto **6 – 13** by `scripts/remap_design_prior.py` (same unit-cube
 point for every row; every other column byte-identical; since both ranges
