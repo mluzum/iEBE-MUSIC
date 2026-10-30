@@ -419,13 +419,27 @@ def load_template(template_path: Path | None):
     return ns
 
 
-def bmax_from_design(row: dict[str, str]) -> float:
+# sigma_NN [fm^2] at which the b_max expression below was set up (the
+# template's 200 GeV value).  At another sigma_NN, b_max moves with the
+# nucleon-nucleon interaction range sqrt(sigma_NN/pi).
+SIGMA_NN_REF = 4.23
+
+
+def bmax_from_design(row: dict[str, str],
+                     sigma_nn: float = SIGMA_NN_REF) -> float:
     """Compute the TRENTo maximum impact parameter from the design-point values.
 
     This follows the exact design expression:
 
         b_max = 1.789 * sqrt{ R^2 * [1 + (7/(4*pi)) * (beta_2^2 + beta_3^2)]
         + (7*pi^2/3) * a^2 } + w + 0.5
+        + sqrt(sigma_NN/pi) - sqrt(4.23 fm^2/pi)
+
+    The last term is zero at the 200 GeV sigma_NN the expression was tuned at.
+    A larger sigma_NN makes nucleons collide at larger separation, so without it
+    more of sigma_inel lies beyond b_max: at 6.8 fm^2 (A=76, ~5 TeV) the share
+    below b_max fell from 0.79-0.92 to 0.75-0.90, and the term (+0.31 fm)
+    restores it.
 
     where R is WS_radius, a is WS_diffusiveness, and w is nucleon-width. Note the
     deformation coefficient is 7/(4*pi) = 0.557, not 7*pi/4 = 5.50: the harmonic
@@ -452,6 +466,7 @@ def bmax_from_design(row: dict[str, str]) -> float:
     deformation_term = (7.0/(4.0*math.pi))*(beta_2**2 + beta_3**2)
     bmax = 1.789*math.sqrt(R**2*(1.0 + deformation_term) + (7.0*math.pi**2/3.0)*
                            (a**2)) + w + 0.5
+    bmax += math.sqrt(sigma_nn/math.pi) - math.sqrt(SIGMA_NN_REF/math.pi)
     return bmax
 
 
@@ -516,7 +531,8 @@ def update_template_values(config: dict, row: dict[str, str]) -> None:
     # its own (constant) column.
     if str(row.get("cross-section", "")).strip():
         trento["cross-section"] = float(row["cross-section"])
-    trento["b-max"] = bmax_from_design(row)
+    trento["b-max"] = bmax_from_design(
+        row, float(trento.get("cross-section", SIGMA_NN_REF)))
 
     music["shear_viscosity_3_eta_over_s_T_kink_in_GeV"] = float(
         row["shear_viscosity_3_eta_over_s_T_kink_in_GeV"])

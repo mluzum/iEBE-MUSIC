@@ -357,7 +357,8 @@ defaults — prefer those over guessing flags.
   and 1182519. It is now `CAMPAIGN_SEED_ADD = 0`, overridable with `IBEM_SEED_ADD` only for
   deliberately uncorrelated exploratory runs.
 - **`b_max` is per design point on purpose; do not "simplify" it to a campaign constant.** It is
-  computed from `WS_radius`, `WS_diffusiveness`, `nucleon-width` and the 2-sigma deformation, so a
+  computed from `WS_radius`, `WS_diffusiveness`, `nucleon-width`, the 2-sigma deformation and (since
+  campaign 2) TRENTo's sigma_NN (+ sqrt(sigma_NN/pi) - sqrt(4.23/pi), zero at 200 GeV), so a
   larger nucleus draws a proportionally larger `b`. That is what keeps `b/b_max` — not `b` — the
   synchronised variable between design points: the same event index at a bigger `WS_radius` stays at
   the same centrality instead of drifting more central. Fixing `b` in fm instead would *reduce* the

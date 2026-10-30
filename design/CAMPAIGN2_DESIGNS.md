@@ -23,8 +23,10 @@ ensembles.
 - `cross-section` is TRENTo's sigma_NN.  Campaign 1 (both A) used the
   template's 4.23 fm^2 (42.3 mb, 200 GeV); A=76 campaign 2 uses 6.8 fm^2
   (68 mb, ~5 TeV).  MakeDictionaries takes it from the design column (else the
-  template).  b_max does not depend on sigma_NN, so the share of sigma_inel
-  below b_max is lower at 6.8 fm^2: recompute the A=76 cross sections
-  (`scripts/cross_section/`) on the campaign-2 dictionaries.
+  template).  b_max now grows with the interaction range,
+  + sqrt(sigma_NN/pi) - sqrt(4.23/pi) (+0.31 fm at 6.8 fm^2, 0 for A=96),
+  which keeps the share of sigma_inel below b_max at campaign 1's level
+  (12-point estimate: median 0.867 vs 0.870).  Recompute the A=76 cross
+  sections (`scripts/cross_section/`) on the campaign-2 dictionaries.
 - Normalization does not enter TRENTo's collision probability: the A=96
   cross-section tables stay valid.

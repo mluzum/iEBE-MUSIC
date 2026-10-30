@@ -24,6 +24,7 @@ all numbers:
 | A=96 normalization prior | 3-10 | **6-13** (`design/design_lhs2000_A96_c2.csv`) |
 | A=76 normalization prior | 10-20 | **12-24** (`design/design_lhs2000_c2.csv`) |
 | A=76 TRENTo sigma_NN | 4.23 fm^2 (200 GeV) | **6.8 fm^2** (68 mb, ~5 TeV; design column) |
+| b_max | design expression | + sqrt(sigma_NN/pi) - sqrt(4.23/pi): **+0.31 fm for A=76**, 0 for A=96 |
 
 Both new designs are the old ones on the **same 2000-point unit-cube Latin
 hypercube** (only the changed axes are remapped; labels, order and every
@@ -54,7 +55,7 @@ Why, in one paragraph each:
 
 Not changed: decays-only afterburner, seeds (an event is still
 `(MASTER_SEED, seed_add, event_id, iev)`; all delta f models of an event use
-the same iSS seed), b_max formula, hydro grid, `quest_revert_strength`,
+the same iSS seed), hydro grid, `quest_revert_strength`,
 the normalized design, number of events.
 
 ## 2. Code
@@ -76,6 +77,8 @@ in order:
 | `17ae5b4` | merge of `NME`'s A76 cross-section README -- **the image pin** |
 | `06cc504` | Dockerfile pinned to `17ae5b4` |
 | `0a8f4a4` | A=76 design, normalization 12-24 + `cross-section` 6.8 fm^2 column (MakeDictionaries reads it) |
+| `5d58dc5` | this file: image built and verified |
+| (this commit) | MakeDictionaries: b_max grows with sqrt(sigma_NN/pi) |
 | later | this file, updated |
 
 Commits after `17ae5b4` change only submit-side files (designs, MakeDictionaries,
@@ -130,14 +133,17 @@ later image.
    (adjust the point ranges to the campaign size).  Diff one of each against
    campaign 1 before staging: A=96 differs in `control_dict['deltaf_models']`,
    `Initial_profile 9`, the toolkit `pT_min 0.0 / pT_max 5.0 / npT 100` and
-   the normalization (+3); A=76 additionally in `'cross-section': 6.8` and the
-   normalization (x1.2 on the 10-20 -> 12-24 map).
+   the normalization (+3); A=76 additionally in `'cross-section': 6.8`, the
+   normalization (x1.2 on the 10-20 -> 12-24 map) and `'b-max'` (+0.3109 fm).
+   A=96 keeps campaign 1's b_max exactly.
 7. **A=76 cross sections.** sigma_NN changed, so recompute the A=76 sigma_inel
    / b_max tables on the new dictionaries (`scripts/cross_section/`: add a
    campaign entry for `ge76_design_c2` in `run_xsec.py`).  A 12-point estimate
-   (n_conf 300) gives sigma_inel +6% and the share below b_max 0.75-0.90
-   (median 0.835; was 0.79-0.92, median 0.87).  The A=96 tables stay valid
-   (normalization does not enter TRENTo's collision probability).
+   (n_conf 300, the new dictionaries): sigma_inel +6% (median 559 vs 526
+   fm^2), share below b_max 0.785-0.919 (median 0.867; campaign 1 0.794-0.920,
+   median 0.870); events beyond b_max in 0-80%: median 2.6%, max 7.6%
+   (campaign 1: 2.8%, 7.6%).  The A=96 tables stay valid (normalization does
+   not enter TRENTo's collision probability, and its b_max is unchanged).
 8. **Provenance, stage, submit** as before: `scripts/record_provenance.py`
    with the new image and designs; `scripts/stage_campaign.py` with
    `--dict-dir zr96_design_c2` / `ge76_design_c2`, a new `--jobid-template`
@@ -240,15 +246,11 @@ Taken by the user (2026-10-30): normalization priors A=96 6-13 and A=76
 12-24 on the same hypercube; A=76 at sigma_NN = 6.8 fm^2 (~5 TeV); all three
 delta f models despite the cost.
 
-Open, for the user (not the job session):
-- **b_max at sigma_NN = 6.8 fm^2 (A=76).**  b_max does not depend on
-  sigma_NN, so a larger sigma_NN leaves more of sigma_inel beyond it.  From
-  the 12-point estimate, the share of events of a centrality range with
-  b > b_max (median / max over points): 0-60%: 0.0 / 1.2%; 0-70%: 1.0 /
-  3.8%; 0-80%: 4.3 / 10% (at 4.23 fm^2: 0.1 / 0.6%, 0.6 / 2.9%, 2.8 / 7.6%).
-  Fine to ~70% centrality; the 70-80% class loses events at the most
-  extended nuclei.  Adding sqrt(sigma_NN/pi) - sqrt(4.23/pi) = 0.31 fm to
-  b_max for A=76 would roughly restore campaign 1's coverage (a change to
-  `bmax_from_design`, before generating the dictionaries).
-- Centrality anchoring in the analysis uses the per-design-point share below
-  b_max (`/data/mluzum/cross_sections/*/summary_*.csv`, A=76 to be redone).
+Also taken: b_max follows sigma_NN (+ sqrt(sigma_NN/pi) - sqrt(4.23/pi),
+i.e. +0.31 fm for A=76 at 6.8 fm^2, 0 for A=96), which restores campaign 1's
+coverage (numbers in step 7).  With the same 2000 drawn events over a ~5%
+larger area, each A=76 centrality class gets ~5% fewer events.
+
+Centrality anchoring in the analysis uses the per-design-point share below
+b_max (`/data/mluzum/cross_sections/*/summary_*.csv`; A=76 to be redone,
+step 7).
