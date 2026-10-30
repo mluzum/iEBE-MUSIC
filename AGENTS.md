@@ -137,6 +137,13 @@ defaults — prefer those over guessing flags.
   current one (`443fcee...`). **Put the md5 prefix in the filename**
   (`iebe-music_slim_<sha>_<md5prefix>.sif`) so uniqueness does not depend on the commit
   having moved, and derive the name from the pinned SHA rather than from `HEAD`.
+- **`request_disk = 2 GB` is too small for a 20-event job.** Jobs on both campaigns began
+  holding with `Error from slot...: disk usage exceeded allocated disk` (178 A=96 + 15 A=76 in
+  one wave): the execute-node sandbox holds all 20 events' hydro intermediates before the quiet
+  packer compresses them, which overruns 2 GB on the larger events. Staged submit files now
+  request **4 GB** (`stage_campaign.py --disk 4`), and held jobs were fixed in place with
+  `condor_qedit ... RequestDisk 4194304` + `condor_release`. Raise the request before releasing
+  — releasing alone just re-runs into the same limit.
 - **OSG resource requests: ask for 1 GB, not 4.** Peak RSS for a 19-event 76Ge batch on one core
   was 212 MB, so the old 4 GB default requested ~19x what is used purely for scheduling speed.
   `request_disk` must cover the *whole* batch, not one event, because events run sequentially into

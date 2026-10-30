@@ -75,7 +75,9 @@ def main():
     ap.add_argument("--n-events", type=int, default=20)
     ap.add_argument("--n-jobs", type=int, default=100)
     ap.add_argument("--mem", default="1")
-    ap.add_argument("--disk", default="2")
+    ap.add_argument("--disk", default="4",
+                    help="per-job scratch request in GB; 2 GB is exceeded by "
+                         "20-event jobs (hydro intermediate files)")
     ap.add_argument("--chunk", type=int, default=50, help="design points per submission chunk")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
