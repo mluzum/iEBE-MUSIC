@@ -68,6 +68,14 @@ defaults — prefer those over guessing flags.
   container pins the framework to an exact SHA, but nobody has yet run the same event twice on
   local HTCondor and once on OSG and diffed the nucleus HDF5. The common-random-numbers design
   rests entirely on this. See Phase E2 in `EMULATOR_SWEEP_PLAN.md`; treat it as blocking.
+  First data point (2026-10-30, `scripts/rerun_events_local.py`, campaign image
+  `slim-3001ee9` under local docker, 1 thread): zr96 dp0583 event 220 re-ran **bit-identical**
+  to the OSG output; event 10 had the same TRENTo event and initial eccentricities, MUSIC
+  output equal to ~1e-8 relative, but particle tables differing by 0.1-1%, i.e. last-bit
+  numerics differ between the OSG worker and this host (CPU-dependent libm paths are the
+  usual suspect) and that reseeds iSS's sampling stream. Two local runs of the same event
+  are bit-identical. So the initial state is common across machines; the sampled particles
+  are common only on matching hardware.
 - **Pin thread counts.** OpenMP/MPI reduction order in MUSIC can change `v2` in the last bits for
   *identical* input, so a 4-thread and an 8-thread run are not bit-identical even when the nucleon
   configurations are. Pin `OMP_NUM_THREADS`/`MKL_NUM_THREADS` in the job script and record the
