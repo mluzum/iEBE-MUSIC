@@ -84,13 +84,18 @@ ENV HOME /opt/
 #             (the pinned script never applied the toolkit patch, so no image shipped
 #              with _boostinv; also makes decays-only from iSS the default and stops
 #              quoting container_image)
+#   17ae5b4 = "Merge NME (A76 cross-section README) into campaign2"
+#             (campaign 2: full free-streaming T^munu into MUSIC (Initial_profile 9),
+#              PTB delta f patch for iSS and one particlization per delta f model
+#              (Grad22, CE, PTB), toolkit pT grid 0-5 GeV in 0.05 GeV bins; see
+#              CAMPAIGN2_HANDOFF.md)
 RUN cd ${HOME} && \
     mkdir iEBE-MUSIC && cd iEBE-MUSIC && \
     git init -q . && \
     git remote add origin https://github.com/mluzum/iEBE-MUSIC.git && \
-    git fetch -q --depth=1 origin 3001ee98df9cbd1916efc2343375871ba1dcd7df && \
+    git fetch -q --depth=1 origin 17ae5b49c083a33783f72ed5d00b8822973a2d70 && \
     git checkout -q FETCH_HEAD && \
-    test "$(git rev-parse HEAD)" = "3001ee98df9cbd1916efc2343375871ba1dcd7df" && \
+    test "$(git rev-parse HEAD)" = "17ae5b49c083a33783f72ed5d00b8822973a2d70" && \
     cd codes && \
     bash get_code_packages_test.sh && \
     ./compile_code_packages.sh && \
