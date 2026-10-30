@@ -370,6 +370,38 @@ defaults — prefer those over guessing flags.
   rows. Centrality percentiles need the count of failures, not only the count of survivors.
 
 
+- **`Initial_profile 92` threw the free-streaming flow away; 9 keeps the full T^munu.** Until
+  `d365f42` `connect_trento_event` wrote only the Landau-matched e, so hydro started at rest
+  and lost ~17% of the energy (tau_fs 0.93); the first zr96/ge76 campaigns ran that way. The
+  table now always carries e, u^mu and pi^munu and `Initial_profile` picks what MUSIC uses
+  (92 is bit-identical to before). Two traps if you touch the writer: MUSIC reads the SLOW
+  table index as x while the arrays keep TRENTo's rows = y (components are written in
+  MUSIC's frame), and MUSIC reads pi in 1/fm^4 but e in GeV/fm^3.
+  `scripts/check_freestream_table.py` checks all of it.
+- **The MC_sampling 4 sampler clamps the linear delta f to [-1, 1].** iSS's FSSW accepts a
+  momentum with probability (1 + delta f)/2 clipped to [0, 1]; `restrict_deltaf` and
+  `deltaf_max_ratio` are read only by the older samplers and do nothing here. With
+  pi/(e+P) ~ 0.1 at freeze-out (eta/s ~ 0.35 at T_f, e.g. zr96 dp0583) the CE delta f
+  exceeds 1 for most of the emission above 1 GeV and the result is the clamp (single-cell
+  closure: CE reproduces 64% of pi at pi/(e+P) = 0.15). `deltaf_model 1` (PTB,
+  `codes/patches/iSS_PTB_deltaf.patch`) is positive definite and reproduces pi to 5% there;
+  `deltaf_model 0` is byte-identical to the unpatched sampler.
+- **One particlization per delta f model, one h5 per event.** With
+  `control_dict['deltaf_models']` the driver runs iSS + decays + analysis once per model on
+  the same surface and seeds, and `spvn_results_<id>.h5` holds each model's tables in
+  `deltaf_<name>` (hydro-level files stay at the top; attrs `deltaf_models`,
+  `toolkit_pT_min/max`, `toolkit_npT`). Readers must pick a model; `merge_dp_h5.py` copies
+  sub-groups and attributes (before `e4ffea5` it silently dropped both). analysisKit still
+  expects the flat layout.
+- **Toolkit pT bins are edges pT_min + i (pT_max - pT_min)/npT** (`single_particleSpectra.cpp`:
+  dpT = (pT_max - pT_min)/npT, centre pT_min + (i + 0.5) dpT). The first campaigns' 0.2-2.0 /
+  41 gave 0.0439 GeV bins; the campaign2 template uses 0-5 GeV / 100 (0.05 GeV edges).
+- **Test framework changes in the image before building one.** `scripts/rerun_events_local.py`
+  re-runs any campaign event in the job folder it originally ran in (same seeds); `--bind`
+  mounts a modified file (driver, generate_jobs, master, a patched iSS.e) over the image's,
+  `--set` appends parameter overrides. Local reruns are deterministic; across machines the
+  initial state and hydro agree but iSS samples can differ (see Reproducibility above).
+
 ## Style
 
 YAPF only, google-based, configured in `.style.yapf` (2-space before comments, split before
