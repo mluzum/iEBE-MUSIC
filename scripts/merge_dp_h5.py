@@ -4,7 +4,9 @@
 Same output as combine_multiple_hdf5.py (one top-level group per event, named
 after the global event id, with its datasets) but done in one process: the
 h5copy-per-event approach spawns ~10,000 subprocesses for a 10,000-event
-design point.
+design point.  Sub-groups (deltaf_<name>, one per delta f model) and the
+attributes of groups and datasets (model list, iSS overrides, toolkit pT grid,
+file headers) are copied too.
 
 Usage: merge_dp_h5.py SOURCE_DIR OUTPUT_H5
 """
@@ -13,6 +15,20 @@ import os
 import sys
 
 import h5py
+
+
+def copy_group(sg, dg):
+    """Copy attrs, datasets and sub-groups of sg into the empty group dg."""
+    for key, val in sg.attrs.items():
+        dg.attrs[key] = val
+    for dname in sg.keys():
+        obj = sg[dname]
+        if isinstance(obj, h5py.Dataset):
+            dset = dg.create_dataset(dname, data=obj[()])
+            for key, val in obj.attrs.items():
+                dset.attrs[key] = val
+        elif isinstance(obj, h5py.Group):
+            copy_group(obj, dg.create_group(dname))
 
 
 def merge(src_dir, out_path):
@@ -40,12 +56,7 @@ def merge(src_dir, out_path):
                     if gname in out:
                         # duplicate event id (re-run overlap): keep the first
                         continue
-                    sg = src[gname]
-                    dg = out.create_group(gname)
-                    for dname in sg.keys():
-                        obj = sg[dname]
-                        if isinstance(obj, h5py.Dataset):
-                            dg.create_dataset(dname, data=obj[()])
+                    copy_group(src[gname], out.create_group(gname))
             if (i + 1) % 500 == 0:
                 print("  merged %d/%d events" % (i + 1, len(files)), flush=True)
     if skipped:

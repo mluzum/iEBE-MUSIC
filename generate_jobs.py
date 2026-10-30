@@ -10,6 +10,7 @@ import argparse
 import pickle
 import random
 import time
+import json
 import yaml
 from math import ceil
 from glob import glob
@@ -639,6 +640,11 @@ def generate_script_afterburner(folder_name, HBT_flag, afterburner_type,
 unalias ls 2>/dev/null
 
 SubEventId=$1
+shift
+# Any further arguments are iSS key=value overrides for this particlization
+# (one call per delta f model, see deltaf_models.json); the seed below does
+# not depend on them, so every model samples with the same random stream.
+ISS_ARGS="$@"
 
 (
 cd {sub_ev_prefix}_$SubEventId
@@ -673,10 +679,11 @@ do
     cp ../hydro_event/spectators.dat results/spectators.dat 2>/dev/null
     if [ $SubEventId = "0" ] && [ $iev -eq "0" ]; then
     """.format(sub_ev_prefix=sub_ev_prefix, results_dir=results_dir))
-    script.write("    ./iSS.e randomSeed=$RANDOMSEED 2>&1 {0}".format(logfile))
+    script.write("    ./iSS.e randomSeed=$RANDOMSEED $ISS_ARGS 2>&1 {0}".format(
+        logfile))
     script.write("""
     else
-        ./iSS.e randomSeed=$RANDOMSEED 2>&1 > run.log
+        ./iSS.e randomSeed=$RANDOMSEED $ISS_ARGS 2>&1 > run.log
     fi
     """)
 
@@ -1003,6 +1010,24 @@ def generate_event_folders(initial_condition_database, initial_condition_type,
                                 logfile)
 
     generate_script_analyze_spvn(event_folder, HBT_flag, logfile)
+
+    # Particlize each hydro surface once per delta f model (same surface, same
+    # seeds).  control_dict['deltaf_models'] maps a model name to its iSS
+    # parameter overrides; the driver reads the list from this file, and
+    # without it runs iSS once with iSS_parameters.dat as before.
+    deltaf_models = para_dict.control_dict.get('deltaf_models')
+    if deltaf_models:
+        for name, overrides in deltaf_models.items():
+            if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+                raise ValueError(
+                    "delta f model name {!r}: use letters, digits, - and _".
+                    format(name))
+            if not isinstance(overrides, dict):
+                raise ValueError(
+                    "delta f model {!r}: overrides must be a dict of iSS "
+                    "parameters".format(name))
+        with open(path.join(event_folder, 'deltaf_models.json'), 'w') as f:
+            json.dump(deltaf_models, f, indent=1)
 
     sub_ev_prefix = "SMASHev" if afterburner_type == "SMASH" else "UrQMDev"
 

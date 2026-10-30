@@ -2,6 +2,7 @@
 """This is a drive script to run hydro + hadronic cascade simulation"""
 
 from multiprocessing import Pool
+from functools import partial
 from subprocess import call
 from os import path, mkdir, remove, makedirs, stat
 import os
@@ -428,6 +429,38 @@ def read_input_value(fname, key):
     except OSError:
         pass
     return None
+
+
+def read_deltaf_models(fname="deltaf_models.json"):
+    """[(name, "key=value ..."), ...] from deltaf_models.json, or None.
+
+    generate_jobs.py writes the file from control_dict['deltaf_models'] (model
+    name -> iSS parameter overrides).  Each model is one particlization of the
+    same hydro surface with the same seeds, analysed into its own
+    deltaf_<name> group of spvn_results_<id>.h5.
+    """
+    if not path.exists(fname):
+        return None
+    with open(fname) as f:
+        models = json.load(f)
+    out = []
+    for name, overrides in models.items():
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+            raise ValueError("bad delta f model name {!r}".format(name))
+        out.append((name, " ".join("{}={}".format(k, v)
+                                   for k, v in overrides.items())))
+    return out or None
+
+
+def toolkit_pt_grid(fname="hadronic_afterburner_toolkit/parameters.dat"):
+    """(pT_min, pT_max, npT) the flow analysis bins in, or None.
+
+    The toolkit's bin edges are pT_min + i (pT_max - pT_min)/npT.
+    """
+    vals = [read_input_value(fname, k) for k in ("pT_min", "pT_max", "npT")]
+    if any(v is None for v in vals):
+        return None
+    return float(vals[0]), float(vals[1]), int(float(vals[2]))
 
 
 def patch_input_value(fname, key, value):
@@ -1301,18 +1334,26 @@ def prepare_surface_files_for_urqmd(final_results_folder, hydro_folder_name,
     return True
 
 
-def run_urqmd_event(event_id):
+def run_urqmd_event(event_id, iss_args=""):
     """This function runs hadornic afterburner"""
-    call("bash ./run_afterburner.sh {0:d}".format(event_id), shell=True)
+    call("bash ./run_afterburner.sh {0:d} {1}".format(event_id, iss_args),
+         shell=True)
 
 
 def run_urqmd_shell(n_urqmd, final_results_folder, event_id, para_dict,
-                    startTime, checkPointFileName, afterburner_type):
-    """This function runs hadronic afterburner events in parallel batches."""
+                    startTime, checkPointFileName, afterburner_type,
+                    iss_args="", tag=""):
+    """This function runs hadronic afterburner events in parallel batches.
+
+    iss_args are iSS key=value overrides for this particlization and tag
+    names its output (one call per delta f model).
+    """
     logo = "\U0001F5FF"
     sub_ev_prefix = "SMASHev" if afterburner_type == "SMASH" else "UrQMDev"
     results_dir = "SMASH_results" if afterburner_type == "SMASH" else "UrQMD_results"
     urqmdResults = "particle_list_{}.bin".format(event_id)
+    if tag:
+        urqmdResults = "particle_list_{}_{}.bin".format(event_id, tag)
     results_folder = path.join(final_results_folder, urqmdResults)
     urqmd_success = False
 
@@ -1348,7 +1389,8 @@ def run_urqmd_shell(n_urqmd, final_results_folder, event_id, para_dict,
             format(logo, curr_time, n_workers, n_urqmd),
             flush=True)
         with Pool(processes=n_workers) as pool1:
-            pool1.map(run_urqmd_event, range(n_urqmd))
+            pool1.map(partial(run_urqmd_event, iss_args=iss_args),
+                      range(n_urqmd))
 
         urqmdResFile = "particle_list.bin"
         for iev in range(1, n_urqmd):
@@ -1424,10 +1466,18 @@ def run_spvn_analysis(urqmd_file_path,
                       n_threads,
                       final_results_folder,
                       event_id,
-                      para_dict_=None):
-    """This function runs analysis"""
+                      para_dict_=None,
+                      subfolder=None):
+    """This function runs analysis
+
+    With subfolder (one delta f model) the results go to
+    spvn_results_<id>/<subfolder> and the other models' results are kept.
+    """
     final_results_folder = path.join(final_results_folder,
                                      "spvn_results_{0:s}".format(event_id))
+    if subfolder:
+        makedirs(final_results_folder, exist_ok=True)
+        final_results_folder = path.join(final_results_folder, subfolder)
     if path.exists(final_results_folder):
         shutil.rmtree(final_results_folder)
     spvn_folder = "hadronic_afterburner_toolkit/results"
@@ -1454,8 +1504,14 @@ def run_spvn_analysis(urqmd_file_path,
     shutil.move(spvn_folder, final_results_folder)
 
 
-def check_an_event_is_good(event_folder):
+def check_an_event_is_good(event_folder, deltaf_models=None):
     """This function checks the given event contains all required files"""
+    if deltaf_models:
+        # one complete analysis per delta f model, each in deltaf_<name>
+        return all(
+            check_an_event_is_good(path.join(event_folder,
+                                             "deltaf_" + name))
+            for name, _ in deltaf_models)
     # Only require files that survive pruning: the identified-species v_n vs pT
     # arrays and the unidentified reference.
     required_patterns = [
@@ -1475,8 +1531,45 @@ def check_an_event_is_good(event_folder):
     return True
 
 
-def zip_results_into_hdf5(final_results_folder, event_id, para_dict):
-    """This function combines all the results into hdf5"""
+def _add_result_files(group, folder):
+    """Store every result file of folder as a dataset of group.
+
+    Sub-folders deltaf_<name> (one per delta f model) become sub-groups.
+    """
+    for file_path in sorted(glob(path.join(folder, "*"))):
+        file_name = file_path.split("/")[-1]
+        if path.isdir(file_path):
+            if file_name.startswith("deltaf_"):
+                _add_result_files(group.create_group(file_name), file_path)
+            continue
+        if "usedParameters" in file_name:
+            parafile = open(file_path)
+            for iline, rawline in enumerate(parafile.readlines()):
+                paraline = rawline.strip('\n')
+                group.attrs.create(f"{iline}", np.bytes_(paraline))
+        else:
+            dtemp = np.loadtxt(file_path, dtype="float32")
+            h5data = group.create_dataset(f"{file_name}",
+                                          data=dtemp,
+                                          compression="gzip",
+                                          compression_opts=9)
+            # save header
+            ftemp = open(file_path, "r")
+            header_text = str(ftemp.readline())
+            ftemp.close()
+            if header_text.startswith("#"):
+                h5data.attrs.create("header", np.bytes_(header_text))
+
+
+def zip_results_into_hdf5(final_results_folder, event_id, para_dict,
+                          deltaf_models=None):
+    """This function combines all the results into hdf5
+
+    With several delta f models the flow tables of each are stored in a
+    deltaf_<name> sub-group of spvn_results_<id> (attrs: the model list, and
+    per model its iSS overrides); hydro-level files stay at the top.  The
+    toolkit pT grid is recorded as attrs toolkit_pT_min/max, toolkit_npT.
+    """
     results_name = f"spvn_results_{event_id}"
     initial_state_filelist1 = [
         f'NcollList{event_id}.dat',
@@ -1524,7 +1617,7 @@ def zip_results_into_hdf5(final_results_folder, event_id, para_dict):
 
     spinfolder = path.join(final_results_folder, f"spin_results_{event_id}")
 
-    status = check_an_event_is_good(spvnfolder)
+    status = check_an_event_is_good(spvnfolder, deltaf_models)
     if status:
         curr_time = time.asctime()
         print("[{}] {} is good, converting results to hdf5".format(
@@ -1589,26 +1682,19 @@ def zip_results_into_hdf5(final_results_folder, event_id, para_dict):
 
         hf = h5py.File(f"{results_name}.h5", "w")
         gtemp = hf.create_group(f"{results_name}")
-        file_list = glob(path.join(spvnfolder, "*"))
-        for file_path in file_list:
-            file_name = file_path.split("/")[-1]
-            if "usedParameters" in file_name:
-                parafile = open(file_path)
-                for iline, rawline in enumerate(parafile.readlines()):
-                    paraline = rawline.strip('\n')
-                    gtemp.attrs.create(f"{iline}", np.bytes_(paraline))
-            else:
-                dtemp = np.loadtxt(file_path, dtype="float32")
-                h5data = gtemp.create_dataset(f"{file_name}",
-                                              data=dtemp,
-                                              compression="gzip",
-                                              compression_opts=9)
-                # save header
-                ftemp = open(file_path, "r")
-                header_text = str(ftemp.readline())
-                ftemp.close()
-                if header_text.startswith("#"):
-                    h5data.attrs.create("header", np.bytes_(header_text))
+        _add_result_files(gtemp, spvnfolder)
+        grid = toolkit_pt_grid()
+        if grid is not None:
+            gtemp.attrs.create("toolkit_pT_min", grid[0])
+            gtemp.attrs.create("toolkit_pT_max", grid[1])
+            gtemp.attrs.create("toolkit_npT", grid[2])
+        if deltaf_models:
+            gtemp.attrs.create(
+                "deltaf_models",
+                np.bytes_(",".join(name for name, _ in deltaf_models)))
+            for name, iss_args in deltaf_models:
+                gtemp["deltaf_" + name].attrs.create("iss_overrides",
+                                                     np.bytes_(iss_args))
         hf.close()
         shutil.move(f"{results_name}.h5", final_results_folder)
         shutil.rmtree(spvnfolder, ignore_errors=True)
@@ -1645,7 +1731,9 @@ def remove_unwanted_outputs(final_results_folder, event_id, para_dict):
 
     if not para_dict["save_urqmd"]:
         urqmd_results_name = "particle_list_{}.bin".format(event_id)
-        remove(path.join(final_results_folder, urqmd_results_name))
+        # absent when per-model particle lists were removed after analysis
+        if path.exists(path.join(final_results_folder, urqmd_results_name)):
+            remove(path.join(final_results_folder, urqmd_results_name))
 
     if para_dict["compute_photons"]:
         photonfolder = path.join(final_results_folder,
@@ -1732,7 +1820,8 @@ def main(para_dict_):
                 spvnfolder = path.join(final_results_folder,
                                        "spvn_results_{}".format(event_id))
                 if path.exists(spvnfolder):
-                    status = check_an_event_is_good(spvnfolder)
+                    status = check_an_event_is_good(
+                        spvnfolder, para_dict_.get('deltaf_models'))
             if status:
                 print(
                     "{} finished properly. No need to rerun.".format(event_id),
@@ -1846,46 +1935,88 @@ def main(para_dict_):
             exitErrorTrigger = True
             continue
 
-        # then run afterburner events in parallel
-        urqmd_success, urqmd_file_path = run_urqmd_shell(
-            n_urqmd, final_results_folder, event_id, para_dict_, startTime,
-            CHECKPOINT_FILENAME, para_dict_['afterburner_type'])
-        if not urqmd_success:
-            print("\U000026D4  {} did not finsh properly, skipped.".format(
-                urqmd_file_path),
-                  flush=True)
-            continue
+        deltaf_models = para_dict_.get('deltaf_models')
+        if deltaf_models and para_dict_['afterburner_type'] != "SMASH":
+            # One particlization per delta f model, on the same surface and
+            # with the same seeds, each analysed into
+            # spvn_results_<id>/deltaf_<name>.
+            models_ok = True
+            for imodel, (model_name, iss_args) in enumerate(deltaf_models):
+                if imodel > 0:
+                    # run_afterburner.sh removes the surface links it used
+                    prepare_surface_files_for_urqmd(
+                        final_results_folder, hydro_folder_name, nUrQMDFolder,
+                        para_dict_['afterburner_type'])
+                print("\U0001F9EE  [{}] delta f model {}: {}".format(
+                    time.asctime(), model_name, iss_args
+                    or "iSS_parameters.dat as is"),
+                      flush=True)
+                urqmd_success, urqmd_file_path = run_urqmd_shell(
+                    n_urqmd, final_results_folder, event_id, para_dict_,
+                    startTime, CHECKPOINT_FILENAME,
+                    para_dict_['afterburner_type'], iss_args=iss_args,
+                    tag=model_name)
+                if not urqmd_success:
+                    print("\U000026D4  {} did not finsh properly, skipped.".
+                          format(urqmd_file_path),
+                          flush=True)
+                    models_ok = False
+                    break
+                run_spvn_analysis(urqmd_file_path, num_threads,
+                                  final_results_folder, event_id, para_dict_,
+                                  subfolder="deltaf_" + model_name)
+                if not para_dict_["save_urqmd"]:
+                    remove(urqmd_file_path)
+            if not models_ok:
+                continue
 
-        #########################################################################################
-        if para_dict_['afterburner_type'] == "SMASH":
-            curr_time = time.asctime()
-            print(
-                f"\U0001F4BE [{curr_time}] SMASH is finished. "
-                f"Binary file saved in: {urqmd_file_path}",
-                flush=True)
-            status = run_smash_analysis(urqmd_file_path,
-                                        final_results_folder,
-                                        event_id,
-                                        analysis_mode="2D")
-        ##########################################################################################
-
-        else:
-
-            # finally collect results
-            run_spvn_analysis(urqmd_file_path, num_threads,
-                              final_results_folder, event_id, para_dict_)
-
-            # zip results into a hdf5 database
             status = zip_results_into_hdf5(final_results_folder, event_id,
-                                           para_dict_)
-
-            # the freeze-out sample count is only knowable once iSS has run and
-            # the flow analysis has counted the particles, so it is appended to
-            # the per-event diagnostic here rather than at the grid stage
+                                           para_dict_, deltaf_models)
             try:
                 append_flow_sample_counts(final_results_folder, event_id)
             except Exception:
                 pass
+        else:
+            # then run afterburner events in parallel
+            urqmd_success, urqmd_file_path = run_urqmd_shell(
+                n_urqmd, final_results_folder, event_id, para_dict_, startTime,
+                CHECKPOINT_FILENAME, para_dict_['afterburner_type'])
+            if not urqmd_success:
+                print("\U000026D4  {} did not finsh properly, skipped.".format(
+                    urqmd_file_path),
+                      flush=True)
+                continue
+
+            #########################################################################################
+            if para_dict_['afterburner_type'] == "SMASH":
+                curr_time = time.asctime()
+                print(
+                    f"\U0001F4BE [{curr_time}] SMASH is finished. "
+                    f"Binary file saved in: {urqmd_file_path}",
+                    flush=True)
+                status = run_smash_analysis(urqmd_file_path,
+                                            final_results_folder,
+                                            event_id,
+                                            analysis_mode="2D")
+            ##########################################################################################
+
+            else:
+
+                # finally collect results
+                run_spvn_analysis(urqmd_file_path, num_threads,
+                                  final_results_folder, event_id, para_dict_)
+
+                # zip results into a hdf5 database
+                status = zip_results_into_hdf5(final_results_folder, event_id,
+                                               para_dict_)
+
+                # the freeze-out sample count is only knowable once iSS has run and
+                # the flow analysis has counted the particles, so it is appended to
+                # the per-event diagnostic here rather than at the grid stage
+                try:
+                    append_flow_sample_counts(final_results_folder, event_id)
+                except Exception:
+                    pass
 
         # remove the unwanted outputs if event is finished properly
         if status:
@@ -2006,6 +2137,7 @@ if __name__ == "__main__":
         'free_stream_grid_max': FREE_STREAM_GRID_MAX,
         'free_stream_grid_step': FREE_STREAM_GRID_STEP,
         'adaptive_grid': ADAPTIVE_GRID,
+        'deltaf_models': read_deltaf_models(),
     }
 
     main(para_dict)
