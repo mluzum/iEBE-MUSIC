@@ -38,12 +38,16 @@ def parse_events(spec):
     return [int(x) for x in spec.split(",") if x.strip()]
 
 
-def run_one(ev, vdir, par, image, per_job, use_driver, nice, keep=False):
+def run_one(ev, vdir, par, image, per_job, use_driver, nice, keep=False,
+            binds=()):
     wd = os.path.join(vdir, "work", "ev%d" % ev)
     shutil.rmtree(wd, ignore_errors=True)
     os.makedirs(wd)
     cmd = ["docker", "run", "--rm", "--user", "%d:%d" % (os.getuid(), os.getgid()),
-           "-v", "%s:%s" % (vdir, vdir), "-w", wd, "--entrypoint", "nice", image,
+           "-v", "%s:%s" % (vdir, vdir), "-w", wd]
+    for src, dst in binds:
+        cmd += ["-v", "%s:%s:ro" % (src, dst)]
+    cmd += ["--entrypoint", "nice", image,
            "-n", str(nice), "bash", os.path.join(vdir, "rerun_event_inner.sh"),
            os.path.join(vdir, par), str(ev), str(per_job)]
     if use_driver:
@@ -93,12 +97,19 @@ def main():
                     help="events per OSG job in the campaign")
     ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--nice", type=int, default=10)
+    ap.add_argument("--bind", action="append", default=[],
+                    help="SRC:DST, mount a local file over one in the image "
+                         "(e.g. a patched iSS.e or a modified generate_jobs.py)")
     ap.add_argument("--keep", action="store_true",
                     help="keep each event's work folder (e.g. with "
                          "control_dict['save_hydro_surfaces'] = True)")
     args = ap.parse_args()
 
     events = parse_events(args.events)
+    binds = []
+    for b in args.bind:
+        src, dst = b.split(":", 1)
+        binds.append((os.path.abspath(src), dst))
     vdir = os.path.abspath(os.path.join(args.out, args.variant))
     os.makedirs(os.path.join(vdir, "results"), exist_ok=True)
     with open(args.param) as fh:
@@ -125,7 +136,7 @@ def main():
           (args.variant, len(todo), len(events) - len(todo), args.jobs), flush=True)
     with cf.ThreadPoolExecutor(args.jobs) as pool, open(logp, "a") as log:
         futs = [pool.submit(run_one, e, vdir, par, args.image, args.per_job,
-                            bool(args.driver), args.nice, args.keep)
+                            bool(args.driver), args.nice, args.keep, binds)
                 for e in todo]
         for f in cf.as_completed(futs):
             ev, rc, dt = f.result()
