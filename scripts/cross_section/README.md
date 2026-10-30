@@ -63,18 +63,25 @@ Per design point (`xsec_point.py`):
    design.
 
 Production settings: `n_conf = 2000`, `n_orient = 8`, `n_phi = 4`, `db = 0.2 fm`,
-20k + 20k TRENTo draws. The relative error is ~0.06% at w = 1.5 fm and ~0.09-0.10%
-at w = 0.5 fm, where the orientation spread is largest. An A96 point takes ~19 min
-on one core of qgp1-4, ~2.3x that on qgp (all hyperthreads busy) and ~9x on
-usphydro (3x lower KFlops; probably also memory-bound with 78 jobs), so usphydro is excluded
-from the A76 submit file. A96 used 613 core-h.
+20k + 20k TRENTo draws. The relative error is ~0.06% at w = 1.5 fm and up to
+~0.10% (A96) or ~0.115% (A76, larger beta_2) at w = 0.5 fm, where the orientation
+spread is largest. An A96 point takes ~19 min on one core of qgp1-4, ~2.3x that on
+qgp (all hyperthreads busy) and ~9x on usphydro (3x lower KFlops; probably also
+memory-bound with 78 jobs), so usphydro was excluded for A76. A96 used 613 core-h
+(about 4 h wall); A76 used 274 core-h (median 9 min per point, 2 h 15 min wall on 132
+slots).
 
 Because pools and orientations are shared, most of a point's error is common to
-all points. At A96 the per-point error is 0.076% (median), of which 0.074% is a
-common offset; the error of the *difference* between two random points is 0.028%,
-and 0.009% between nearest neighbours in the design. The common offset shifts
-every centrality by the same relative 0.07%; for an emulator the relevant noise is
-the point-to-point part.
+all points:
+
+| | per point (median) | common offset | two random points | nearest neighbours |
+|---|---|---|---|---|
+| A96 | 0.076% | 0.074% | 0.028% | 0.009% |
+| A76 | 0.085% | 0.085% | 0.028% | 0.008% |
+
+The last two columns are errors of the *difference* between two points. The
+common offset shifts every centrality by the same relative amount; for an emulator
+the relevant noise is the point-to-point part.
 
 ## Validation (2026-10-30, A96 dp1 / dp401 / dp715: w = 0.91 / 1.50 / 0.50 fm)
 
@@ -102,7 +109,9 @@ the point-to-point part.
     w = 1.5 fm).
 - The pruned integrator equals the unpruned one to 1e-15.
 
-## A96 results (2026-10-30)
+## Results (2026-10-30)
+
+### A96
 
 `/data/mluzum/cross_sections/a96/summary_a96.csv` (one row per point) and
 `cross_sections_a96.h5` (P(b) curves, per-pair sigma).
@@ -117,17 +126,35 @@ the point-to-point part.
 - Campaign hit fraction (945 points with draw records): pull sd 0.59, max |pull|
   2.01, mean +0.14%, within the campaign's own common fluctuation (~0.3%).
 - Tail share above the 60% threshold: median 0.07%, p90 0.29%, max 0.86% (dp65,
-  w = 1.44 fm). 18 points are above 0.5%, all at large w. At 50%: max 0.14%;
-  at 70%: median 0.71%, max 3.4%.
+  w = 1.44 fm). 18 points are above 0.5%, all with w >= 1.28 fm. At 50%: max
+  0.14%; at 70%: median 0.71%, max 3.4%.
 - dp0130 has one `events_drawn` row with status `no_trento` (no b, no mult; TRENTo
   did not run). The collector skips it, and it should not be counted in
   `N_drawn`.
+
+### A76
+
+`/data/mluzum/cross_sections/a76/summary_a76.csv` and `cross_sections_a76.h5`.
+- 1500/1500 points; `sigma_inel` = 385-627 fm^2, of which 78.0-94.6% is below
+  `b_max`.
+- Relative error: median 0.085%, max 0.115%. 227 points are above 0.1% and 12 above
+  0.11%, all with w <= 0.85 fm. Nearly all of it is the common offset (table above).
+- Edge bounds <= 8.1e-7 of `sigma_inel`.
+- TRENTo vs exact: pull sd 0.97, 4 of 1500 with |pull| > 3 (max 3.43; ~3 expected),
+  mean relative difference +0.043%, within the common offset (0.047-0.085%). A96
+  gave -0.028%: opposite signs, as expected of common offsets rather than a bias.
+- Campaign hit fraction (1339 points with draw records): pull sd 0.67, max |pull|
+  2.29, mean +0.16%.
+- Tail share above the 60% threshold: median 0.07%, p90 0.32%, max 0.84%
+  (dp1455, w = 1.47 fm; 60% lands at 59.50%, a 50-60% bin lacks ~4.7%). 31 points
+  are above 0.5%, all with w >= 1.13 fm. At 50%: max 0.16%; at 70%: median 0.68%,
+  max 3.2%.
 
 ## Running
 
 **Local HTCondor** (210 cores; every node sees `/data/mluzum` over NFS and has
 Singularity), one job per point. This is how A96 was run, from
-`/data/mluzum/cross_sections/a96/condor/`:
+`/data/mluzum/cross_sections/a96/condor/` (A76: `a76/condor/`, `seq 1 1500`):
 
     universe = vanilla
     executable = /data/mluzum/GeSe/scripts/cross_section/condor_xsec.sh
@@ -135,7 +162,7 @@ Singularity), one job per point. This is how A96 was run, from
     output = logs/dp$(point).out
     error = logs/dp$(point).err
     log = xsec_a96.log
-    requirements = (Machine != "usphydro")   # added for A76; see above
+    requirements = (Machine != "usphydro")   # A76 only; see above
     request_cpus = 1
     request_memory = 1000
     request_disk = 204800
@@ -178,7 +205,7 @@ section. The event ranked `r`-th by multiplicity is at centrality
 This holds while `tail_share` at `c` is negligible. When it is not, the ranking
 puts the campaign events too central: the threshold the formula calls `c` is truly
 at `naive_centrality_c` (`c (1 - tail_share_c)`). At 60% that is 59.49-60.00% for
-A96 (median 59.96%). The missing events are concentrated just above the threshold,
+A96 and 59.50-60.00% for A76 (median 59.96% for both). The missing events are concentrated just above the threshold,
 so a 50-60% bin at the worst point lacks ~4.7% of its events (dp65). The tail shares use
 TRENTo `mult` as a proxy for the experimental multiplicity estimator, whose extra
 fluctuations make the real share somewhat larger. `trento_tail_b_mult` in each
