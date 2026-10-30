@@ -241,6 +241,13 @@ defaults — prefer those over guessing flags.
   which refilled the table after only ~90 points. `osg_pull_results.sh` now keeps the 100
   tarballs per dp and verifies by listing archive contents; consolidation extracts one dp at a
   time into /tmp.
+- **A single `condor_rm -constraint` may remove only a fraction of a large queue.** Purging the
+  campaign-1 queue (21,508 jobs: `regexp("iEBEMUSIC_(ge76|zr96)_", JobBatchName)`) marked only
+  8,438 for removal; 10,015 idle jobs survived and were still visible afterwards.  Re-issuing the
+  removal (split per campaign: `iEBEMUSIC_ge76`, `iEBEMUSIC_zr96_`) cleared them within a minute.
+  When switching campaigns, verify `condor_q -af JobBatchName | grep -c <old pattern>` reaches 0
+  rather than trusting the one-shot command's "marked for removal" message.  Constrain on the
+  campaign prefix, not the campaign-2 name, so `zr96c2_` survives.
 - **The AP caps in-flight jobs at 50,000 per owner, and excess submissions are deferred, not
   rejected.** `condor_config_val -schedd MAX_JOBS_PER_OWNER` returns 50000. When the queue is at
   the cap, `condor_submit` still prints "submitted to cluster N" (the cluster object is created)
