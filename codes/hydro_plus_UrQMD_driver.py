@@ -104,6 +104,59 @@ def convert_matrix_to_table(infile,
     np.savetxt(outfile, table, fmt="%.6e", header=header, comments='')
 
 
+HBARC = 0.19733  # GeV fm
+
+
+def freestream_to_music_table(fs, outfile, grid_max):
+    """Write the Landau-matched free-streaming T^munu as a MUSIC table.
+
+    Same layout as convert_matrix_to_table (and a byte-identical e column), but
+    with u^mu and pi^munu filled in, so that MUSIC's Initial_profile picks what
+    hydro starts from: 92 reads e only (fluid at rest, as before), 91 adds
+    u^mu, 93 adds pi^munu, and 9 is the full T^munu, with MUSIC setting the
+    bulk pressure to e/3 - P_eos(e) so that P + Pi equals the conformal
+    free-streaming pressure.
+
+    MUSIC reads the table with the SLOW index as x, while the arrays keep
+    TRENTo's orientation (rows = y), so MUSIC's x axis is TRENTo's y axis.  That
+    is a reflection about x = y, which leaves every observable unchanged and is
+    what the e-only runs have always done; the vector and tensor components
+    are written in MUSIC's frame to match (u_x <- u^y, pi^xx <- pi^yy, ...).
+
+    Units: e in GeV/fm^3 (MUSIC divides by hbarc); pi^munu in 1/fm^4, because
+    MUSIC applies no hbarc factor to the viscous columns.  u^tau, pi^tau-mu
+    and pi^eta-eta are not read (MUSIC rebuilds them from normalization,
+    transversality and tracelessness); u^eta and pi^{x,y}eta vanish for
+    boost-invariant free streaming.  Cells without a timelike Landau frame
+    (e = 0) are written at rest with pi = 0.
+    """
+    e = fs.energy_density()
+    n_grid = e.shape[0]
+    step = 2.0*grid_max/n_grid
+    x = np.linspace(-grid_max + step/2, grid_max - step/2, n_grid)
+    X, Y = np.meshgrid(x, x, indexing='xy')
+
+    empty = e <= 0.
+    u = fs.flow_velocity()
+    pi = fs.shear_tensor()/HBARC
+    ux_m = np.where(empty, 0., u[..., 2])
+    uy_m = np.where(empty, 0., u[..., 1])
+    pixx_m = np.where(empty, 0., pi[..., 2, 2])
+    pixy_m = np.where(empty, 0., pi[..., 1, 2])
+    piyy_m = np.where(empty, 0., pi[..., 1, 1])
+
+    zeros = np.zeros(e.size)
+    table = np.column_stack([
+        zeros, X.ravel(), Y.ravel(), e.ravel(),
+        np.ones(e.size), ux_m.ravel(), uy_m.ravel(), zeros,
+        zeros, zeros, zeros, zeros,
+        pixx_m.ravel(), pixy_m.ravel(), zeros,
+        piyy_m.ravel(), zeros, zeros,
+    ])
+    header = f"# dummy 1 etamax= 0 xmax= {n_grid} ymax= {n_grid} deta= 0 dx= {step} dy= {step}"
+    np.savetxt(outfile, table, fmt="%.6e", header=header, comments='')
+
+
 ############################################################################################
 
 
@@ -751,12 +804,9 @@ def connect_trento_event(res_path, initial_type, filename, free_stream_tau,
         hydro_file = "hydro.dat"
         hydro_out = path.join(res_path, hydro_file)
 
-        n_grid = n_actual
-        convert_matrix_to_table(e_path,
-                                hydro_out,
-                                n_grid=n_grid,
-                                lower=-grid_max,
-                                upper=grid_max)
+        # Full T^munu table; MUSIC's Initial_profile decides how much of it
+        # hydro uses (92 = e only).
+        freestream_to_music_table(fs, hydro_out, grid_max)
         hydro_initial_file = "MUSIC/initial/e.dat"
         if path.exists(hydro_initial_file) or path.islink(hydro_initial_file):
             remove(hydro_initial_file)
