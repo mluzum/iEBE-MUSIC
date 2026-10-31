@@ -47,25 +47,23 @@ pull_one() {
   done
   if [ "$n" -eq 0 ]; then echo "$dp already_complete"; return; fi
 
-  # 3. bundle on the AP's local /tmp, so CephFS is read once and written never
-  bundle=/tmp/ibem_$dp.tar
-  err=$(ssh $SSH_OPTS osg "cd $BASE/$dp && rm -f $bundle && tar cf $bundle $missing" 2>&1)
-  if [ $? -ne 0 ]; then
-    echo "$dp TAR_FAIL n=$n: $(echo "$err" | tail -1)"
-    ssh $SSH_OPTS osg "rm -f $bundle" 2>/dev/null
-    return
-  fi
-
-  # 4. one transfer, then unpack
-  if scp -q $SSH_OPTS "osg:$bundle" "$dest/.bundle.tar" 2>/dev/null; then
-    tar xf "$dest/.bundle.tar" -C "$dest" && rm -f "$dest/.bundle.tar"
-    m=$(ls "$dest"/*.tar.gz 2>/dev/null | wc -l)
-    echo "$dp pulled=$n local_total=$m"
+  # 3+4. stream the missing files straight into the destination.
+  # No remote temp file: the AP's /tmp (/dev/md3) has a 128 MB per-user quota
+  # and a full augmentation bundle is ~180 MB, so a remote temp file fails with
+  # "Wrote only 4096 of 10240 bytes" for exactly the points that need the most
+  # (dp22-139 here), while points missing only ~100 archives succeed -- an
+  # interleaved pattern that looks like flakiness and is not.
+  if ssh $SSH_OPTS osg "cd $BASE/$dp && tar cf - $missing" > "$dest/.bundle.tar" 2>"$dest/.bundle.err"; then
+    if tar xf "$dest/.bundle.tar" -C "$dest" 2>>"$dest/.bundle.err"; then
+      m=$(ls "$dest"/*.tar.gz 2>/dev/null | wc -l)
+      echo "$dp pulled=$n local_total=$m"
+    else
+      echo "$dp EXTRACT_FAIL n=$n: $(tail -1 "$dest/.bundle.err")"
+    fi
   else
-    echo "$dp SCP_FAIL n=$n"
-    rm -f "$dest/.bundle.tar"
+    echo "$dp STREAM_FAIL n=$n: $(tail -1 "$dest/.bundle.err")"
   fi
-  ssh $SSH_OPTS osg "rm -f $bundle" 2>/dev/null
+  rm -f "$dest/.bundle.tar" "$dest/.bundle.err"
 }
 export -f pull_one
 export BASE LOCAL SSH_OPTS
