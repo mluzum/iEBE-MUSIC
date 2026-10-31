@@ -71,7 +71,14 @@ PY
       ;;
     keep*)
       set -- $verdict
-      echo "$dp KEEP events=$2 missing_local=$3 e.g.$4"
+      if [ "${FORCE:-0}" = 1 ]; then
+        # Accepted loss: the events exist only here.  Recorded, not silently
+        # dropped, so the gap in the local merged file stays identifiable.
+        ssh $SSH_OPTS osg "rm -rf $remote" 2>/dev/null
+        echo "$dp deleted_unverified events=$2 missing_local=$3"
+      else
+        echo "$dp KEEP events=$2 missing_local=$3 e.g.$4"
+      fi
       ;;
     *)
       echo "$dp VERIFY_FAIL"
@@ -79,7 +86,7 @@ PY
   esac
 }
 export -f verify_and_delete
-export BASE LOCAL SSH_OPTS APPLY
+export BASE LOCAL SSH_OPTS APPLY FORCE
 if [ -n "${DP_LIST:-}" ]; then LIST=$(cat "$DP_LIST"); else LIST=$(seq $DARGS); fi
 printf '%s\n' $LIST | xargs -P "$PAR" -I{} bash -c 'verify_and_delete {}' 2>&1
 echo DIRLAYOUT_PRUNE_DONE
