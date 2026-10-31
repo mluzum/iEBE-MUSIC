@@ -239,6 +239,21 @@ defaults — prefer those over guessing flags.
   header plus a gzip stream, which is also why the per-event h5 is 456 KB while the
   same data is only 168 KB inside the job tarball. Only whole-file gzip wins
   (156 KB/event, 63 %), so it belongs in cold storage, not in the merger.
+- **A campaign's reproduction package lives inside its results tree**, not in the
+  repo: `/data/mluzum/zr96c2_results/merged/REPRODUCTION/`, written by
+  `scripts/build_reproduction_package.py`.  It carries the SIF md5 plus the md5 of
+  each built binary, the framework revision, the design with the commands that
+  regenerate it, all 1,000 dictionaries, the resolved dictionary, the exact submit
+  file and wrapper, and two scripts that re-derive the design and the
+  dictionaries.  The counts inside are a snapshot, so re-run the generator when
+  the campaign finishes; the provenance is final.
+- **The published pin, not HEAD, is what a reader can check out.**
+  `mluzum/iEBE-MUSIC` branch `NME` has `17ae5b4` (the container pin) and every
+  input needed to reproduce campaign 2 -- verified that the design and all 1,000
+  dictionaries regenerate byte-identically from it.  Local commits after
+  `d47e433` touch only submit-side tooling and are **not pushed**, so never point
+  a reproduction instruction at `HEAD` (or at `origin`, which is
+  `jppicchetti/iEBE-MUSIC` and has none of this).
 - **Local `/data` is mergerfs over `/mnt/data1..5`, and `df` hides per-branch inode exhaustion.**
   The branch holding the repo/results hit **953,888/953,888 inodes = 100%** while `df -h` showed
   3.6 TB free; every write then failed with `No space left on device` (including a 10 KB

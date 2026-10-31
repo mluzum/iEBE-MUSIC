@@ -382,6 +382,10 @@ def build(args):
     facts["check_design"] = "PASS" if (parent_ok and design_ok) else "FAIL"
     facts["check_dicts"] = "PASS" if dict_ok else "FAIL"
     facts["dict_diff"] = dict_diff[:2000] if dict_diff else "no differences"
+    facts["drawn_upper"] = state["job_archives"] * EVENTS_PER_JOB
+    facts["delivered_pct"] = ("%.1f" % (100.0 * state["events"] /
+                                        facts["drawn_upper"])
+                              if facts["drawn_upper"] else "n/a")
     facts["artifact_table"] = "\n".join(
         "%s  %s" % (v, k) for k, v in sorted(image.get("hashes", {}).items()))
     facts["toolchain"] = "; ".join(image.get("toolchain", []))
@@ -421,9 +425,8 @@ python3 scripts/remap_design_prior.py --prior a96 --range normalization=6,13 \\
 
 Verified when this package was written: **{{check_design}}**.
 
-The first command writes `design/design_lhs2000_A96.csv` (included here as
-`design_lhs2000_A96_campaign1_parent.csv`), the A=96 design with the *campaign
-1* normalization prior 3-10.  The second maps that one axis onto 6-13 through
+The first command writes `design/design_lhs2000_A96.csv` (included here under
+that name), the A=96 design with the *campaign 1* normalization prior 3-10.  The second maps that one axis onto 6-13 through
 each point's unit-cube coordinate and copies every other column, the labels and
 the row order verbatim; because both intervals are 7 wide, the mapping is a
 shift of +3.  Nothing is redrawn, so `design_000k` is the same normalized point
@@ -432,7 +435,9 @@ paired comparisons across campaigns valid.
 
 ## Axes and priors
 
-20 design axes, 4 fixed columns.  `sigma_k` is not passed to TRENTo: it enters
+25 columns: a label, the 20 design axes (columns 2-21) and 4 fixed columns
+(`shear_relax_time_factor`, `bulk_viscosity_3_lambda_asymm`, `shape_distribution`
+= `plane`, `number_nucleons` = 96).  `sigma_k` is not passed to TRENTo: it enters
 as `fluctuation = 1/sigma_k**2`.  `gamma` is degrees here and radians in the
 isobar configuration (MakeDictionaries converts).  `number_nucleons` is 96 and
 is *not* a design axis.  Full table of ranges: `design/A96_priors.md` in the
@@ -698,8 +703,13 @@ them.  Peak RSS is a few hundred MB.
 An event whose freeze-out surface is empty (very peripheral, tiny fireball)
 produces no h5 and is skipped; the job still exits 73.  There must be **no**
 `periodic_remove` on exit code 73 -- it races the output transfer and makes all
-{{events_per_job}} events vanish with no hold reason.  A 3% - 5% drawn-event
-loss is normal and those events are re-run individually.
+{{events_per_job}} events vanish with no hold reason.  A 1-3 % drawn-event loss
+is normal (an empty freeze-out surface) and those events are re-run
+individually.
+
+At the time this package was written the merged files held {{events}} of at most
+{{drawn_upper}} drawn events ({{delivered_pct}} %); the shortfall is mostly
+archives still in flight, since the campaign was running.
 
 ## Reproducing the submission
 
@@ -883,8 +893,13 @@ produced: the container, the code revision, the design, the parameters and the
 seeds.
 
 **State of the results when this package was written ({{generated}}):**
-{{merged_points}} design points merged, built from {{archives}} job archives
-(~{{events}} events).
+{{merged_points}} design points merged, {{archives}} job archives,
+{{events}} events in the merged files.
+
+Everything about *provenance* above is final.  The counts are a snapshot if the
+campaign is still running; re-run
+`python3 scripts/build_reproduction_package.py` (in the framework repo) to
+refresh them and the hashes below.
 
 ## The four things that determine a result
 
