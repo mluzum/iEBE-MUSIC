@@ -225,8 +225,20 @@ defaults — prefer those over guessing flags.
   (verified: same group names, same 46 datasets, values equal). `scripts/consolidate_dps.sh`
   uses it and records `merged/<dp>/sources.txt` (number of archives merged); a dp is re-merged
   automatically when its source count changes (`100 -> 300 -> 500` as augmentation batches
-  land) and only when the count is a multiple of 100, so a half-delivered batch never
-  produces a partial file.
+  land) and once it reaches `MIN_SOURCES` (default 90), so a half-delivered batch never
+  produces a partial file. `MIN_SOURCES` is 90, not 100, because a 100-job batch ends
+  with 96-99 archives: events whose freeze-out surface is empty produce no h5, so a
+  ">= 100" gate never merged a single-batch point at all (campaign-2 A=96 sat at 33
+  points pulled, 0 merged until `2efabae`).
+- **The merged h5 is written uncompressed on purpose — do not "fix" that.** Merged
+  cost is ~253 KB per event (campaign 2, three `deltaf_*` models, 100 pT bins) against
+  a 204 KB raw payload, i.e. ~24 % HDF5 metadata, and ~1.5 TB for 6,000 events at
+  1,000 design points. Compressing each dataset the way the per-event files are
+  (gzip 9, chunk = full shape) makes the merged file **1.8x larger** (442 KB/event):
+  every event contributes 98 tiny arrays that are too small to amortise a chunk
+  header plus a gzip stream, which is also why the per-event h5 is 456 KB while the
+  same data is only 168 KB inside the job tarball. Only whole-file gzip wins
+  (156 KB/event, 63 %), so it belongs in cold storage, not in the merger.
 - **Local `/data` is mergerfs over `/mnt/data1..5`, and `df` hides per-branch inode exhaustion.**
   The branch holding the repo/results hit **953,888/953,888 inodes = 100%** while `df -h` showed
   3.6 TB free; every write then failed with `No space left on device` (including a 10 KB
