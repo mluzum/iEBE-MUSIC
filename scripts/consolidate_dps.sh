@@ -23,6 +23,10 @@ PROD=${IBEM_PROD:-/data/mluzum/ge76_results/prod}
 OUT=${IBEM_OUT:-/data/mluzum/ge76_results/merged}
 MERGE=/data/mluzum/GeSe/scripts/merge_dp_h5.py
 TMP=/tmp/opencode/merge_tmp
+# A complete batch of 100 jobs yields ~96-99 archives (some events have empty
+# freeze-out surfaces), so requiring 100 sources would never merge a
+# single-batch point.  Treat a batch as complete at MIN_SOURCES.
+MIN_SOURCES=${MIN_SOURCES:-90}
 mkdir -p "$OUT" "$TMP" || exit 1
 
 # Source fingerprint for a dp: how many archives and how many packed dir blocks
@@ -56,7 +60,7 @@ if [ -z "$LIST" ]; then
     dp=$(basename "$d")
     fp=$(src_fingerprint "$d")
     n=$(src_total "$d")
-    [ "$n" -ge 100 ] || continue
+    [ "$n" -ge "$MIN_SOURCES" ] || continue
     if [ -s "$OUT/$dp/$dp.h5" ] && [ "$(cat "$OUT/$dp/sources.txt" 2>/dev/null)" = "$fp" ]; then
       continue
     fi
@@ -72,7 +76,7 @@ one() {
   d=$PROD/$dp
   fp=$(src_fingerprint "$d")
   n=$(src_total "$d")
-  if [ "$n" -lt 100 ]; then echo "$dp SKIP sources=$n"; return; fi
+  if [ "$n" -lt "$MIN_SOURCES" ]; then echo "$dp SKIP sources=$n"; return; fi
   if [ -s "$odir/$dp.h5" ] && [ "$(cat "$odir/sources.txt" 2>/dev/null)" = "$fp" ]; then
     echo "$dp up-to-date ($fp)"; return
   fi
@@ -107,6 +111,6 @@ one() {
   rm -rf "$tmpd"
   echo "$dp DONE $(du -h "$odir/$dp.h5" | cut -f1) sources=$n [$fp]"
 }
-export -f one src_fingerprint src_total; export PROD OUT MERGE TMP
+export -f one src_fingerprint src_total; export MIN_SOURCES export PROD OUT MERGE TMP
 xargs -P 2 -n 1 bash -c 'one "$0"' < "$LIST"
 echo CONSOLIDATION_DONE
