@@ -8,9 +8,9 @@ the build host and saved as
 `f52426284ebb281b813f21d931bd847a`, 515575808 bytes).  Not done: publishing the SIF,
 generating the campaign-2 dictionaries, the A=76 cross sections at the new
 sigma_NN, staging and submission (steps 5-9 below).  Physics background and
-all numbers:
-`/data/Scripts/soft-sector-data-curation/docs/isobar_flow_investigation.md`
-(sections 5-9).
+all numbers: the soft-sector investigation log,
+`/data/Scripts/soft-sector-workbench/docs/isobar_flow_investigation.md`
+(sections 5-9; private repository mluzum/soft-sector-workbench).
 
 ## 1. What changes relative to the first zr96 / ge76 campaigns
 
@@ -184,10 +184,16 @@ Measured on this host (48 cores, 1 thread per event, loaded machine):
 - attrs `deltaf_models = "Grad22,CE,PTB"`, `toolkit_pT_min = 0.0`,
   `toolkit_pT_max = 5.0`, `toolkit_npT = 100`.
 
-Readers must choose a model.  The soft-sector pipeline does
-(`run_pipeline.py --sim isobar --deltaf-model CE`, grid read from the
-attrs); analysisKit still expects the flat layout and needs the same change
-before it can read campaign-2 files.
+Readers must choose a model.  The soft-sector pipeline
+(github.com/mluzum/soft-sector-data-curation) reads the merged files through
+the campaign's simulation package, `/data/mluzum/zr96c2_results/sim_package`
+(`run_pipeline.py --sim-package <package> --variant CE`; grid read from the
+attrs).  Its reader is `sim_adapters/iebe_music.py` in
+github.com/mluzum/soft-sector-sim-adapters: a change to this output format,
+or a new campaign's merged results, needs the matching change there
+(`campaigns/<name>/`, then `tools/deploy_package.py`).  analysisKit still
+expects the flat layout and needs the same change before it can read
+campaign-2 files.
 
 ## 6. Validation done (all on zr96 dp0583 / dp0291 events, campaign image)
 
